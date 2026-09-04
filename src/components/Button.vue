@@ -35,29 +35,29 @@ const handleClick = (event: MouseEvent) => {
 const variantClasses = computed(() => {
   switch (props.variant) {
     case 'primary':
-      return 'bg-primary hover:bg-green-700 text-white shadow-md shadow-green-950/30 border border-green-500/20'
+      return 'bg-white hover:bg-gray-100 text-gray-950 font-bold shadow-md shadow-black/20 border border-white'
     case 'secondary':
-      return 'bg-secondary hover:bg-blue-700 text-white shadow-md shadow-blue-950/30 border border-blue-500/20'
+      return 'bg-secondary hover:bg-blue-600 text-white shadow-md shadow-blue-950/30 border border-blue-400/20'
     case 'danger':
-      return 'bg-danger hover:bg-red-700 text-white shadow-md shadow-red-950/30 border border-red-500/20'
+      return 'bg-danger hover:bg-red-600 text-white shadow-md shadow-red-950/30 border border-red-400/20'
     case 'ghost':
       return 'bg-transparent hover:bg-surface-hover text-gray-300 hover:text-white border border-transparent'
     case 'outline':
       return 'bg-transparent border border-gray-700 hover:border-gray-500 text-gray-200 hover:bg-surface-hover'
     default:
-      return 'bg-primary text-white'
+      return 'bg-white text-gray-950 font-bold'
   }
 })
 
 const sizeClasses = computed(() => {
   switch (props.size) {
     case 'sm':
-      return 'px-3 py-1.5 text-xs rounded-md'
+      return 'px-2.5 py-1 text-xs rounded-md'
     case 'lg':
-      return 'px-6 py-3.5 text-base font-semibold rounded-xl'
+      return 'px-4 py-2 text-sm font-semibold rounded-lg'
     case 'md':
     default:
-      return 'px-4 py-2.5 text-sm font-medium rounded-lg'
+      return 'px-3.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg'
   }
 })
 </script>

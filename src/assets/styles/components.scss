@@ -1,7 +1,7 @@
 .btn-primary {
   background-color: var(--color-primary);
-  color: #ffffff;
-  font-weight: 600;
+  color: var(--color-primary-text, #020617);
+  font-weight: 700;
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   display: inline-flex;
@@ -10,12 +10,12 @@
   gap: 0.5rem;
   transition: all 0.2s ease-in-out;
   cursor: pointer;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 
   &:hover {
     background-color: var(--color-primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
   }
 
   &:active {

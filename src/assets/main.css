@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --color-primary: #ffffff;
+  --color-primary-hover: #f1f5f9;
+  --color-primary-text: #020617;
+
+  --color-brand-green: #22c55e;
+  --color-brand-blue: #3b82f6;
+
+  --color-secondary: #3b82f6;
+  --color-secondary-hover: #2563eb;
+  --color-danger: #ef4444;
+
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-hover: #334155;
+  --color-card: #1e293b;
+  --color-border: #334155;
+
+  --color-text: #f8fafc;
+  --color-text-muted: #cbd5e1;
+}
