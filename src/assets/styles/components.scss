@@ -1,0 +1,36 @@
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  border: none;
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.card-surface {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-color: rgba(5, 150, 105, 0.4);
+  }
+}
