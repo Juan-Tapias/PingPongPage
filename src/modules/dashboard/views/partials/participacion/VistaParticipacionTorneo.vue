@@ -82,7 +82,7 @@
             @click="tabActiva = 'playoffs'"
           >
             <Crown class="w-3.5 h-3.5 text-amber-300" />
-            <span>Playoffs (Concéntrico)</span>
+            <span>Eliminatorias</span>
           </button>
         </div>
       </div>
