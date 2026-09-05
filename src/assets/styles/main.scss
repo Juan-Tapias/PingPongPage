@@ -1,6 +1,6 @@
-@import "./fonts.scss";
-@import "./primitives.scss";
-@import "./components.scss";
+@use "./fonts.scss";
+@use "./primitives.scss";
+@use "./components.scss";
 
 *, *::before, *::after {
   font-family: var(--font-body);
