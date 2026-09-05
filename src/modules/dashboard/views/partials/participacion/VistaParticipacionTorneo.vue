@@ -70,6 +70,20 @@
             <ListOrdered class="w-3.5 h-3.5" />
             <span>Tabla de posiciones</span>
           </button>
+
+          <button
+            type="button"
+            :class="[
+              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+              tabActiva === 'playoffs'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            ]"
+            @click="tabActiva = 'playoffs'"
+          >
+            <Crown class="w-3.5 h-3.5 text-amber-300" />
+            <span>Playoffs (Concéntrico)</span>
+          </button>
         </div>
       </div>
     </div>
@@ -157,6 +171,14 @@
       <TablaPosicionesGrupo :posiciones="tablaPosiciones" />
     </div>
 
+    <!-- VISTA DE PLAYOFFS EN CÍRCULOS CONCÉNTRICOS -->
+    <div v-show="tabActiva === 'playoffs'" class="w-full">
+      <EliminatoriasConcentric
+        :filas-posiciones="tablaPosiciones"
+        @abrir-espectador="handleAbrirEspectador"
+      />
+    </div>
+
     <ModalDetalleRival
       ref="modalDetalleRef"
       :burbuja="burbujaSeleccionada"
@@ -190,10 +212,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ArrowLeft, Activity, ListOrdered, RotateCcw, ShieldCheck } from 'lucide-vue-next'
+import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import RuedaBurbujas from './RuedaBurbujas.vue'
 import TablaPosicionesGrupo from './TablaPosicionesGrupo.vue'
+import EliminatoriasConcentric from './EliminatoriasConcentric.vue'
 import ModalDetalleRival from './ModalDetalleRival.vue'
 import ModalMarcadorRival from './ModalMarcadorRival.vue'
 import ModalArbitraje from '../arbitraje/ModalArbitraje.vue'
@@ -211,7 +234,7 @@ defineEmits<{
   (e: 'volver'): void
 }>()
 
-const tabActiva = ref<'grafica' | 'posiciones'>('grafica')
+const tabActiva = ref<'grafica' | 'posiciones' | 'playoffs'>('grafica')
 
 const {
   usuarioActual,
@@ -273,5 +296,16 @@ const handlePartidoFinalizado = (datos: {
   ganadorId: string
 }) => {
   registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId)
+}
+
+const handleAbrirEspectador = (partidoId: string) => {
+  const match = partidosDisponiblesParaArbitrar.value.find((p) => p.partido.id === partidoId)
+  if (match) {
+    partidoEnMarcador.value = match
+    modalMarcadorVirtualRef.value?.open()
+  } else {
+    // Si es un partido de playoff, configuramos la sala en vivo
+    window.alert(`Ingresando a la sala en vivo como Espectador (Partido ${partidoId})`)
+  }
 }
 </script>

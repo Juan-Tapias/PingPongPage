@@ -218,17 +218,32 @@ const posicionesRivales = computed(() => {
 
 const obtenerColorBorde = (burbuja: BurbujaRival): string => {
   if (props.torneo.estado === 'por iniciar') {
-    return '#94a3b8' // Gris para no jugados
+    return '#64748b' // Gris para no jugados
+  }
+
+  if (burbuja.colorBorde) {
+    switch (burbuja.colorBorde) {
+      case 'verde':
+        return '#10b981' // Verde: Victoria
+      case 'rojo':
+        return '#ef4444' // Rojo: Derrota
+      case 'azul_pulsante':
+        return '#38bdf8' // Azul pulsante: En vivo
+      case 'naranja':
+        return '#f97316' // Naranja: Pendiente Admin (>48h)
+      case 'gris':
+      default:
+        return '#64748b' // Gris: Pendiente
+    }
   }
 
   switch (burbuja.resultadoParaCentro) {
     case 'ganado':
-      return '#10b981' // Verde: Gané
+      return '#10b981'
     case 'perdido':
-      return '#ef4444' // Rojo: Perdí
-    case 'pendiente':
+      return '#ef4444'
     default:
-      return '#94a3b8' // Gris: No jugado
+      return '#64748b'
   }
 }
 

@@ -5,6 +5,8 @@ import type {
   BurbujaRival,
   FilaPosicion,
   ResultadoPartido,
+  EstadoPartido,
+  ColorBordeBurbuja,
   Torneo,
   SetPartido,
   PartidoArbitrable,
@@ -27,21 +29,26 @@ export function useTorneoGrupo(torneo: Torneo) {
     nombre: 'Sebastián Tapias',
     iniciales: 'ST',
     telefono: '310 987 6543',
+    tipo: 'camper',
     esUsuarioActual: true,
   }
 
   const jugadores = ref<JugadorTorneo[]>([
     usuarioActual,
-    { id: 'j-1', nombre: 'Carlos Mendoza', iniciales: 'CM', telefono: '312 456 7890' },
-    { id: 'j-2', nombre: 'David Gómez', iniciales: 'DG', telefono: '314 567 8901' },
-    { id: 'j-3', nombre: 'Andrés Silva', iniciales: 'AS', telefono: '316 678 9012' },
-    { id: 'j-4', nombre: 'Mateo Fernández', iniciales: 'MF', telefono: '318 789 0123' },
-    { id: 'j-5', nombre: 'Alejandro Vargas', iniciales: 'AV', telefono: '320 890 1234' },
-    { id: 'j-6', nombre: 'Camilo Ruiz', iniciales: 'CR', telefono: '322 901 2345' },
-    { id: 'j-7', nombre: 'Javier Ortiz', iniciales: 'JO', telefono: '311 234 5678' },
-    { id: 'j-8', nombre: 'Lucas Morales', iniciales: 'LM', telefono: '313 345 6789' },
-    { id: 'j-9', nombre: 'Felipe Torres', iniciales: 'FT', telefono: '315 456 7891' },
-    { id: 'j-10', nombre: 'Daniel Castro', iniciales: 'DC', telefono: '317 567 8902' },
+    { id: 'j-1', nombre: 'Carlos Mendoza', iniciales: 'CM', telefono: '312 456 7890', tipo: 'camper' },
+    { id: 'j-2', nombre: 'David Gómez', iniciales: 'DG', telefono: '314 567 8901', tipo: 'trabajador' },
+    { id: 'j-3', nombre: 'Andrés Silva', iniciales: 'AS', telefono: '316 678 9012', tipo: 'camper' },
+    { id: 'j-4', nombre: 'Mateo Fernández', iniciales: 'MF', telefono: '318 789 0123', tipo: 'trabajador' },
+    { id: 'j-5', nombre: 'Alejandro Vargas', iniciales: 'AV', telefono: '320 890 1234', tipo: 'camper' },
+    { id: 'j-6', nombre: 'Camilo Ruiz', iniciales: 'CR', telefono: '322 901 2345', tipo: 'camper' },
+    { id: 'j-7', nombre: 'Javier Ortiz', iniciales: 'JO', telefono: '311 234 5678', tipo: 'trabajador' },
+    { id: 'j-8', nombre: 'Lucas Morales', iniciales: 'LM', telefono: '313 345 6789', tipo: 'camper' },
+    { id: 'j-9', nombre: 'Felipe Torres', iniciales: 'FT', telefono: '315 456 7891', tipo: 'trabajador' },
+    { id: 'j-10', nombre: 'Daniel Castro', iniciales: 'DC', telefono: '317 567 8902', tipo: 'camper' },
+    { id: 'j-11', nombre: 'Nicolás Herrera', iniciales: 'NH', telefono: '319 678 9013', tipo: 'camper' },
+    { id: 'j-12', nombre: 'Valentina Ríos', iniciales: 'VR', telefono: '321 789 0124', tipo: 'trabajador' },
+    { id: 'j-13', nombre: 'Santiago Peña', iniciales: 'SP', telefono: '323 890 1235', tipo: 'camper' },
+    { id: 'j-14', nombre: 'Sofía Martínez', iniciales: 'SM', telefono: '325 901 2346', tipo: 'camper' },
   ])
 
   const jugadorEnCentro = ref<JugadorTorneo>(usuarioActual)
@@ -64,11 +71,8 @@ export function useTorneoGrupo(torneo: Torneo) {
       id: 'p-yo-2',
       jugador1Id: 'j-yo',
       jugador2Id: 'j-2',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-2',
-      marcador: esPorIniciar ? undefined : '1 - 3',
-      marcadorDetallado: esPorIniciar ? undefined : '9-11, 11-8, 7-11, 8-11',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
+      estado: esPorIniciar ? 'pendiente' : 'pendiente_admin',
+      diasRestantes: 0,
       ronda: 2,
     },
     {
@@ -87,7 +91,7 @@ export function useTorneoGrupo(torneo: Torneo) {
       jugador1Id: 'j-yo',
       jugador2Id: 'j-4',
       estado: 'pendiente',
-      diasRestantes: 2, // Rival actual de turno a las 12 en punto
+      diasRestantes: 2, // Rival de turno a las 12 en punto
       ronda: 4,
     },
     {
@@ -95,7 +99,7 @@ export function useTorneoGrupo(torneo: Torneo) {
       jugador1Id: 'j-yo',
       jugador2Id: 'j-5',
       estado: 'pendiente',
-      diasRestantes: 2, // El plazo se reinicia a 2 días al pasar a este rival
+      diasRestantes: 2,
       ronda: 5,
     },
     {
@@ -326,6 +330,19 @@ export function useTorneoGrupo(torneo: Torneo) {
           ganadorNombre = jugador.nombre
         }
       }
+      // Color del borde de la burbuja orbital:
+      // Verde: Victoria (partidos ya jugados a la derecha)
+      // Rojo: Derrota (partidos ya jugados a la derecha)
+      // Naranja: Pendiente Administrador (partidos vencidos a la derecha)
+      // Gris: No jugado / Pendiente (rival a las 12 y todos los pendientes futuros a la izquierda)
+      let colorBorde: ColorBordeBurbuja = 'gris'
+      if (partido.estado === 'jugado') {
+        colorBorde = resultadoParaCentro === 'ganado' ? 'verde' : 'rojo'
+      } else if (partido.estado === 'pendiente_admin') {
+        colorBorde = 'naranja'
+      } else {
+        colorBorde = 'gris'
+      }
 
       const esRivalDeTurno = index === 0 && torneo.estado === 'en curso'
       const diasRestantes = esRivalDeTurno ? (partido.diasRestantes ?? 2) : 2
@@ -335,6 +352,8 @@ export function useTorneoGrupo(torneo: Torneo) {
         jugador,
         partido,
         resultadoParaCentro,
+        estadoPartido: partido.estado,
+        colorBorde,
         esRivalDeTurno,
         diasRestantes,
         marcador: partido.marcador,
