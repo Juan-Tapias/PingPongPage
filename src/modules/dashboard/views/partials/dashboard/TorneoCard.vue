@@ -76,7 +76,7 @@
       </div>
     </div>
 
-    <div v-if="torneo.estado !== 'finalizado'" class="mt-5 pt-3 border-t border-slate-100">
+    <div class="mt-5 pt-3 border-t border-slate-100">
       <Button
         v-if="torneo.subestado === 'PENDIENTE'"
         variant="amber"
@@ -111,6 +111,19 @@
         <Eye class="w-3.5 h-3.5 mr-2 text-slate-300" />
         <span>Ver mi participación</span>
         <ArrowRight class="w-3.5 h-3.5 ml-1.5" />
+      </Button>
+
+      <Button
+        v-else-if="torneo.estado === 'finalizado'"
+        variant="outline"
+        size="md"
+        block
+        class="border-slate-300 text-slate-800 hover:bg-slate-100 font-bold cursor-pointer"
+        @click="emit('verTorneo', torneo)"
+      >
+        <Trophy class="w-3.5 h-3.5 mr-2 text-amber-500" />
+        <span>Ver resultados del torneo</span>
+        <ArrowRight class="w-3.5 h-3.5 ml-1.5 text-slate-400" />
       </Button>
     </div>
   </div>

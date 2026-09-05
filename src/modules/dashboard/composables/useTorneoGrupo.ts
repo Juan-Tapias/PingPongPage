@@ -23,6 +23,12 @@ export function generarCodigoSeguridad(jugadorId: string, rivalId: string): stri
   return pin.toString()
 }
 
+export interface MalleroTorneo {
+  jugador: JugadorTorneo
+  totalMallas: number
+  titulo: string
+}
+
 export function useTorneoGrupo(torneo: Torneo) {
   const usuarioActual: JugadorTorneo = {
     id: 'j-yo',
@@ -575,6 +581,62 @@ export function useTorneoGrupo(torneo: Torneo) {
     }))
   })
 
+  // -------------------------------------------------------------
+  // CÁLCULO DE "EL MÁS MALLERO" DEL TORNEO (ACUMULADO DE MALLAS)
+  // -------------------------------------------------------------
+  const mallasPorJugador = computed<Map<string, number>>(() => {
+    const mapa = new Map<string, number>()
+    jugadores.value.forEach((j) => mapa.set(j.id, 0))
+
+    const mockMallas: Record<string, number> = {
+      'j-4': 14,
+      'j-1': 11,
+      'j-3': 9,
+      'j-yo': 8,
+      'j-5': 6,
+      'j-2': 5,
+    }
+    Object.entries(mockMallas).forEach(([id, cant]) => {
+      mapa.set(id, cant)
+    })
+
+    // Sumar de los sets registrados en tiempo real por los árbitros
+    partidos.value.forEach((p) => {
+      if (p.sets && p.sets.length > 0) {
+        p.sets.forEach((set) => {
+          const acum1 = mapa.get(p.jugador1Id) || 0
+          const acum2 = mapa.get(p.jugador2Id) || 0
+          mapa.set(p.jugador1Id, acum1 + (set.mallasJugador1 || 0))
+          mapa.set(p.jugador2Id, acum2 + (set.mallasJugador2 || 0))
+        })
+      }
+    })
+
+    return mapa
+  })
+
+  const jugadorMasMallero = computed<MalleroTorneo | null>(() => {
+    let mejorJugadorId: string | null = null
+    let maxMallas = -1
+
+    mallasPorJugador.value.forEach((mallas, jId) => {
+      if (mallas > maxMallas) {
+        maxMallas = mallas
+        mejorJugadorId = jId
+      }
+    })
+
+    if (!mejorJugadorId || maxMallas <= 0) return null
+    const jugador = jugadores.value.find((j) => j.id === mejorJugadorId)
+    if (!jugador) return null
+
+    return {
+      jugador,
+      totalMallas: maxMallas,
+      titulo: `El más mallero de ${torneo.nombre}`,
+    }
+  })
+
   return {
     usuarioActual,
     jugadores,
@@ -591,5 +653,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     partidosDisponiblesParaArbitrar,
     validarCodigosArbitraje,
     registrarResultadoPartido,
+    mallasPorJugador,
+    jugadorMasMallero,
   }
 }

@@ -172,7 +172,6 @@
 
             <div
               class="bg-black rounded-xl sm:rounded-3xl border border-white/10 p-2 sm:p-4 md:p-5 flex flex-col justify-between items-center relative overflow-hidden shadow-2xl">
-              -->
               <div
                 class="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 border-b border-white/10 pb-1.5 sm:pb-2">
                 <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">

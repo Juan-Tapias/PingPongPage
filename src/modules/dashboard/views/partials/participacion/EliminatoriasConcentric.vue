@@ -531,108 +531,93 @@
       </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- MODAL DE DETALLE DEL PARTIDO DE PLAYOFF -->
-    <!-- ============================================== -->
+
     <Modal
       ref="modalPlayoffRef"
-      title="Enfrentamiento de Eliminatorias"
-      :sub-title="partidoSeleccionado ? `Ronda: ${formatearRonda(partidoSeleccionado.ronda)}` : ''"
-      width="md"
+      title="Marcador del Partido"
+      :sub-title="partidoSeleccionado ? `${formatearRonda(partidoSeleccionado.ronda)} • Llave ${partidoSeleccionado.numeroLlave}` : 'Información del encuentro'"
+      width="sm"
       :footer="false"
     >
-      <div v-if="partidoSeleccionado" class="space-y-4 py-1">
-        <!-- Tarjeta de enfrentamiento cara a cara -->
-        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-          <!-- Jugador 1 -->
-          <div class="flex flex-col items-center text-center gap-1.5 min-w-0">
-            <div
-              :class="[
-                'w-12 h-12 rounded-full flex items-center justify-center font-black text-sm text-white shadow-xs',
-                partidoSeleccionado.jugador1?.esUsuarioActual ? 'bg-emerald-700' : 'bg-slate-800'
-              ]"
-            >
-              {{ partidoSeleccionado.jugador1?.iniciales || '?' }}
-            </div>
-            <span class="text-xs font-black text-slate-800 truncate w-full">
+      <div v-if="partidoSeleccionado" class="flex flex-col items-center text-center gap-4 py-2">
+        <!-- Ícono de Estado / Trofeo -->
+        <div
+          class="w-13 h-13 rounded-full flex items-center justify-center font-bold text-white shadow-sm"
+          :class="partidoSeleccionado.estado === 'jugado' ? 'bg-emerald-600' : partidoSeleccionado.estado === 'en_curso' ? 'bg-sky-600' : 'bg-slate-700'"
+        >
+          <Trophy v-if="partidoSeleccionado.estado === 'jugado'" class="w-6 h-6 text-white" />
+          <Activity v-else-if="partidoSeleccionado.estado === 'en_curso'" class="w-6 h-6 text-white animate-pulse" />
+          <Clock v-else class="w-6 h-6 text-slate-300" />
+        </div>
+
+        <!-- Nombre del Ganador o Título del Estado -->
+        <div class="space-y-1">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            {{ partidoSeleccionado.estado === 'jugado' ? 'Ganador del Encuentro' : partidoSeleccionado.estado === 'en_curso' ? 'Partido en Mesa' : 'Partido Programado' }}
+          </span>
+          <h3 class="text-base sm:text-lg font-black text-slate-900">
+            {{ obtenerNombreGanador(partidoSeleccionado) }}
+          </h3>
+        </div>
+
+        <!-- Cuadro Destacado del Marcador -->
+        <div class="w-full bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-col items-center justify-center gap-1 shadow-2xs">
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+            {{ partidoSeleccionado.estado === 'jugado' ? 'Marcador Final (Sets)' : partidoSeleccionado.estado === 'en_curso' ? 'Marcador en Vivo' : 'Marcador' }}
+          </span>
+          <span
+            class="text-3xl sm:text-4xl font-black font-mono tracking-tight"
+            :class="partidoSeleccionado.estado === 'jugado' ? 'text-emerald-700' : partidoSeleccionado.estado === 'en_curso' ? 'text-sky-700' : 'text-slate-400'"
+          >
+            {{ partidoSeleccionado.marcador || '0 - 0' }}
+          </span>
+          <span v-if="partidoSeleccionado.marcadorDetallado" class="text-xs text-slate-600 font-mono font-bold mt-1 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+            Sets: {{ partidoSeleccionado.marcadorDetallado }}
+          </span>
+        </div>
+
+        <!-- Desglose de Jugadores y Sets -->
+        <div class="w-full grid grid-cols-2 gap-2 text-xs">
+          <div
+            class="p-2.5 rounded-xl border flex flex-col items-center gap-1"
+            :class="partidoSeleccionado.ganadorId === partidoSeleccionado.jugador1?.id ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'"
+          >
+            <span class="font-bold text-slate-800 truncate w-full text-center">
               {{ partidoSeleccionado.jugador1?.nombre || 'Por definir' }}
             </span>
             <span
-              v-if="partidoSeleccionado.jugador1?.esUsuarioActual"
-              class="text-[9px] font-extrabold bg-emerald-700 text-white px-1.5 py-0.5 rounded"
+              class="font-mono text-sm font-black"
+              :class="partidoSeleccionado.ganadorId === partidoSeleccionado.jugador1?.id ? 'text-emerald-700' : 'text-slate-500'"
             >
-              Tú
-            </span>
-            <span v-else-if="partidoSeleccionado.esBye" class="text-[9px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
-              Clasificado BYE
+              {{ obtenerScoreJugador(partidoSeleccionado, 1) }} sets
             </span>
           </div>
 
-          <!-- VS / Marcador -->
-          <div class="flex flex-col items-center justify-center px-2">
-            <span v-if="partidoSeleccionado.marcador" class="text-2xl font-black font-mono text-emerald-700">
-              {{ partidoSeleccionado.marcador }}
-            </span>
-            <span v-else class="text-xs font-black text-slate-400 uppercase">
-              VS
-            </span>
-            <span :class="['text-[9px] font-extrabold uppercase mt-1 px-2 py-0.5 rounded', obtenerClaseBadgeEstado(partidoSeleccionado.estado)]">
-              {{ formatearEstado(partidoSeleccionado.estado) }}
-            </span>
-          </div>
-
-          <!-- Jugador 2 -->
-          <div class="flex flex-col items-center text-center gap-1.5 min-w-0">
-            <div
-              :class="[
-                'w-12 h-12 rounded-full flex items-center justify-center font-black text-sm text-white shadow-xs',
-                partidoSeleccionado.jugador2?.esUsuarioActual ? 'bg-emerald-700' : 'bg-slate-800'
-              ]"
-            >
-              {{ partidoSeleccionado.jugador2?.iniciales || '?' }}
-            </div>
-            <span class="text-xs font-black text-slate-800 truncate w-full">
+          <div
+            class="p-2.5 rounded-xl border flex flex-col items-center gap-1"
+            :class="partidoSeleccionado.ganadorId === partidoSeleccionado.jugador2?.id ? 'bg-emerald-50/70 border-emerald-300' : 'bg-white border-slate-200'"
+          >
+            <span class="font-bold text-slate-800 truncate w-full text-center">
               {{ partidoSeleccionado.jugador2?.nombre || 'Por definir' }}
             </span>
             <span
-              v-if="partidoSeleccionado.jugador2?.esUsuarioActual"
-              class="text-[9px] font-extrabold bg-emerald-700 text-white px-1.5 py-0.5 rounded"
+              class="font-mono text-sm font-black"
+              :class="partidoSeleccionado.ganadorId === partidoSeleccionado.jugador2?.id ? 'text-emerald-700' : 'text-slate-500'"
             >
-              Tú
+              {{ obtenerScoreJugador(partidoSeleccionado, 2) }} sets
             </span>
           </div>
         </div>
 
-        <!-- Marcador detallado de sets si ya se jugó -->
-        <div v-if="partidoSeleccionado.marcadorDetallado" class="p-3 bg-white border border-slate-200 rounded-xl">
-          <span class="text-[10px] font-black uppercase text-slate-400 block mb-1">
-            Puntaje por Sets
-          </span>
-          <span class="text-xs font-bold font-mono text-slate-800">
-            {{ partidoSeleccionado.marcadorDetallado }}
-          </span>
-        </div>
-
-        <!-- Botones de Acción -->
-        <div class="flex items-center gap-2 pt-2">
+        <!-- Botón Cerrar Único -->
+        <div class="w-full pt-2">
           <Button
             variant="outline"
             size="md"
-            class="flex-1 justify-center cursor-pointer"
+            class="w-full justify-center cursor-pointer font-bold"
             @click="modalPlayoffRef?.close()"
           >
             Cerrar
-          </Button>
-
-          <Button
-            v-if="partidoSeleccionado.estado === 'en_curso'"
-            variant="primary"
-            size="md"
-            class="flex-1 justify-center gap-1.5 font-bold cursor-pointer"
-            @click="entrarComoEspectador"
-          >
-            <Radio class="w-4 h-4 text-white animate-pulse" />
-            <span>Ver como Espectador</span>
           </Button>
         </div>
       </div>
@@ -641,8 +626,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Crown, Trophy, Compass, Sparkles, ChevronRight, Radio } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { Crown, Trophy, Compass, Sparkles, ChevronRight, Activity, Clock } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import { usePlayoffs } from '@/modules/dashboard/composables/usePlayoffs'
@@ -650,10 +635,6 @@ import type { FilaPosicion, PartidoPlayoff, RondaPlayoff, EstadoPartido } from '
 
 const props = defineProps<{
   filasPosiciones: FilaPosicion[]
-}>()
-
-const emit = defineEmits<{
-  (e: 'abrir-espectador', partidoId: string): void
 }>()
 
 const modoVista = ref<'completo' | 'mi-camino'>('completo')
@@ -741,15 +722,23 @@ const formatearRonda = (ronda: RondaPlayoff): string => {
   }
 }
 
+const obtenerNombreGanador = (partido: PartidoPlayoff | null): string => {
+  if (!partido) return ''
+  if (partido.ganadorId) {
+    if (partido.jugador1?.id === partido.ganadorId) return partido.jugador1.nombre
+    if (partido.jugador2?.id === partido.ganadorId) return partido.jugador2.nombre
+  }
+  if (partido.estado === 'jugado') {
+    return partido.jugador1?.nombre ?? 'Ganador'
+  }
+  if (partido.estado === 'en_curso') {
+    return `${partido.jugador1?.nombre || 'J1'} vs ${partido.jugador2?.nombre || 'J2'}`
+  }
+  return `${partido.jugador1?.nombre || 'Por definir'} vs ${partido.jugador2?.nombre || 'Por definir'}`
+}
+
 const abrirDetallePartido = (partido: PartidoPlayoff) => {
   partidoSeleccionado.value = partido
   modalPlayoffRef.value?.open()
-}
-
-const entrarComoEspectador = () => {
-  if (partidoSeleccionado.value) {
-    emit('abrir-espectador', partidoSeleccionado.value.id)
-    modalPlayoffRef.value?.close()
-  }
 }
 </script>

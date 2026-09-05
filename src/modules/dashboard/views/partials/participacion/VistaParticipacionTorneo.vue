@@ -89,6 +89,79 @@
     </div>
 
     <div
+      v-if="torneo.estado === 'finalizado'"
+      class="w-full grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300"
+    >
+      <div
+        v-if="jugadorMasMallero"
+        class="flex items-center justify-between gap-4 p-4.5 rounded-2xl bg-linear-to-r from-emerald-500/10 via-emerald-500/5 to-white border border-emerald-300 shadow-xs"
+      >
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-xs shrink-0">
+            🏓
+          </div>
+          <div class="min-w-0">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+              Reconocimiento Especial
+            </span>
+            <h4 class="text-sm sm:text-base font-black text-slate-900 truncate mt-1">
+              {{ jugadorMasMallero.titulo }}
+            </h4>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="text-xs font-bold text-slate-700 truncate">
+                {{ jugadorMasMallero.jugador.nombre }}
+              </span>
+              <span
+                v-if="jugadorMasMallero.jugador.esUsuarioActual"
+                class="text-[9px] font-black bg-emerald-700 text-white px-1.5 py-0.2 rounded shrink-0"
+              >
+                Tú
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-end shrink-0 pl-2">
+          <span class="text-2xl sm:text-3xl font-black font-mono text-emerald-700 leading-none">
+            {{ jugadorMasMallero.totalMallas }}
+          </span>
+          <span class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mt-1">
+            Mallas
+          </span>
+        </div>
+      </div>
+
+      <!-- RECONOCIMIENTO: CAMPEÓN DEL TORNEO -->
+      <div class="flex items-center justify-between gap-4 p-4.5 rounded-2xl bg-linear-to-r from-amber-500/10 via-amber-500/5 to-white border border-amber-300 shadow-xs">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-12 h-12 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xl shadow-xs shrink-0">
+            👑
+          </div>
+          <div class="min-w-0">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
+              Gran Campeón
+            </span>
+            <h4 class="text-sm sm:text-base font-black text-slate-900 truncate mt-1">
+              Ganador del Torneo
+            </h4>
+            <p class="text-xs text-slate-600 font-bold">
+              Bolsa acumulada: $90.000 COP
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-end shrink-0 pl-2">
+          <span class="text-2xl sm:text-3xl font-black font-mono text-amber-600 leading-none">
+            100%
+          </span>
+          <span class="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider mt-1">
+            Bolsa
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div
       v-if="esVistaRival"
       class="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-900"
     >
@@ -175,11 +248,10 @@
       <TablaPosicionesGrupo :posiciones="tablaPosiciones" />
     </div>
 
-    <!-- VISTA DE PLAYOFFS EN CÍRCULOS CONCÉNTRICOS -->
+    <!-- VISTA DE ELIMINATORIAS (PLAYOFFS) -->
     <div v-show="tabActiva === 'playoffs'" class="w-full">
       <EliminatoriasConcentric
         :filas-posiciones="tablaPosiciones"
-        @abrir-espectador="handleAbrirEspectador"
       />
     </div>
 
@@ -200,7 +272,6 @@
       :arbitro="arbitroActual"
       :jugadores-torneo="jugadores"
       :partidos-disponibles="partidosDisponiblesParaArbitrar"
-      @cambiar-arbitro="setArbitroActual"
       @validar-codigos="handleValidarCodigos"
       @iniciar-partido="handleIniciarPartidoArbitrado"
     />
@@ -256,6 +327,7 @@ const {
   partidosDisponiblesParaArbitrar,
   validarCodigosArbitraje,
   registrarResultadoPartido,
+  jugadorMasMallero,
 } = useTorneoGrupo(props.torneo)
 
 const modalDetalleRef = ref<InstanceType<typeof ModalDetalleRival> | null>(null)
@@ -300,16 +372,5 @@ const handlePartidoFinalizado = (datos: {
   ganadorId: string
 }) => {
   registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId)
-}
-
-const handleAbrirEspectador = (partidoId: string) => {
-  const match = partidosDisponiblesParaArbitrar.value.find((p) => p.partido.id === partidoId)
-  if (match) {
-    partidoEnMarcador.value = match
-    modalMarcadorVirtualRef.value?.open()
-  } else {
-    // Si es un partido de playoff, configuramos la sala en vivo
-    window.alert(`Ingresando a la sala en vivo como Espectador (Partido ${partidoId})`)
-  }
 }
 </script>
