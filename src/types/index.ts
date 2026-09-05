@@ -71,16 +71,30 @@ export interface JugadorTorneo {
   esUsuarioActual?: boolean
 }
 
+export interface SetPartido {
+  setNumero: number
+  puntosJugador1: number
+  puntosJugador2: number
+  mallasJugador1: number
+  mallasJugador2: number
+  ganadorId?: string
+}
+
 export interface PartidoGrupo {
   id: string
   jugador1Id: string
   jugador2Id: string
   jugadorGanadorId?: string
-  marcador?: string          // ej: "3 - 1"
-  marcadorDetallado?: string // ej: "11-8, 9-11, 11-7, 11-9"
+  marcador?: string          // ej: "2 - 1"
+  marcadorDetallado?: string // ej: "11-8, 9-11, 11-7"
   estado: 'jugado' | 'pendiente'
   diasRestantes: number      // 2: "2 días", 1: "1 día", <= 0: "Partido perdido"
   ronda?: number
+  // Seguridad y arbitraje
+  codigoJugador1?: string    // PIN de 5 dígitos dinámico por rival
+  codigoJugador2?: string    // PIN de 5 dígitos dinámico por rival
+  arbitroId?: string         // Id del jugador que oficia como árbitro
+  sets?: SetPartido[]        // Historial de sets jugados (mejor de 3)
 }
 
 export interface BurbujaRival {
@@ -91,6 +105,13 @@ export interface BurbujaRival {
   diasRestantes: number
   marcador?: string
   ganadorNombre?: string
+  codigoSeguridadPropio?: string       // Código de 5 dígitos que este jugador debe dictarle al árbitro
+}
+
+export interface PartidoArbitrable {
+  partido: PartidoGrupo
+  jugador1: JugadorTorneo
+  jugador2: JugadorTorneo
 }
 
 export interface FilaPosicion {

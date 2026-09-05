@@ -31,34 +31,46 @@
         </div>
       </div>
 
-      <div class="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto">
-        <button
-          type="button"
-          :class="[
-            'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
-            tabActiva === 'grafica'
-              ? 'bg-emerald-700 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          ]"
-          @click="tabActiva = 'grafica'"
+      <div class="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+        <Button
+          variant="outline"
+          size="sm"
+          class="gap-1.5 border-emerald-600 text-emerald-800 hover:bg-emerald-50 cursor-pointer font-bold"
+          @click="abrirModalArbitraje"
         >
-          <Activity class="w-3.5 h-3.5" />
-          <span>Gráfica</span>
-        </button>
+          <ShieldCheck class="w-4 h-4 text-emerald-700" />
+          <span>Arbitrar un partido</span>
+        </Button>
 
-        <button
-          type="button"
-          :class="[
-            'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
-            tabActiva === 'posiciones'
-              ? 'bg-emerald-700 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          ]"
-          @click="tabActiva = 'posiciones'"
-        >
-          <ListOrdered class="w-3.5 h-3.5" />
-          <span>Tabla de posiciones</span>
-        </button>
+        <div class="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+          <button
+            type="button"
+            :class="[
+              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+              tabActiva === 'grafica'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            ]"
+            @click="tabActiva = 'grafica'"
+          >
+            <Activity class="w-3.5 h-3.5" />
+            <span>Gráfica</span>
+          </button>
+
+          <button
+            type="button"
+            :class="[
+              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+              tabActiva === 'posiciones'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            ]"
+            @click="tabActiva = 'posiciones'"
+          >
+            <ListOrdered class="w-3.5 h-3.5" />
+            <span>Tabla de posiciones</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -155,21 +167,41 @@
       ref="modalMarcadorRef"
       :burbuja="burbujaMarcadorSeleccionada"
     />
+
+    <!-- MODAL PARA QUE UN JUGADOR REGISTRADO ARBITRE (EXCLUYE SU PARTIDO) -->
+    <ModalArbitraje
+      ref="modalArbitrajeRef"
+      :arbitro="arbitroActual"
+      :jugadores-torneo="jugadores"
+      :partidos-disponibles="partidosDisponiblesParaArbitrar"
+      @cambiar-arbitro="setArbitroActual"
+      @validar-codigos="handleValidarCodigos"
+      @iniciar-partido="handleIniciarPartidoArbitrado"
+    />
+
+    <!-- MODAL MARCADOR VIRTUAL TEMÁTICO DE MESA DE PING PONG -->
+    <ModalMarcadorVirtual
+      ref="modalMarcadorVirtualRef"
+      :match="partidoEnMarcador"
+      @partido-finalizado="handlePartidoFinalizado"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ArrowLeft, Activity, ListOrdered, RotateCcw } from 'lucide-vue-next'
+import { ArrowLeft, Activity, ListOrdered, RotateCcw, ShieldCheck } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import RuedaBurbujas from './RuedaBurbujas.vue'
 import TablaPosicionesGrupo from './TablaPosicionesGrupo.vue'
 import ModalDetalleRival from './ModalDetalleRival.vue'
 import ModalMarcadorRival from './ModalMarcadorRival.vue'
+import ModalArbitraje from './ModalArbitraje.vue'
+import ModalMarcadorVirtual from './ModalMarcadorVirtual.vue'
 import CardAvanceTorneo from './CardAvanceTorneo.vue'
 import CardInfoRival from './CardInfoRival.vue'
 import { useTorneoGrupo } from '@/modules/dashboard/composables/useTorneoGrupo'
-import type { Torneo, BurbujaRival } from '@/types'
+import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido } from '@/types'
 
 const props = defineProps<{
   torneo: Torneo
@@ -182,6 +214,8 @@ defineEmits<{
 const tabActiva = ref<'grafica' | 'posiciones'>('grafica')
 
 const {
+  usuarioActual,
+  jugadores,
   jugadorEnCentro,
   rivalesPerimetro,
   rivalDeTurno,
@@ -190,13 +224,25 @@ const {
   verVistaRival,
   volverAMiVista,
   tablaPosiciones,
+  arbitroActual,
+  setArbitroActual,
+  partidosDisponiblesParaArbitrar,
+  validarCodigosArbitraje,
+  registrarResultadoPartido,
 } = useTorneoGrupo(props.torneo)
 
 const modalDetalleRef = ref<InstanceType<typeof ModalDetalleRival> | null>(null)
 const modalMarcadorRef = ref<InstanceType<typeof ModalMarcadorRival> | null>(null)
+const modalArbitrajeRef = ref<InstanceType<typeof ModalArbitraje> | null>(null)
+const modalMarcadorVirtualRef = ref<InstanceType<typeof ModalMarcadorVirtual> | null>(null)
 
 const burbujaSeleccionada = ref<BurbujaRival | null>(null)
 const burbujaMarcadorSeleccionada = ref<BurbujaRival | null>(null)
+const partidoEnMarcador = ref<PartidoArbitrable | null>(null)
+
+const abrirModalArbitraje = () => {
+  modalArbitrajeRef.value?.open()
+}
 
 const handleAbrirDetalleRival = (burbuja: BurbujaRival) => {
   burbujaSeleccionada.value = burbuja
@@ -206,5 +252,26 @@ const handleAbrirDetalleRival = (burbuja: BurbujaRival) => {
 const handleAbrirMarcadorRival = (burbuja: BurbujaRival) => {
   burbujaMarcadorSeleccionada.value = burbuja
   modalMarcadorRef.value?.open()
+}
+
+const handleValidarCodigos = (
+  datos: { partidoId: string; codigo1: string; codigo2: string },
+  callback: (res: { valido: boolean; mensaje: string }) => void,
+) => {
+  const resultado = validarCodigosArbitraje(datos.partidoId, datos.codigo1, datos.codigo2)
+  callback(resultado)
+}
+
+const handleIniciarPartidoArbitrado = (datos: { partidoArbitrable: PartidoArbitrable }) => {
+  partidoEnMarcador.value = datos.partidoArbitrable
+  modalMarcadorVirtualRef.value?.open()
+}
+
+const handlePartidoFinalizado = (datos: {
+  partidoId: string
+  sets: SetPartido[]
+  ganadorId: string
+}) => {
+  registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId)
 }
 </script>

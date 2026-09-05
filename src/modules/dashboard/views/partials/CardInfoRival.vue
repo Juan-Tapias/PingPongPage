@@ -16,15 +16,12 @@
       </div>
     </div>
 
-    <!-- Datos básicos: Teléfono (solo texto plano) y Plazo límite -->
     <div class="space-y-2 text-xs">
-      <!-- Teléfono: Solo texto plano -->
       <div class="flex items-center justify-between py-1 border-b border-slate-100">
         <span class="font-semibold text-slate-500">Teléfono:</span>
         <span class="font-bold font-mono text-slate-800 select-all">{{ rival.jugador.telefono }}</span>
       </div>
 
-      <!-- Plazo límite reglamentario (2 días) -->
       <div class="flex items-center justify-between py-1">
         <span class="font-semibold text-slate-500">Plazo para jugar:</span>
         <span class="inline-flex items-center gap-1 font-extrabold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
@@ -32,9 +29,18 @@
           {{ rival.diasRestantes >= 2 ? '2 días' : rival.diasRestantes === 1 ? '1 día' : 'Partido perdido' }}
         </span>
       </div>
+
+      <div v-if="rival.codigoSeguridadPropio" class="flex items-center justify-between py-1 border-t border-slate-100">
+        <div class="flex items-center gap-1.5">
+          <KeyRound class="w-3.5 h-3.5 text-sky-600" />
+          <span class="font-semibold text-slate-500">Tu PIN para árbitro:</span>
+        </div>
+        <span class="font-black font-mono tracking-widest text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-200 select-all">
+          {{ rival.codigoSeguridadPropio }}
+        </span>
+      </div>
     </div>
 
-    <!-- Probabilidad para ganarle -->
     <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col gap-1.5">
       <div class="flex items-center justify-between text-xs">
         <span class="font-bold text-slate-700">Probabilidad para ganarle</span>
@@ -57,7 +63,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Clock } from 'lucide-vue-next'
+import { Clock, KeyRound } from 'lucide-vue-next'
 import type { BurbujaRival } from '@/types'
 
 const props = defineProps<{
@@ -67,6 +73,6 @@ const props = defineProps<{
 const probabilidadGanancia = computed(() => {
   if (!props.rival) return 50
   const seed = props.rival.jugador.nombre.length
-  return 60 + (seed % 15) // Dinámico entre 60% y 74%
+  return 60 + (seed % 15) 
 })
 </script>

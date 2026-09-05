@@ -58,6 +58,16 @@
           </div>
         </div>
 
+        <div v-if="burbuja.partido.estado === 'pendiente' && burbuja.codigoSeguridadPropio" class="flex items-center justify-between py-2">
+          <div class="flex items-center gap-1.5">
+            <KeyRound class="w-3.5 h-3.5 text-sky-600" />
+            <span class="text-xs font-semibold text-slate-500">Tu PIN para árbitro:</span>
+          </div>
+          <span class="text-xs font-black font-mono tracking-widest text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-200 select-all">
+            {{ burbuja.codigoSeguridadPropio }}
+          </span>
+        </div>
+
         <div v-if="burbuja.partido.estado === 'jugado'" class="flex items-center justify-between py-2">
           <span class="text-xs font-semibold text-slate-500">Marcador final:</span>
           <span class="text-xs font-extrabold font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
@@ -91,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Clock, AlertTriangle, Eye } from 'lucide-vue-next'
+import { Clock, AlertTriangle, Eye, KeyRound } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { BurbujaRival, JugadorTorneo } from '@/types'

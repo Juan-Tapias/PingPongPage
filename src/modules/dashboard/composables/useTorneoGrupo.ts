@@ -6,7 +6,20 @@ import type {
   FilaPosicion,
   ResultadoPartido,
   Torneo,
+  SetPartido,
+  PartidoArbitrable,
 } from '@/types'
+
+export function generarCodigoSeguridad(jugadorId: string, rivalId: string): string {
+  let hash = 0
+  const combinacion = `${jugadorId}::vs::${rivalId}`
+  for (let i = 0; i < combinacion.length; i++) {
+    hash = (hash << 5) - hash + combinacion.charCodeAt(i)
+    hash |= 0
+  }
+  const pin = (Math.abs(hash) % 90000) + 10000
+  return pin.toString()
+}
 
 export function useTorneoGrupo(torneo: Torneo) {
   const usuarioActual: JugadorTorneo = {
@@ -186,7 +199,71 @@ export function useTorneoGrupo(torneo: Torneo) {
       estado: esPorIniciar ? 'pendiente' : 'jugado',
       diasRestantes: 2,
     },
+
+    {
+      id: 'p-1-5',
+      jugador1Id: 'j-1',
+      jugador2Id: 'j-5',
+      estado: 'pendiente',
+      diasRestantes: 2,
+      ronda: 4,
+    },
+    {
+      id: 'p-2-6',
+      jugador1Id: 'j-2',
+      jugador2Id: 'j-6',
+      estado: 'pendiente',
+      diasRestantes: 2,
+      ronda: 4,
+    },
+    {
+      id: 'p-3-7',
+      jugador1Id: 'j-3',
+      jugador2Id: 'j-7',
+      estado: 'pendiente',
+      diasRestantes: 2,
+      ronda: 4,
+    },
+    {
+      id: 'p-4-8',
+      jugador1Id: 'j-4',
+      jugador2Id: 'j-8',
+      estado: 'pendiente',
+      diasRestantes: 2,
+      ronda: 4,
+    },
+    {
+      id: 'p-5-6',
+      jugador1Id: 'j-5',
+      jugador2Id: 'j-6',
+      estado: 'pendiente',
+      diasRestantes: 2,
+      ronda: 5,
+    },
+    {
+      id: 'p-7-8',
+      jugador1Id: 'j-7',
+      jugador2Id: 'j-8',
+      estado: 'pendiente',
+      diasRestantes: 2,
+      ronda: 5,
+    },
+    {
+      id: 'p-9-10',
+      jugador1Id: 'j-9',
+      jugador2Id: 'j-10',
+      estado: 'pendiente',
+      diasRestantes: 2,
+      ronda: 5,
+    },
   ])
+
+  partidos.value.forEach((p) => {
+    if (!p.codigoJugador1 || !p.codigoJugador2) {
+      p.codigoJugador1 = generarCodigoSeguridad(p.jugador1Id, p.jugador2Id)
+      p.codigoJugador2 = generarCodigoSeguridad(p.jugador2Id, p.jugador1Id)
+    }
+  })
 
   const buscarPartido = (idA: string, idB: string): PartidoGrupo => {
     const encontrado = partidos.value.find(
@@ -195,15 +272,25 @@ export function useTorneoGrupo(torneo: Torneo) {
         (p.jugador1Id === idB && p.jugador2Id === idA),
     )
 
-    if (encontrado) return encontrado
+    if (encontrado) {
+      if (!encontrado.codigoJugador1 || !encontrado.codigoJugador2) {
+        encontrado.codigoJugador1 = generarCodigoSeguridad(encontrado.jugador1Id, encontrado.jugador2Id)
+        encontrado.codigoJugador2 = generarCodigoSeguridad(encontrado.jugador2Id, encontrado.jugador1Id)
+      }
+      return encontrado
+    }
 
-    return {
+    const nuevo: PartidoGrupo = {
       id: `p-${idA}-${idB}`,
       jugador1Id: idA,
       jugador2Id: idB,
       estado: 'pendiente',
       diasRestantes: 2,
+      codigoJugador1: generarCodigoSeguridad(idA, idB),
+      codigoJugador2: generarCodigoSeguridad(idB, idA),
     }
+    partidos.value.push(nuevo)
+    return nuevo
   }
 
   const rivalesPerimetro = computed<BurbujaRival[]>(() => {
@@ -241,8 +328,8 @@ export function useTorneoGrupo(torneo: Torneo) {
       }
 
       const esRivalDeTurno = index === 0 && torneo.estado === 'en curso'
-
       const diasRestantes = esRivalDeTurno ? (partido.diasRestantes ?? 2) : 2
+      const codigoSeguridadPropio = generarCodigoSeguridad(centroId, jugador.id)
 
       return {
         jugador,
@@ -252,6 +339,7 @@ export function useTorneoGrupo(torneo: Torneo) {
         diasRestantes,
         marcador: partido.marcador,
         ganadorNombre,
+        codigoSeguridadPropio,
       }
     })
   })
@@ -270,6 +358,98 @@ export function useTorneoGrupo(torneo: Torneo) {
 
   const volverAMiVista = () => {
     jugadorEnCentro.value = usuarioActual
+  }
+
+  // ==========================================
+  // ARBITRAJE DE PARTIDOS
+  // ==========================================
+  const arbitroActual = ref<JugadorTorneo>(usuarioActual)
+
+  const setArbitroActual = (jugador: JugadorTorneo) => {
+    arbitroActual.value = jugador
+  }
+
+  // Partidos pendientes que el árbitro puede oficiar (excluye si el árbitro es jugador en esa ronda)
+  const partidosDisponiblesParaArbitrar = computed<PartidoArbitrable[]>(() => {
+    const aId = arbitroActual.value.id
+    return partidos.value
+      .filter((p) => p.estado === 'pendiente' && p.jugador1Id !== aId && p.jugador2Id !== aId)
+      .map((p) => {
+        const jugador1 = jugadores.value.find((j) => j.id === p.jugador1Id) ?? {
+          id: p.jugador1Id,
+          nombre: 'Jugador 1',
+          iniciales: 'J1',
+          telefono: '300 000 0000',
+        }
+        const jugador2 = jugadores.value.find((j) => j.id === p.jugador2Id) ?? {
+          id: p.jugador2Id,
+          nombre: 'Jugador 2',
+          iniciales: 'J2',
+          telefono: '300 000 0000',
+        }
+        return {
+          partido: p,
+          jugador1,
+          jugador2,
+        }
+      })
+  })
+
+  // Validación de seguridad con códigos de 5 dígitos
+  const validarCodigosArbitraje = (
+    partidoId: string,
+    codigoJ1: string,
+    codigoJ2: string,
+  ): { valido: boolean; mensaje: string } => {
+    const partido = partidos.value.find((p) => p.id === partidoId)
+    if (!partido) {
+      return { valido: false, mensaje: 'El partido no existe en este torneo.' }
+    }
+
+    const c1 = codigoJ1.trim()
+    const c2 = codigoJ2.trim()
+
+    const coincideDirecto = c1 === partido.codigoJugador1 && c2 === partido.codigoJugador2
+    const coincideInverso = c1 === partido.codigoJugador2 && c2 === partido.codigoJugador1
+
+    if (coincideDirecto || coincideInverso) {
+      return { valido: true, mensaje: 'Códigos confirmados correctamente. Accediendo al marcador virtual...' }
+    }
+
+    return {
+      valido: false,
+      mensaje: 'Códigos incorrectos. Solicita a ambos jugadores su PIN de 5 dígitos para este partido.',
+    }
+  }
+
+  // Registrar resultado de partido arbitrado (al mejor de 3 sets)
+  const registrarResultadoPartido = (
+    partidoId: string,
+    setsJugados: SetPartido[],
+    ganadorId: string,
+  ) => {
+    const pIndex = partidos.value.findIndex((p) => p.id === partidoId)
+    if (pIndex === -1) return
+
+    const partido = partidos.value[pIndex]
+    if (!partido) return
+
+    const setsG1 = setsJugados.filter((s) => s.ganadorId === partido.jugador1Id).length
+    const setsG2 = setsJugados.filter((s) => s.ganadorId === partido.jugador2Id).length
+
+    const marcadorResumen = `${setsG1} - ${setsG2}`
+    const marcadorDetallado = setsJugados.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
+
+    partidos.value[pIndex] = {
+      ...partido,
+      estado: 'jugado',
+      jugadorGanadorId: ganadorId,
+      marcador: marcadorResumen,
+      marcadorDetallado,
+      arbitroId: arbitroActual.value.id,
+      sets: setsJugados,
+      diasRestantes: 0,
+    }
   }
 
   const tablaPosiciones = computed<FilaPosicion[]>(() => {
@@ -291,24 +471,50 @@ export function useTorneoGrupo(torneo: Torneo) {
           stats1.pj += 1
           stats2.pj += 1
 
+          let sf1 = 0
+          let sc1 = 0
+          let sf2 = 0
+          let sc2 = 0
+
+          if (p.sets && p.sets.length > 0) {
+            p.sets.forEach((s) => {
+              if (s.ganadorId === p.jugador1Id) {
+                sf1 += 1
+                sc2 += 1
+              } else if (s.ganadorId === p.jugador2Id) {
+                sf2 += 1
+                sc1 += 1
+              }
+            })
+          } else {
+            if (p.jugadorGanadorId === p.jugador1Id) {
+              sf1 = 3
+              sc1 = 1
+              sf2 = 1
+              sc2 = 3
+            } else {
+              sf1 = 1
+              sc1 = 3
+              sf2 = 3
+              sc2 = 1
+            }
+          }
+
+          stats1.sf += sf1
+          stats1.sc += sc1
+          stats2.sf += sf2
+          stats2.sc += sc2
+
           if (p.jugadorGanadorId === p.jugador1Id) {
             stats1.pg += 1
             stats1.puntos += 2
-            stats1.sf += 3
-            stats1.sc += 1
             stats2.pp += 1
             stats2.puntos += 1
-            stats2.sf += 1
-            stats2.sc += 3
           } else {
             stats2.pg += 1
             stats2.puntos += 2
-            stats2.sf += 3
-            stats2.sc += 1
             stats1.pp += 1
             stats1.puntos += 1
-            stats1.sf += 1
-            stats1.sc += 3
           }
         }
       }
@@ -361,5 +567,10 @@ export function useTorneoGrupo(torneo: Torneo) {
     verVistaRival,
     volverAMiVista,
     tablaPosiciones,
+    arbitroActual,
+    setArbitroActual,
+    partidosDisponiblesParaArbitrar,
+    validarCodigosArbitraje,
+    registrarResultadoPartido,
   }
 }
