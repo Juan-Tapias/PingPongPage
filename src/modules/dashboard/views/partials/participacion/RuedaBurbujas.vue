@@ -93,6 +93,15 @@
             stroke="#ffffff"
             stroke-width="2"
           />
+          <circle
+            v-else-if="item.burbuja.colorBorde === 'naranja' || item.burbuja.partido.estado === 'pendiente_admin'"
+            cx="26"
+            cy="-26"
+            r="8"
+            fill="#f97316"
+            stroke="#ffffff"
+            stroke-width="2"
+          />
 
           <text
             x="0"
@@ -227,8 +236,6 @@ const obtenerColorBorde = (burbuja: BurbujaRival): string => {
         return '#10b981' // Verde: Victoria
       case 'rojo':
         return '#ef4444' // Rojo: Derrota
-      case 'azul_pulsante':
-        return '#38bdf8' // Azul pulsante: En vivo
       case 'naranja':
         return '#f97316' // Naranja: Pendiente Admin (>48h)
       case 'gris':

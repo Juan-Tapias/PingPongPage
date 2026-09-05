@@ -130,6 +130,10 @@
               Partido Perdido
             </span>
             <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full border-2 border-orange-500 bg-orange-50 shrink-0"></span>
+              Pendiente Decisión Admin (>48h)
+            </span>
+            <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-slate-50 shrink-0"></span>
               No Jugado (Pendiente)
             </span>
