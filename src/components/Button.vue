@@ -1,67 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue'
-
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline'
-export type ButtonSize = 'sm' | 'md' | 'lg'
-export type ButtonType = 'button' | 'submit' | 'reset'
-
-interface Props {
-  variant?: ButtonVariant
-  size?: ButtonSize
-  type?: ButtonType
-  disabled?: boolean
-  loading?: boolean
-  block?: boolean
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  variant: 'primary',
-  size: 'md',
-  type: 'button',
-  disabled: false,
-  loading: false,
-  block: false,
-})
-
-const emit = defineEmits<{
-  (e: 'click', event: MouseEvent): void
-}>()
-
-const handleClick = (event: MouseEvent) => {
-  if (props.disabled || props.loading) return
-  emit('click', event)
-}
-
-const variantClasses = computed(() => {
-  switch (props.variant) {
-    case 'primary':
-      return 'bg-white hover:bg-gray-100 text-gray-950 font-bold shadow-md shadow-black/20 border border-white'
-    case 'secondary':
-      return 'bg-secondary hover:bg-blue-600 text-white shadow-md shadow-blue-950/30 border border-blue-400/20'
-    case 'danger':
-      return 'bg-danger hover:bg-red-600 text-white shadow-md shadow-red-950/30 border border-red-400/20'
-    case 'ghost':
-      return 'bg-transparent hover:bg-surface-hover text-gray-300 hover:text-white border border-transparent'
-    case 'outline':
-      return 'bg-transparent border border-gray-700 hover:border-gray-500 text-gray-200 hover:bg-surface-hover'
-    default:
-      return 'bg-white text-gray-950 font-bold'
-  }
-})
-
-const sizeClasses = computed(() => {
-  switch (props.size) {
-    case 'sm':
-      return 'px-2.5 py-1 text-xs rounded-md'
-    case 'lg':
-      return 'px-4 py-2 text-sm font-semibold rounded-lg'
-    case 'md':
-    default:
-      return 'px-3.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg'
-  }
-})
-</script>
-
 <template>
   <button
     :type="type"
@@ -104,3 +40,73 @@ const sizeClasses = computed(() => {
     <slot />
   </button>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+export type ButtonVariant = 'primary' | 'secondary' | 'emerald' | 'dark' | 'amber' | 'danger' | 'ghost' | 'outline'
+export type ButtonSize = 'sm' | 'md' | 'lg'
+export type ButtonType = 'button' | 'submit' | 'reset'
+
+interface Props {
+  variant?: ButtonVariant
+  size?: ButtonSize
+  type?: ButtonType
+  disabled?: boolean
+  loading?: boolean
+  block?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'primary',
+  size: 'md',
+  type: 'button',
+  disabled: false,
+  loading: false,
+  block: false,
+})
+
+const emit = defineEmits<{
+  (e: 'click', event: MouseEvent): void
+}>()
+
+const handleClick = (event: MouseEvent) => {
+  if (props.disabled || props.loading) return
+  emit('click', event)
+}
+
+const variantClasses = computed(() => {
+  switch (props.variant) {
+    case 'emerald':
+      return 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-950/20 border border-emerald-500/30'
+    case 'dark':
+      return 'bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md shadow-black/20 border border-slate-700'
+    case 'amber':
+      return 'bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 font-bold shadow-xs'
+    case 'primary':
+      return 'bg-white hover:bg-gray-100 text-gray-950 font-bold shadow-md shadow-black/20 border border-white'
+    case 'secondary':
+      return 'bg-secondary hover:bg-blue-600 text-white shadow-md shadow-blue-950/30 border border-blue-400/20'
+    case 'danger':
+      return 'bg-danger hover:bg-red-600 text-white shadow-md shadow-red-950/30 border border-red-400/20'
+    case 'ghost':
+      return 'bg-transparent hover:bg-slate-100 text-slate-800 hover:text-slate-950 font-semibold border border-transparent'
+    case 'outline':
+      return 'bg-white border border-slate-300 hover:border-slate-400 text-slate-800 hover:bg-slate-50 font-bold shadow-xs'
+    default:
+      return 'bg-white text-gray-950 font-bold'
+  }
+})
+
+const sizeClasses = computed(() => {
+  switch (props.size) {
+    case 'sm':
+      return 'px-2.5 py-1.5 text-xs rounded-md'
+    case 'lg':
+      return 'px-4 py-2 text-sm font-semibold rounded-lg'
+    case 'md':
+    default:
+      return 'px-3.5 py-2 text-xs sm:text-sm font-medium rounded-lg'
+  }
+})
+</script>
