@@ -298,7 +298,7 @@
           <span
             v-for="(s, idx) in historialSets"
             :key="idx"
-            class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-mono font-bold text-xs text-slate-700 shadow-2xs"
+            class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-700 dark:text-slate-300 shadow-2xs"
           >
             Set {{ s.setNumero }}: {{ s.puntosJugador1 }} - {{ s.puntosJugador2 }}
           </span>

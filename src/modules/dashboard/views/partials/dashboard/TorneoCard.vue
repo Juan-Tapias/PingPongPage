@@ -2,7 +2,7 @@
   <div
     v-if="modo === 'inscrito'"
     :class="[
-      'flex flex-col justify-between h-full rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-200 p-5 sm:p-6 overflow-hidden',
+      'flex flex-col justify-between h-full rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 p-5 sm:p-6 overflow-hidden',
       topBorderClass,
     ]"
   >
@@ -40,43 +40,43 @@
         </div>
 
         <div class="flex-1 min-w-0">
-          <h3 class="text-base sm:text-lg font-bold font-heading text-slate-900 leading-snug line-clamp-2">
+          <h3 class="text-base sm:text-lg font-bold font-heading text-slate-900 dark:text-white leading-snug line-clamp-2">
             {{ torneo.nombre }}
           </h3>
         </div>
       </div>
 
-      <div class="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
-        <div class="flex items-center justify-between text-slate-600">
-          <span class="flex items-center gap-1.5 text-slate-500">
+      <div class="mt-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-2 text-xs">
+        <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
+          <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
             <User class="w-3.5 h-3.5 text-slate-400" />
             Organizador:
           </span>
-          <strong class="text-slate-800 font-semibold truncate ml-2">{{ torneo.organizador }}</strong>
+          <strong class="text-slate-800 dark:text-slate-200 font-semibold truncate ml-2">{{ torneo.organizador }}</strong>
         </div>
 
-        <div class="flex items-center justify-between text-slate-600 pt-1.5 border-t border-slate-200/60">
-          <span class="flex items-center gap-1.5 text-slate-500">
+        <div class="flex items-center justify-between text-slate-600 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+          <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
             <Calendar class="w-3.5 h-3.5 text-slate-400" />
             Inicio:
           </span>
-          <strong class="text-slate-800 font-semibold">{{ torneo.fechaInicio }}</strong>
+          <strong class="text-slate-800 dark:text-slate-200 font-semibold">{{ torneo.fechaInicio }}</strong>
         </div>
 
         <div
           v-if="torneo.estado === 'finalizado'"
-          class="flex items-center justify-between pt-1.5 border-t border-slate-200/60"
+          class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60"
         >
-          <span class="flex items-center gap-1.5 text-slate-500">
+          <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
             <Award class="w-3.5 h-3.5 text-amber-500" />
             Posición final:
           </span>
-          <strong class="text-emerald-700 font-bold">{{ torneo.posicionFinal || 'Completado' }}</strong>
+          <strong class="text-emerald-600 dark:text-emerald-400 font-bold">{{ torneo.posicionFinal || 'Completado' }}</strong>
         </div>
       </div>
     </div>
 
-    <div class="mt-5 pt-3 border-t border-slate-100">
+    <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
       <Button
         v-if="torneo.subestado === 'PENDIENTE'"
         variant="amber"
@@ -118,7 +118,7 @@
         variant="outline"
         size="md"
         block
-        class="border-slate-300 text-slate-800 hover:bg-slate-100 font-bold cursor-pointer"
+        class="border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold cursor-pointer"
         @click="emit('verTorneo', torneo)"
       >
         <Trophy class="w-3.5 h-3.5 mr-2 text-amber-500" />
@@ -130,76 +130,76 @@
 
   <div
     v-else
-    class="flex flex-col justify-between h-full rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-200 p-5 sm:p-6"
+    class="flex flex-col justify-between h-full rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 p-5 sm:p-6"
   >
     <div>
       <div class="flex items-center justify-between gap-2 mb-3">
         <span
           v-if="torneo.estaInscrito"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
         >
           <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600" />
           Inscrito
         </span>
         <span
           v-else
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
         >
           <span class="w-1.5 h-1.5 rounded-full bg-blue-500" />
           {{ estadoConfig.texto }}
         </span>
 
-        <span class="text-base sm:text-lg font-extrabold font-heading text-emerald-700">
+        <span class="text-base sm:text-lg font-extrabold font-heading text-emerald-600 dark:text-emerald-400">
           {{ formatearMoneda(torneo.costoInscripcion) }}
           <span class="text-[10px] uppercase font-bold text-slate-400">COP</span>
         </span>
       </div>
 
-      <h3 class="text-lg sm:text-xl font-bold font-heading text-slate-900 leading-snug line-clamp-2">
+      <h3 class="text-lg sm:text-xl font-bold font-heading text-slate-900 dark:text-white leading-snug line-clamp-2">
         {{ torneo.nombre }}
       </h3>
 
-      <div class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+      <div class="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
         <div class="flex flex-col">
           <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
             <User class="w-3 h-3" /> Organizador
           </span>
-          <strong class="text-slate-800 font-bold truncate mt-0.5">{{ torneo.organizador }}</strong>
+          <strong class="text-slate-800 dark:text-slate-200 font-bold truncate mt-0.5">{{ torneo.organizador }}</strong>
         </div>
 
         <div class="flex flex-col">
           <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
             <Calendar class="w-3 h-3" /> Inicio
           </span>
-          <strong class="text-slate-800 font-bold mt-0.5">{{ torneo.fechaInicio }}</strong>
+          <strong class="text-slate-800 dark:text-slate-200 font-bold mt-0.5">{{ torneo.fechaInicio }}</strong>
         </div>
 
         <div class="flex flex-col">
           <span class="text-[10px] text-red-500 font-bold flex items-center gap-1">
             <AlertTriangle class="w-3 h-3" /> Cierre Inscrip.
           </span>
-          <strong class="text-red-600 font-bold mt-0.5">{{ torneo.fechaLimiteInscripcion }}</strong>
+          <strong class="text-red-500 font-bold mt-0.5">{{ torneo.fechaLimiteInscripcion }}</strong>
         </div>
       </div>
 
-      <div class="mt-3.5 flex items-center justify-end text-xs text-slate-500 pt-1">
-        <span class="font-bold text-emerald-700">
+      <div class="mt-3.5 flex items-center justify-end text-xs text-slate-500 dark:text-slate-400 pt-1">
+        <span class="font-bold text-emerald-600 dark:text-emerald-400">
           {{ torneo.cuposTomados || 14 }} / {{ torneo.cuposTotales || 32 }} cupos tomados
         </span>
       </div>
     </div>
 
-    <div class="mt-5 pt-3 border-t border-slate-100">
+    <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
       <Button
         v-if="torneo.estaInscrito"
         variant="outline"
         size="md"
         block
         disabled
-        class="bg-slate-100 text-slate-800 border-slate-300 cursor-not-allowed font-bold"
+        class="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700 cursor-not-allowed font-bold"
       >
-        <CheckCircle2 class="w-4 h-4 mr-2 text-emerald-700 shrink-0" />
-        <span class="text-slate-800 font-bold">Ya estás inscrito</span>
+        <CheckCircle2 class="w-4 h-4 mr-2 text-emerald-600 shrink-0" />
+        <span class="font-bold">Ya estás inscrito</span>
       </Button>
 
       <Button
@@ -268,37 +268,37 @@ const estadoConfig = computed(() => {
   if (props.torneo.subestado === 'PENDIENTE') {
     return {
       texto: 'Pendiente',
-      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+      badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60',
       dotClass: 'bg-amber-500 animate-pulse',
       icono: Clock,
-      iconBoxClass: 'bg-amber-50 text-amber-600 border-amber-100',
+      iconBoxClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/60',
     }
   }
   switch (props.torneo.estado) {
     case 'en curso':
       return {
         texto: 'En curso',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60',
         dotClass: 'bg-emerald-500 animate-pulse',
         icono: Trophy,
-        iconBoxClass: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        iconBoxClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/60',
       }
     case 'finalizado':
       return {
         texto: 'Finalizado',
-        badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
+        badgeClass: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
         dotClass: 'bg-slate-400',
         icono: Award,
-        iconBoxClass: 'bg-slate-100 text-slate-500 border-slate-200',
+        iconBoxClass: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
       }
     case 'por iniciar':
     default:
       return {
         texto: 'Por iniciar',
-        badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+        badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/60',
         dotClass: 'bg-blue-500',
         icono: Zap,
-        iconBoxClass: 'bg-blue-50 text-blue-600 border-blue-100',
+        iconBoxClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800/60',
       }
   }
 })
@@ -307,27 +307,27 @@ const subestadoConfig = computed(() => {
   if (props.torneo.subestado === 'PENDIENTE') {
     return {
       texto: 'EN VERIFICACIÓN',
-      badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+      badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60',
       icono: Clock,
     }
   }
   if (props.torneo.estado === 'en curso') {
     return {
       texto: props.torneo.subestado || 'INSCRITO',
-      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60',
       icono: CheckCircle2,
     }
   }
   if (props.torneo.estado === 'por iniciar') {
     return {
       texto: props.torneo.subestado || 'CONFIRMADO',
-      badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+      badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/60',
       icono: CheckCircle2,
     }
   }
   return {
     texto: props.torneo.subestado || 'COMPLETADO',
-    badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
+    badgeClass: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
     icono: CheckCircle2,
   }
 })

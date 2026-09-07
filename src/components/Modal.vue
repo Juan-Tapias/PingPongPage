@@ -10,12 +10,13 @@
     >
       <div
         v-if="visible"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/75 backdrop-blur-sm"
         @click.self="handleOverlayClick"
       >
         <div
+          :style="modalStyle"
           :class="[
-            'w-full bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col',
+            'w-full bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-colors',
             'animate-in fade-in zoom-in-95 duration-200',
             maxWidthClass,
             customClass,
@@ -23,14 +24,14 @@
         >
           <div
             v-if="title || $slots.header"
-            class="px-6 py-4 flex items-start justify-between border-b border-slate-100 bg-white"
+            class="px-4 sm:px-6 py-3.5 sm:py-4 flex items-start justify-between border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0f172a]"
           >
             <slot name="header">
               <div class="text-left pr-4">
-                <h3 class="text-base sm:text-lg font-bold font-heading text-slate-900 tracking-tight">
+                <h3 class="text-base sm:text-lg font-bold font-heading text-slate-900 dark:text-white tracking-tight">
                   {{ title }}
                 </h3>
-                <p v-if="subTitle" class="text-xs text-slate-500 mt-0.5">
+                <p v-if="subTitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {{ subTitle }}
                 </p>
               </div>
@@ -42,7 +43,7 @@
                 v-if="showClose"
                 type="button"
                 :disabled="loading"
-                class="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
                 @click="close"
               >
                 <X class="w-5 h-5" />
@@ -50,13 +51,18 @@
             </div>
           </div>
 
-          <div class="px-6 py-5 overflow-y-auto max-h-[calc(100vh-220px)] text-sm text-slate-700">
+          <div
+            :class="[
+              'px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto text-sm text-slate-700 dark:text-slate-200',
+              footer ? 'max-h-[calc(100dvh-180px)] sm:max-h-[calc(100vh-220px)]' : 'max-h-[calc(100dvh-120px)] sm:max-h-[calc(100vh-140px)]'
+            ]"
+          >
             <slot />
           </div>
 
           <div
             v-if="footer"
-            class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-2.5"
+            class="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 sm:gap-2.5"
           >
             <slot name="footer">
               <Button
@@ -102,7 +108,7 @@ interface Props {
   btnCancel?: boolean
   btnActionVariant?: ButtonVariant
   btnCancelVariant?: ButtonVariant
-  width?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
+  width?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl'
   loading?: boolean
   disableAction?: boolean
   closeOnClickModal?: boolean
@@ -160,9 +166,31 @@ const maxWidthClass = computed(() => {
       return 'max-w-2xl'
     case '2xl':
       return 'max-w-4xl'
+    case '3xl':
+      return 'max-w-5xl'
+    case '4xl':
+      return 'max-w-6xl'
+    case '5xl':
+      return 'max-w-7xl'
     case 'md':
     default:
       return 'max-w-lg'
+  }
+})
+
+const modalStyle = computed(() => {
+  const widths: Record<string, string> = {
+    sm: '384px',
+    md: '512px',
+    lg: '672px',
+    xl: '768px',
+    '2xl': '896px',
+    '3xl': '1024px',
+    '4xl': '1180px',
+    '5xl': '1340px',
+  }
+  return {
+    maxWidth: widths[props.width] || '512px',
   }
 })
 

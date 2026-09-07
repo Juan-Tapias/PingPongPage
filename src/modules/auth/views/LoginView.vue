@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, useField } from 'vee-validate'
 import { useRouter, RouterLink } from 'vue-router'
-import { Trophy } from 'lucide-vue-next'
+import { Trophy, ShieldCheck, UserCheck } from 'lucide-vue-next'
 import Card from '@/components/Card.vue'
 import Input from '@/components/Input.vue'
 import Button from '@/components/Button.vue'
@@ -25,10 +25,24 @@ const { value: password } = useField<string>('password')
 const onSubmit = handleSubmit(async (values) => {
   try {
     await authStore.login(values)
-    router.push('/')
+    if (authStore.esAdmin) {
+      router.push('/admin')
+    } else {
+      router.push('/')
+    }
   } catch {
   }
 })
+
+const iniciarComoAdminDemo = () => {
+  authStore.loginDemoAdmin()
+  router.push('/admin')
+}
+
+const iniciarComoJugadorDemo = () => {
+  authStore.loginDemoJugador()
+  router.push('/')
+}
 </script>
 
 <template>
@@ -62,6 +76,39 @@ const onSubmit = handleSubmit(async (values) => {
             </Button>
           </div>
         </form>
+
+        <!-- Botones de Acceso Rápido / Demo para Pruebas -->
+        <div class="mt-5 pt-4 border-t border-slate-700/60 flex flex-col gap-2.5">
+          <div class="flex items-center justify-center gap-2">
+            <div class="h-px bg-slate-700 flex-1"></div>
+            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Acceso Rápido de Prueba
+            </span>
+            <div class="h-px bg-slate-700 flex-1"></div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/40 transition-all cursor-pointer shadow-xs"
+              @click="iniciarComoAdminDemo"
+              title="Entrar como Administrador de la plataforma"
+            >
+              <ShieldCheck class="w-4 h-4 text-emerald-400" />
+              <span>Admin Demo</span>
+            </button>
+
+            <button
+              type="button"
+              class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-blue-300 bg-blue-950/60 hover:bg-blue-900/80 border border-blue-500/40 transition-all cursor-pointer shadow-xs"
+              @click="iniciarComoJugadorDemo"
+              title="Entrar como Jugador del torneo"
+            >
+              <UserCheck class="w-4 h-4 text-blue-400" />
+              <span>Jugador Demo</span>
+            </button>
+          </div>
+        </div>
 
         <template #footer>
           <div class="text-center text-xs text-gray-400">

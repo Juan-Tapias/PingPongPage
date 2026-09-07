@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full rounded-2xl bg-white border border-slate-200 p-4 sm:p-6 shadow-xs overflow-hidden">
+  <div class="w-full rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-xs overflow-hidden transition-colors duration-300">
 
     <div
       v-if="partidos.length === 1 && primerPartido"
@@ -11,16 +11,16 @@
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
           </span>
-          <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900">
+          <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900 dark:text-white">
             En vivo
           </h2>
         </div>
-        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
           Consulta los marcadores y resultados de los partidos en tiempo real sincronizados con las mesas de juego.
         </p>
       </div>
 
-      <div class="w-full md:w-80 max-w-full p-4 rounded-xl bg-slate-900 text-white border border-slate-800 shadow-md shrink-0">
+      <div class="w-full md:w-80 max-w-full p-4 rounded-xl bg-slate-900 dark:bg-[#080d1a] text-white border border-slate-800 shadow-md shrink-0">
         <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
           <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -48,21 +48,21 @@
     </div>
 
     <div v-else class="space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
         <div>
           <div class="flex items-center gap-2">
             <span class="relative flex h-2.5 w-2.5">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
             </span>
-            <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900">
+            <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900 dark:text-white">
               En vivo
             </h2>
-            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
               {{ partidos.length }} en mesa
             </span>
           </div>
-          <p class="text-xs sm:text-sm text-slate-600 mt-0.5">
+          <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
             Consulta los marcadores y resultados de los partidos en tiempo real sincronizados con las mesas de juego.
           </p>
         </div>
@@ -72,7 +72,7 @@
         <div
           v-for="partido in partidos"
           :key="partido.id"
-          class="p-4 rounded-xl bg-slate-900 text-white border border-slate-800 shadow-md flex flex-col justify-between"
+          class="p-4 rounded-xl bg-slate-900 dark:bg-[#080d1a] text-white border border-slate-800 shadow-md flex flex-col justify-between"
         >
           <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
             <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">

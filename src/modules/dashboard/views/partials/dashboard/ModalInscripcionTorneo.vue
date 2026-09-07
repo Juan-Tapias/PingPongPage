@@ -9,37 +9,37 @@
     @action="handleEnviarWhatsApp"
   >
     <div v-if="torneo" class="space-y-4">
-      <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+      <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
         <div>
-          <span class="text-[11px] text-slate-500 block font-medium">Torneo seleccionado</span>
-          <span class="text-sm font-bold text-slate-900">{{ torneo.nombre }}</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">Torneo seleccionado</span>
+          <span class="text-sm font-bold text-slate-900 dark:text-white">{{ torneo.nombre }}</span>
         </div>
         <div class="text-right">
-          <span class="text-[11px] text-slate-500 block font-medium">Costo de inscripción</span>
-          <span class="text-base font-extrabold text-emerald-700 font-heading">
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">Costo de inscripción</span>
+          <span class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-heading">
             {{ formatearMoneda(torneo.costoInscripcion) }}
           </span>
         </div>
       </div>
 
-      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-        El torneo <strong class="text-slate-900">{{ torneo.nombre }}</strong> tiene costo de inscripción por un valor de
-        <strong class="text-emerald-700">{{ formatearMoneda(torneo.costoInscripcion) }}</strong>.
+      <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+        El torneo <strong class="text-slate-900 dark:text-white">{{ torneo.nombre }}</strong> tiene costo de inscripción por un valor de
+        <strong class="text-emerald-600 dark:text-emerald-400">{{ formatearMoneda(torneo.costoInscripcion) }}</strong>.
       </p>
 
-      <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3 text-xs text-slate-700">
+      <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 text-xs text-slate-700 dark:text-slate-300">
         <div class="flex items-start gap-2.5">
-          <CreditCard class="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+          <CreditCard class="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
           <div class="flex-1">
             <span>Para ingresar al torneo tiene que mandar el costo a este número de cuenta:</span>
-            <div class="flex items-center justify-between mt-1.5 p-2.5 rounded-lg bg-white border border-slate-200 font-mono text-slate-900 text-xs">
+            <div class="flex items-center justify-between mt-1.5 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white text-xs">
               <span class="font-bold tracking-wider">{{ torneo.numeroCuenta }}</span>
               <button
                 type="button"
-                class="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer font-sans font-semibold"
+                class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-sans font-semibold"
                 @click="copiarCuenta"
               >
-                <Check v-if="copiado" class="w-3.5 h-3.5 text-emerald-600" />
+                <Check v-if="copiado" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <Copy v-else class="w-3.5 h-3.5" />
                 <span>{{ copiado ? '¡Copiado!' : 'Copiar' }}</span>
               </button>
@@ -47,20 +47,20 @@
           </div>
         </div>
 
-        <div class="flex items-start gap-2.5 pt-2 border-t border-slate-200/80">
-          <MessageSquare class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+        <div class="flex items-start gap-2.5 pt-2 border-t border-slate-200/80 dark:border-slate-700">
+          <MessageSquare class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
           <div>
             <span>Enviar comprobante a este número de WhatsApp:</span>
-            <strong class="text-slate-900 block mt-0.5 font-mono text-xs">{{ torneo.whatsappContacto }}</strong>
-            <span class="text-[11px] text-slate-500 block mt-1">
+            <strong class="text-slate-900 dark:text-white block mt-0.5 font-mono text-xs">{{ torneo.whatsappContacto }}</strong>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 block mt-1">
               Después será validado por el administrador e ingresará al torneo.
             </span>
           </div>
         </div>
 
-        <div class="flex items-center gap-2 pt-2 border-t border-slate-200/80 text-amber-800">
-          <Clock class="w-4 h-4 text-amber-600 shrink-0" />
-          <span>Tiene fecha límite hasta: <strong class="text-slate-900 font-semibold">{{ torneo.fechaLimiteInscripcion }}</strong></span>
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-700 text-amber-800 dark:text-amber-400">
+          <Clock class="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span>Tiene fecha límite hasta: <strong class="text-slate-900 dark:text-white font-semibold">{{ torneo.fechaLimiteInscripcion }}</strong></span>
         </div>
       </div>
     </div>

@@ -16,18 +16,18 @@
       </div>
 
       <div class="space-y-1">
-        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ganador</span>
-        <h3 class="text-lg font-black text-slate-900">
+        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ganador</span>
+        <h3 class="text-lg font-black text-slate-900 dark:text-white">
           {{ burbuja.ganadorNombre || burbuja.jugador.nombre }}
         </h3>
       </div>
 
-      <div class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center gap-1">
+      <div class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-xl p-4 flex flex-col items-center justify-center gap-1">
         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Marcador Final</span>
-        <span class="text-3xl font-black font-mono text-emerald-700 tracking-tight">
+        <span class="text-3xl font-black font-mono text-emerald-700 dark:text-emerald-400 tracking-tight">
           {{ burbuja.marcador || '3 - 1' }}
         </span>
-        <span v-if="burbuja.partido.marcadorDetallado" class="text-xs text-slate-500 font-mono mt-1">
+        <span v-if="burbuja.partido.marcadorDetallado" class="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">
           Sets: {{ burbuja.partido.marcadorDetallado }}
         </span>
       </div>
