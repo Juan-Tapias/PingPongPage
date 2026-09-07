@@ -7,7 +7,7 @@
     :footer="false"
   >
     <div v-if="burbuja" class="flex flex-col gap-5 py-1">
-      <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+      <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
         <div
           class="w-14 h-14 rounded-full flex items-center justify-center font-black text-lg text-white shadow-md select-none shrink-0"
           :style="{ backgroundColor: colorBurbuja }"
@@ -15,7 +15,7 @@
           {{ burbuja.jugador.iniciales }}
         </div>
         <div class="flex-1 min-w-0">
-          <h4 class="text-base font-extrabold text-slate-900 truncate">
+          <h4 class="text-base font-extrabold text-slate-900 dark:text-white truncate">
             {{ burbuja.jugador.nombre }}
           </h4>
           <span
@@ -27,23 +27,23 @@
         </div>
       </div>
 
-      <div class="space-y-3 bg-white rounded-xl border border-slate-200/80 p-4 divide-y">
+      <div class="space-y-3 bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 p-4 divide-y divide-slate-100 dark:divide-slate-700">
         <div class="flex items-center justify-between py-1.5">
-          <span class="text-xs font-semibold text-slate-500">Nombre completo:</span>
-          <span class="text-xs font-bold text-slate-800 text-right">{{ burbuja.jugador.nombre }}</span>
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Nombre completo:</span>
+          <span class="text-xs font-bold text-slate-800 dark:text-slate-200 text-right">{{ burbuja.jugador.nombre }}</span>
         </div>
 
         <div class="flex items-center justify-between py-2">
-          <span class="text-xs font-semibold text-slate-500">Teléfono de contacto:</span>
-          <span class="text-xs font-bold font-mono text-slate-800 tracking-wide select-all">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Teléfono de contacto:</span>
+          <span class="text-xs font-bold font-mono text-slate-800 dark:text-slate-200 tracking-wide select-all">
             {{ burbuja.jugador.telefono }}
           </span>
         </div>
 
         <div class="flex items-center justify-between py-2">
           <div class="flex flex-col">
-            <span class="text-xs font-semibold text-slate-500">Plazo límite:</span>
-            <span class="text-[10px] text-slate-400">Reglamento: 2 días máx.</span>
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Plazo límite:</span>
+            <span class="text-[10px] text-slate-400 dark:text-slate-500">Reglamento: 2 días máx.</span>
           </div>
 
           <div class="text-right">
@@ -60,17 +60,17 @@
 
         <div v-if="burbuja.partido.estado === 'pendiente' && burbuja.codigoSeguridadPropio" class="flex items-center justify-between py-2">
           <div class="flex items-center gap-1.5">
-            <KeyRound class="w-3.5 h-3.5 text-sky-600" />
-            <span class="text-xs font-semibold text-slate-500">Tu PIN para árbitro:</span>
+            <KeyRound class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Tu PIN para árbitro:</span>
           </div>
-          <span class="text-xs font-black font-mono tracking-widest text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-200 select-all">
+          <span class="text-xs font-black font-mono tracking-widest text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 select-all">
             {{ burbuja.codigoSeguridadPropio }}
           </span>
         </div>
 
         <div v-if="burbuja.partido.estado === 'jugado'" class="flex items-center justify-between py-2">
-          <span class="text-xs font-semibold text-slate-500">Marcador final:</span>
-          <span class="text-xs font-extrabold font-mono text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Marcador final:</span>
+          <span class="text-xs font-extrabold font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-md">
             {{ burbuja.marcador || 'Finalizado' }}
           </span>
         </div>

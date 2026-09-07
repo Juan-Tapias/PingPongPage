@@ -20,6 +20,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/auth/views/RegisterView.vue'),
     meta: { guestOnly: true },
   },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('@/modules/admin/views/AdminDashboardView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

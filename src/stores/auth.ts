@@ -37,10 +37,49 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  const loginDemoAdmin = () => {
+    cargando.value = true
+    errorAuth.value = null
+    usuario.value = {
+      id: 'admin-campuslands-1',
+      nombre: 'Juan Sebastián',
+      apellido: 'Tapias',
+      email: 'admin@campuslands.com',
+      telefono: '300 123 4567',
+      tipo: 'trabajador',
+      rol: 'admin',
+      createdAt: Date.now(),
+    }
+    cargando.value = false
+    return usuario.value
+  }
+
+  const loginDemoJugador = () => {
+    cargando.value = true
+    errorAuth.value = null
+    usuario.value = {
+      id: 'j-yo',
+      nombre: 'Sebastián',
+      apellido: 'Tapias',
+      email: 'jugador@campuslands.com',
+      telefono: '310 987 6543',
+      tipo: 'camper',
+      rol: 'jugador',
+      createdAt: Date.now(),
+    }
+    cargando.value = false
+    return usuario.value
+  }
+
   const login = async (credenciales: CredencialesLogin) => {
     cargando.value = true
     errorAuth.value = null
     try {
+      // Soporte para credencial demo de Administrador directa
+      if (credenciales.email.trim().toLowerCase() === 'admin@campuslands.com') {
+        return loginDemoAdmin()
+      }
+
       usuario.value = await apiLogin(credenciales)
       return usuario.value
     } catch (err: unknown) {
@@ -80,7 +119,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = async () => {
-    await apiLogout()
+    try {
+      await apiLogout()
+    } catch {
+      // En caso de sesión demo
+    }
     usuario.value = null
   }
 
@@ -93,6 +136,8 @@ export const useAuthStore = defineStore('auth', () => {
     esAdmin,
     inicializarAuth,
     login,
+    loginDemoAdmin,
+    loginDemoJugador,
     registro,
     logout,
   }
