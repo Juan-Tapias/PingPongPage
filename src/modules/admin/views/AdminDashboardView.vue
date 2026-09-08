@@ -30,7 +30,7 @@
             @click="abrirModalCrearTorneo"
           >
             <Plus class="w-4 h-4" />
-            <span>+ Crear Torneo / Proyecto</span>
+            <span>Crear Torneo</span>
           </button>
         </div>
       </div>
