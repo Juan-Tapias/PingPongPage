@@ -1,8 +1,16 @@
 <template>
   <div class="w-full rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-xs overflow-hidden transition-colors duration-300">
 
+    <div v-if="partidos.length === 0" class="flex flex-col items-center justify-center py-6 text-center gap-1.5">
+      <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+        <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+        <span class="text-xs font-bold uppercase tracking-wider">Mesas de Juego</span>
+      </div>
+      <p class="text-xs text-slate-500 dark:text-slate-400">No hay partidos en vivo en disputa en este momento.</p>
+    </div>
+
     <div
-      v-if="partidos.length === 1 && primerPartido"
+      v-else-if="partidos.length === 1 && primerPartido"
       class="flex flex-col md:flex-row md:items-center justify-between gap-4"
     >
       <div class="space-y-1 max-w-lg">
@@ -125,15 +133,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  partidos: () => [
-    {
-      id: 1,
-      mesa: 'Mesa 04',
-      setActual: 'SET 3',
-      jugador1: { nombre: 'Juan Martinez', puntos: 11 },
-      jugador2: { nombre: 'Rival Directo', puntos: 9 },
-    },
-  ],
+  partidos: () => [],
 })
 
 const primerPartido = computed(() => props.partidos[0])

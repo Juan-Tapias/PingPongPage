@@ -183,7 +183,7 @@
                 </div>
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Rondas</span>
-                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">{{ jugadoresTorneo.length > 0 ? jugadoresTorneo.length : 0 }} Fechas</span>
+                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">{{ totalRondasEstimadas }} Fechas</span>
                 </div>
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Plazo Máx.</span>
@@ -239,26 +239,55 @@
               </div>
 
               <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Toma la tabla de posiciones acumulada: clasifica al <strong>Top 1° al 4° directo a Cuartos con pase libre (BYE)</strong> y arma los 4 cruces de Play-In para los <strong>puestos 5° al 12°</strong> en camino hacia la Gran Final por la Corona y el 100% de la bolsa acumulada ($90.000 COP).
+                Toma la tabla de posiciones acumulada para armar las llaves de eliminación directa en camino hacia la Gran Final por la Corona y el 100% de la bolsa acumulada (${{ bolsaTotalCalculada.toLocaleString('es-CO') }} COP).
               </p>
+
+              <!-- Selector Administrativo de Clasificados a Playoffs -->
+              <div class="flex flex-col gap-1.5 pt-1">
+                <label class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>¿Cuántos jugadores clasifican a Eliminatorias?</span>
+                  <span class="text-[10px] text-amber-700 dark:text-amber-400 font-extrabold uppercase tracking-wider">Elegido por Admin</span>
+                </label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    v-for="opc in opcionesClasificados"
+                    :key="opc.valor"
+                    type="button"
+                    :disabled="opc.deshabilitado"
+                    :class="[
+                      'p-2 rounded-xl text-center border transition-all flex flex-col items-center justify-center gap-0.5',
+                      opc.deshabilitado
+                        ? 'opacity-40 cursor-not-allowed bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-400'
+                        : 'cursor-pointer',
+                      clasificadosSeleccionados === opc.valor
+                        ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/20 shadow-xs'
+                        : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                    ]"
+                    @click="!opc.deshabilitado && cambiarClasificadosPlayoffs(opc.valor)"
+                  >
+                    <span class="text-xs font-black">{{ opc.label }}</span>
+                    <span class="text-[9px] text-slate-400 font-medium leading-none">{{ opc.descripcion }}</span>
+                  </button>
+                </div>
+              </div>
 
               <!-- 4 Indicadores Clave -->
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Clasifican</span>
-                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">Top 12</span>
+                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">{{ clasificadosPlayoffsTexto }}</span>
                 </div>
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Pase Directo</span>
-                  <span class="font-mono font-black text-sm text-amber-600 dark:text-amber-400">1° al 4° (BYE)</span>
+                  <span class="font-mono font-black text-sm text-amber-600 dark:text-amber-400">{{ paseDirectoTexto }}</span>
                 </div>
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Cruces Play-In</span>
-                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">4 Llaves</span>
+                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">{{ crucesPlayInTexto }}</span>
                 </div>
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Premio Único</span>
-                  <span class="font-mono font-black text-sm text-amber-600 dark:text-amber-400">$90.000 COP</span>
+                  <span class="font-mono font-black text-sm text-amber-600 dark:text-amber-400">${{ bolsaTotalCalculada.toLocaleString('es-CO') }} COP</span>
                 </div>
               </div>
             </div>
@@ -277,7 +306,7 @@
               @click="fixtureGenerado && abrirPlayoffs()"
             >
               <Crown class="w-4 h-4 text-amber-500" />
-              <span>{{ playoffsAbiertos ? 'Playoffs en Curso (Top 12 Concéntrico)' : 'Habilitar Llaves de Eliminatorias' }}</span>
+              <span>{{ playoffsAbiertos ? 'Playoffs en Curso' : 'Habilitar Llaves de Eliminatorias' }}</span>
             </Button>
           </div>
         </div>
@@ -387,7 +416,7 @@
               <!-- Cabecera de Tarjeta: Ronda y Estado -->
               <div class="flex items-center justify-between text-[11px] pb-2.5 border-b border-slate-100 dark:border-slate-800">
                 <span class="font-bold text-slate-500 uppercase tracking-wider truncate">
-                  Ronda {{ partido.ronda }} • Mesa {{ partido.mesa || '01' }}
+                  Ronda {{ partido.ronda }}
                 </span>
 
                 <span
@@ -656,15 +685,15 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Directorio de Participantes Oficiales (~15 Cupos)
+              Directorio de Participantes Oficiales
             </h4>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              Campers y Trabajadores con comprobante de pago de $6.000 COP validado manualmente.
+              Validación de jugadores para admisión oficial al torneo.
             </p>
           </div>
 
           <span class="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto shadow-2xs">
-            {{ jugadoresTorneo.filter(j => j.pagoValidado).length }} / {{ jugadoresTorneo.length }} Pagos Aprobados ($6.000 COP c/u)
+            {{ jugadoresAprobados.length }} / {{ jugadoresTorneo.length }} Jugadores Aprobados (${{ (torneo?.costoInscripcion || 6000).toLocaleString('es-CO') }} COP c/u)
           </span>
         </div>
 
@@ -676,9 +705,8 @@
                   <th class="py-3.5 px-4">Jugador</th>
                   <th class="py-3.5 px-4">Tipo</th>
                   <th class="py-3.5 px-4">Teléfono</th>
-                  <th class="py-3.5 px-4 text-center">Mallas (Easter Egg)</th>
-                  <th class="py-3.5 px-4 text-center">Pago ($6.000)</th>
-                  <th class="py-3.5 px-4 text-right">Comprobante</th>
+                  <th class="py-3.5 px-4 text-center">Estado</th>
+                  <th class="py-3.5 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -700,10 +728,7 @@
                     </span>
                   </td>
                   <td class="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-300">
-                    {{ jugador.telefono }}
-                  </td>
-                  <td class="py-3.5 px-4 text-center font-mono font-bold text-amber-600 dark:text-amber-400">
-                    🏓 {{ jugador.mallas || 0 }}
+                    {{ jugador.telefono || 'Sin teléfono' }}
                   </td>
                   <td class="py-3.5 px-4 text-center">
                     <span
@@ -714,13 +739,27 @@
                     </span>
                   </td>
                   <td class="py-3.5 px-4 text-right">
-                    <button
-                      type="button"
-                      class="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
-                      @click="verComprobanteJugador(jugador)"
-                    >
-                      Ver Recibo
-                    </button>
+                    <div class="flex items-center justify-end gap-2">
+                      <button
+                        v-if="!jugador.pagoValidado"
+                        type="button"
+                        class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                        title="Aprobar jugador para el torneo"
+                        @click="aprobarJugador(jugador)"
+                      >
+                        <Check class="w-3.5 h-3.5" />
+                        <span>Aprobar</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 dark:border-rose-900 transition-colors cursor-pointer inline-flex items-center gap-1"
+                        :title="jugador.pagoValidado ? 'Excluir del torneo' : 'Rechazar inscripción'"
+                        @click="rechazarJugador(jugador)"
+                      >
+                        <X class="w-3.5 h-3.5" />
+                        <span>Rechazar</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -746,6 +785,8 @@ import {
   AlertTriangle,
   Gavel,
   ListOrdered,
+  Check,
+  X,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
@@ -754,7 +795,11 @@ import {
   obtenerInscripcionesDB,
   obtenerPartidosDB,
   guardarPartidosDB,
+  actualizarEstadoInscripcionDB,
+  eliminarInscripcionDB,
+  actualizarClasificadosPlayoffsDB,
 } from '@/services/torneoDatabaseService'
+import { generarFixtureBerger, generarCodigoSeguridad } from '@/modules/dashboard/composables/useTorneoGrupo'
 
 const props = defineProps<{
   torneo: Torneo | null
@@ -763,7 +808,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'actualizar-estado', id: string, nuevoEstado: EstadoTorneo): void
   (e: 'abrir-resolver-partido', partido: any): void
-  (e: 'ver-comprobante', jugador: any): void
 }>()
 
 const modalRef = ref<InstanceType<typeof Modal> | null>(null)
@@ -843,16 +887,71 @@ const tabs = computed(() => [
   },
 ])
 
-// Cálculos
+// Cálculos y Participantes Aprobados
+const jugadoresAprobados = computed(() => jugadoresTorneo.value.filter(j => j.pagoValidado))
+
+const clasificadosSeleccionados = ref<number>(props.torneo?.clasificadosPlayoffs || 4)
+
+watch(
+  () => props.torneo?.clasificadosPlayoffs,
+  (val) => {
+    if (val) clasificadosSeleccionados.value = val
+  }
+)
+
+const opcionesClasificados = computed(() => {
+  const n = jugadoresAprobados.value.length
+  return [
+    { valor: 2, label: 'Top 2', descripcion: 'Gran Final directa', deshabilitado: n < 2 },
+    { valor: 4, label: 'Top 4', descripcion: 'Semis + Gran Final', deshabilitado: n < 4 },
+    { valor: 6, label: 'Top 6', descripcion: 'Cuartos (BYE) + Semis', deshabilitado: n < 6 },
+    { valor: 8, label: 'Top 8', descripcion: 'Cuartos completos', deshabilitado: n < 8 },
+  ]
+})
+
+const cambiarClasificadosPlayoffs = async (valor: number) => {
+  clasificadosSeleccionados.value = valor
+  if (props.torneo?.id) {
+    await actualizarClasificadosPlayoffsDB(props.torneo.id, valor)
+    mensajeEstado.value = `¡Formato de Playoffs actualizado! Clasifican Top ${valor}.`
+    setTimeout(() => { mensajeEstado.value = '' }, 3500)
+  }
+}
+
+const clasificadosPlayoffsTexto = computed(() => {
+  return `Top ${clasificadosSeleccionados.value}`
+})
+
+const paseDirectoTexto = computed(() => {
+  const c = clasificadosSeleccionados.value
+  if (c === 6) return 'Top 1 y 2 (BYE)'
+  if (c === 12) return 'Top 1 al 4 (BYE)'
+  return 'N/A'
+})
+
+const crucesPlayInTexto = computed(() => {
+  const c = clasificadosSeleccionados.value
+  if (c === 2) return 'Final única'
+  if (c === 4) return 'Semis (2 llaves)'
+  if (c === 6) return 'Cuartos (2 llaves)'
+  if (c === 8) return 'Cuartos (4 llaves)'
+  return 'Play-In'
+})
+
 const bolsaTotalCalculada = computed(() => {
-  const inscritos = jugadoresTorneo.value.filter(j => j.pagoValidado).length
-  return inscritos * (props.torneo?.costoInscripcion || 6000)
+  return jugadoresAprobados.value.length * (props.torneo?.costoInscripcion || 6000)
 })
 
 const totalPartidosEstimados = computed(() => {
-  const n = jugadoresTorneo.value.length
+  const n = jugadoresAprobados.value.length
   if (n < 2) return 0
   return (n * (n - 1)) / 2
+})
+
+const totalRondasEstimadas = computed(() => {
+  const n = jugadoresAprobados.value.length
+  if (n < 2) return 0
+  return n % 2 === 0 ? n - 1 : n
 })
 
 const faseActualTexto = computed(() => {
@@ -879,25 +978,55 @@ const contarPartidosPorTipo = (tipo: string) => {
   return 0
 }
 
-// Tabla de posiciones oficial calculada para el Round Robin
+// Tabla de posiciones oficial calculada para el Round Robin (solo jugadores admitidos)
 const posicionesTorneo = computed(() => {
-  if (!fixtureGenerado.value || jugadoresTorneo.value.length === 0) return []
+  if (!fixtureGenerado.value || jugadoresAprobados.value.length === 0) return []
 
-  // Si hay partidos reales jugados, calcular métricas acumuladas
-  return jugadoresTorneo.value.map((jugador, idx) => {
-    // Generación de métricas realistas y decrecientes según el índice
-    const pj = Math.max(1, 4 - Math.floor(idx / 4))
-    const pg = Math.max(0, pj - Math.floor(idx / 3))
-    const pp = pj - pg
-    const sf = pg * 2 + (idx % 2)
-    const sc = pp * 2 + (idx % 3)
+  // Calcular métricas reales a partir de los partidos con resultado
+  const partidosJugados = partidosTorneo.value.filter((p) => p.estado === 'jugado')
+
+  return jugadoresAprobados.value.map((jugador) => {
+    let pj = 0
+    let pg = 0
+    let pp = 0
+    let sf = 0
+    let sc = 0
+
+    partidosJugados.forEach((partido) => {
+      const esJugador1 = partido.jugador1?.id === jugador.id || partido.jugador1Id === jugador.id
+      const esJugador2 = partido.jugador2?.id === jugador.id || partido.jugador2Id === jugador.id
+
+      if (esJugador1 || esJugador2) {
+        pj++
+        const ganadorId = partido.ganadorId || partido.jugadorGanadorId
+        if (ganadorId === jugador.id) {
+          pg++
+        } else if (ganadorId) {
+          pp++
+        }
+
+        if (partido.marcador && typeof partido.marcador === 'string') {
+          const partes = partido.marcador.split('-').map((s: string) => parseInt(s.trim()))
+          if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
+            if (esJugador1) {
+              sf += partes[0]
+              sc += partes[1]
+            } else {
+              sf += partes[1]
+              sc += partes[0]
+            }
+          }
+        }
+      }
+    })
+
     const puntos = pg * 2 + pp * 1
 
     return {
       jugadorId: jugador.id,
       nombre: jugador.nombre,
-      iniciales: jugador.iniciales,
-      tipo: jugador.tipo,
+      iniciales: jugador.iniciales || jugador.nombre?.substring(0, 2).toUpperCase() || 'J',
+      tipo: jugador.tipo || 'camper',
       pj,
       pg,
       pp,
@@ -933,10 +1062,39 @@ const actualizarEstado = (nuevoEstado: EstadoTorneo) => {
   }
 }
 
+// Acciones para admitir o rechazar jugadores del torneo
+const aprobarJugador = async (jugador: any) => {
+  try {
+    await actualizarEstadoInscripcionDB(jugador.id, true, 'INSCRITO')
+    jugador.pagoValidado = true
+    jugador.subestado = 'INSCRITO'
+    mensajeEstado.value = `¡Jugador ${jugador.nombre} aprobado! Ya está admitido en el torneo.`
+    setTimeout(() => {
+      mensajeEstado.value = ''
+    }, 4000)
+  } catch (error) {
+    console.error('Error al aprobar jugador:', error)
+  }
+}
+
+const rechazarJugador = async (jugador: any) => {
+  try {
+    await eliminarInscripcionDB(jugador.id)
+    jugadoresTorneo.value = jugadoresTorneo.value.filter((j) => j.id !== jugador.id)
+    mensajeEstado.value = `Inscripción de ${jugador.nombre} rechazada y removida del torneo.`
+    setTimeout(() => {
+      mensajeEstado.value = ''
+    }, 4000)
+  } catch (error) {
+    console.error('Error al rechazar jugador:', error)
+  }
+}
+
 // Generación Oficial de Partidos (Transición obligatoria a Fase 1: En Curso)
 const generarPartidos = async () => {
-  if (jugadoresTorneo.value.length < 2) {
-    mensajeEstado.value = 'Se requieren al menos 2 jugadores inscritos para generar los partidos.'
+  const participantes = jugadoresAprobados.value
+  if (participantes.length < 2) {
+    mensajeEstado.value = 'Se requieren al menos 2 jugadores aprobados para generar los partidos.'
     setTimeout(() => { mensajeEstado.value = '' }, 4000)
     return
   }
@@ -946,34 +1104,38 @@ const generarPartidos = async () => {
     animandoGeneracion.value = false
     fixtureGenerado.value = true
 
-    // Generar fixture de enfrentamientos entre los jugadores reales
-    const listaPartidosGenerados: any[] = []
-    let contador = 1
-    for (let i = 0; i < jugadoresTorneo.value.length; i++) {
-      for (let j = i + 1; j < jugadoresTorneo.value.length; j++) {
-        listaPartidosGenerados.push({
-          id: `p-${props.torneo?.id || 'torneo'}-${contador}`,
-          torneoId: props.torneo?.id,
-          ronda: Math.floor(contador / 4) + 1,
-          jugador1: {
-            id: jugadoresTorneo.value[i].id,
-            nombre: jugadoresTorneo.value[i].nombre,
-            iniciales: jugadoresTorneo.value[i].iniciales || jugadoresTorneo.value[i].nombre?.substring(0, 2).toUpperCase() || 'J1',
-          },
-          jugador2: {
-            id: jugadoresTorneo.value[j].id,
-            nombre: jugadoresTorneo.value[j].nombre,
-            iniciales: jugadoresTorneo.value[j].iniciales || jugadoresTorneo.value[j].nombre?.substring(0, 2).toUpperCase() || 'J2',
-          },
-          estado: 'en_curso',
-          mesa: `0${(contador % 4) + 1}`,
-          diasRestantes: 2,
-          marcador: null,
-          marcadorDetallado: null,
-        })
-        contador++
+    // Generar fixture de enfrentamientos con Algoritmo Berger (rondas y partidos simultáneos)
+    const fixtureBerger = generarFixtureBerger(participantes)
+    const listaPartidosGenerados = fixtureBerger.map((item, idx) => {
+      const j1Id = item.jugador1.jugadorId || item.jugador1.id || `J1-${idx}`
+      const j2Id = item.jugador2.jugadorId || item.jugador2.id || `J2-${idx}`
+      return {
+        id: `p-${props.torneo?.id || 'torneo'}-${idx + 1}`,
+        torneoId: props.torneo?.id,
+        ronda: item.ronda,
+        jornada: item.ronda,
+        jugador1Id: j1Id,
+        jugador2Id: j2Id,
+        jugador1: {
+          id: j1Id,
+          nombre: item.jugador1.nombre || 'Jugador 1',
+          iniciales: item.jugador1.iniciales || item.jugador1.nombre?.substring(0, 2).toUpperCase() || 'J1',
+          foto: (item.jugador1 as any).foto || null,
+        },
+        jugador2: {
+          id: j2Id,
+          nombre: item.jugador2.nombre || 'Jugador 2',
+          iniciales: item.jugador2.iniciales || item.jugador2.nombre?.substring(0, 2).toUpperCase() || 'J2',
+          foto: (item.jugador2 as any).foto || null,
+        },
+        estado: 'en_curso',
+        diasRestantes: 2,
+        marcador: null,
+        marcadorDetallado: null,
+        codigoJugador1: generarCodigoSeguridad(j1Id, j2Id),
+        codigoJugador2: generarCodigoSeguridad(j2Id, j1Id),
       }
-    }
+    })
 
     partidosTorneo.value = listaPartidosGenerados
 
@@ -996,7 +1158,7 @@ const generarPartidos = async () => {
 
 const abrirPlayoffs = () => {
   playoffsAbiertos.value = true
-  mensajeEstado.value = '¡Cuadro de Playoffs (Top 12) habilitado! 4 pases directos a cuartos y 4 cruces de Play-In listos.'
+  mensajeEstado.value = '¡Cuadro de Playoffs habilitado para los clasificados de la fase regular!'
   setTimeout(() => {
     mensajeEstado.value = ''
   }, 5000)
@@ -1004,16 +1166,6 @@ const abrirPlayoffs = () => {
 
 const resolverPartido = (partido: any) => {
   emit('abrir-resolver-partido', partido)
-}
-
-const verComprobanteJugador = (jugador: any) => {
-  emit('ver-comprobante', {
-    jugadorNombre: jugador.nombre,
-    tipo: jugador.tipo,
-    monto: 6000,
-    referencia: 'NEQ-849201',
-    fecha: 'Validado Oficial',
-  })
 }
 
 const open = () => {

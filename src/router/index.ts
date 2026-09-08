@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
     path: '/admin',
     name: 'admin',
     component: () => import('@/modules/admin/views/AdminDashboardView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
 ]
 
@@ -38,6 +38,11 @@ router.beforeEach((to, from, next) => {
 
   if (to.meta.requiresAuth && !authStore.estaAutenticado) {
     return next('/login')
+  }
+
+  // Protección por rol estricta: solo usuarios con rol 'admin' pueden entrar al panel administrativo
+  if (to.meta.requiresAdmin && !authStore.esAdmin) {
+    return next('/')
   }
 
   if (to.meta.guestOnly && authStore.estaAutenticado) {

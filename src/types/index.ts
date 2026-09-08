@@ -55,11 +55,9 @@ export interface Torneo {
   mesaAsignada?: string
   sorteoLlaves?: string
   posicionFinal?: string
+  clasificadosPlayoffs?: number
 }
 
-// ==========================================
-// PARTICIPACIÓN EN TORNEO: RUEDA RADIAL Y POSICIONES
-// ==========================================
 
 export type ResultadoPartido = 'ganado' | 'perdido' | 'pendiente'
 export type EstadoPartido = 'pendiente' | 'en_curso' | 'pendiente_admin' | 'jugado'
@@ -87,6 +85,8 @@ export interface PartidoGrupo {
   id: string
   jugador1Id: string
   jugador2Id: string
+  jugador1?: any
+  jugador2?: any
   jugadorGanadorId?: string
   marcador?: string          // ej: "2 - 1"
   marcadorDetallado?: string // ej: "11-8, 9-11, 11-7"

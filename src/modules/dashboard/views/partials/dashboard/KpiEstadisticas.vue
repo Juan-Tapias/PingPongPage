@@ -5,7 +5,7 @@
         <Trophy class="w-5 h-5" />
       </div>
       <div>
-        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">14</span>
+        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">{{ torneosJugados }}</span>
         <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Torneos jugados</span>
       </div>
     </div>
@@ -15,7 +15,7 @@
         <Activity class="w-5 h-5" />
       </div>
       <div>
-        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">78%</span>
+        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">{{ efectividad }}%</span>
         <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Efectividad de Sets</span>
       </div>
     </div>
@@ -25,7 +25,7 @@
         <TrendingUp class="w-5 h-5" />
       </div>
       <div>
-        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">1,420</span>
+        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">{{ puntosRanking.toLocaleString('es-CO') }}</span>
         <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Puntos de Ranking</span>
       </div>
     </div>
@@ -35,7 +35,7 @@
         <Award class="w-5 h-5" />
       </div>
       <div>
-        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">5</span>
+        <span class="text-xl font-extrabold font-heading text-slate-900 dark:text-white block leading-tight">{{ podios }}</span>
         <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Podios Oficiales</span>
       </div>
     </div>
@@ -44,4 +44,18 @@
 
 <script setup lang="ts">
 import { Trophy, Activity, TrendingUp, Award } from 'lucide-vue-next'
+
+interface Props {
+  torneosJugados?: number
+  efectividad?: number
+  puntosRanking?: number
+  podios?: number
+}
+
+withDefaults(defineProps<Props>(), {
+  torneosJugados: 0,
+  efectividad: 0,
+  puntosRanking: 0,
+  podios: 0,
+})
 </script>

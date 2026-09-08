@@ -127,7 +127,7 @@
         <BannerSeguimientoMesas v-if="tabActiva === 'mis-torneos'" />
         <BannerReglamento v-else />
 
-        <KpiEstadisticas v-if="tabActiva === 'mis-torneos'" />
+        <KpiEstadisticas v-if="tabActiva === 'mis-torneos'" :torneos-jugados="conteoFinalizado" />
       </template>
     </main>
 
@@ -147,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Trophy, Compass } from 'lucide-vue-next'
 import TorneoCard from './partials/dashboard/TorneoCard.vue'
 import BreadcrumbExpediente from './partials/dashboard/BreadcrumbExpediente.vue'
@@ -160,9 +160,14 @@ import ModalInscripcionTorneo from './partials/dashboard/ModalInscripcionTorneo.
 import ModalVerificacionPago from './partials/dashboard/ModalVerificacionPago.vue'
 import VistaParticipacionTorneo from './partials/participacion/VistaParticipacionTorneo.vue'
 import type { Torneo } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+import { obtenerTorneosDB, obtenerInscripcionesDB, guardarInscripcionDB } from '@/services/torneoDatabaseService'
+
+const authStore = useAuthStore()
 
 const tabActiva = ref<'mis-torneos' | 'disponibles'>('mis-torneos')
 const torneoParticipacion = ref<Torneo | null>(null)
+const cargando = ref(false)
 
 const busquedaMisTorneos = ref('')
 const filtroEstadoMisTorneos = ref('todos')
@@ -175,97 +180,46 @@ const modalInscripcionRef = ref()
 const modalVerificacionRef = ref()
 const torneoSeleccionado = ref<Torneo | null>(null)
 
+const misTorneos = ref<Torneo[]>([])
+const torneosDisponibles = ref<Torneo[]>([])
+
 const conteoEnVerificacion = computed(() => misTorneos.value.filter((t) => t.subestado === 'PENDIENTE').length)
 const conteoEnCurso = computed(() => misTorneos.value.filter((t) => t.subestado !== 'PENDIENTE' && t.estado === 'en curso').length)
 const conteoPorIniciar = computed(() => misTorneos.value.filter((t) => t.subestado !== 'PENDIENTE' && t.estado === 'por iniciar').length)
 const conteoFinalizado = computed(() => misTorneos.value.filter((t) => t.subestado !== 'PENDIENTE' && t.estado === 'finalizado').length)
 
-const misTorneos = ref<Torneo[]>([
-  {
-    id: 't-1',
-    nombre: 'Torneo Apertura Campers & Trainers 2026',
-    organizador: 'Comité Campuslands',
-    fechaInicio: '15 de Marzo, 2026',
-    estado: 'en curso',
-    subestado: 'INSCRITO',
-    descripcion: 'Fase de eliminación directa. Cuadro de 32 jugadores. Modalidad individual masculina y femenina.',
-    costoInscripcion: 6000,
-    fechaLimiteInscripcion: '10 de Marzo, 2026',
-    numeroCuenta: '031-987654-21 (Bancolombia Ahorros)',
-    whatsappContacto: '+57 300 123 4567',
-    mesaAsignada: 'MESA 04 (16:30)',
-    estaInscrito: true,
-  },
-  {
-    id: 't-2',
-    nombre: 'Torneo Relámpago Ping Pong Fin de Semana',
-    organizador: 'Andrés Galvis',
-    fechaInicio: '28 de Marzo, 2026',
-    estado: 'por iniciar',
-    subestado: 'CONFIRMADO',
-    descripcion: 'Formato relámpago con partidos al mejor de 3 sets. Premiación inmediata y ranking federado.',
-    costoInscripcion: 6000,
-    fechaLimiteInscripcion: '25 de Marzo, 2026',
-    numeroCuenta: '031-987654-21 (Bancolombia Ahorros)',
-    whatsappContacto: '+57 310 987 6543',
-    sorteoLlaves: 'En 4 días',
-    estaInscrito: true,
-  },
-  {
-    id: 't-3',
-    nombre: 'Copa Verano 2025 - Edición Anterior',
-    organizador: 'Staff Ping Pong',
-    fechaInicio: '10 de Diciembre, 2025',
-    estado: 'finalizado',
-    subestado: 'COMPLETADO',
-    descripcion: 'Finalista en semifinales de llave plata. Resultado global: 4 victorias, 1 derrota.',
-    costoInscripcion: 6000,
-    fechaLimiteInscripcion: '05 de Diciembre, 2025',
-    numeroCuenta: '031-987654-21 (Bancolombia Ahorros)',
-    whatsappContacto: '+57 300 123 4567',
-    posicionFinal: '3er Lugar (Bronce)',
-    estaInscrito: true,
-  },
-])
+// Carga de torneos reales desde Firestore
+onMounted(async () => {
+  cargando.value = true
+  try {
+    const torneosRemotos = await obtenerTorneosDB()
+    const userId = authStore.usuario?.id
 
-const torneosDisponibles = ref<Torneo[]>([
-  {
-    id: 't-4',
-    nombre: 'Gran Torneo Máster SpinApp 2026',
-    categoria: 'CATEGORÍA MÁSTER',
-    modalidad: 'INDIVIDUAL MASCULINO',
-    descripcion: 'Competencia estelar de apertura con puntuación federada nacional, mesas de alta competición y transmisión oficial por streaming.',
-    organizador: 'Dirección Deportiva',
-    fechaInicio: '01 Abr, 2026',
-    fechaLimiteInscripcion: '28 Mar, 2026',
-    sede: 'Sede Central Olimpia',
-    cuposTomados: 14,
-    cuposTotales: 32,
-    estado: 'por iniciar',
-    costoInscripcion: 6000,
-    numeroCuenta: '912-345678-09 (Nequi / Bancolombia)',
-    whatsappContacto: '+57 315 555 7890',
-    estaInscrito: false,
-  },
-  {
-    id: 't-5',
-    nombre: 'Torneo Dobles e Individual Inter-Sedes',
-    categoria: 'TODO COMPETIDOR',
-    modalidad: 'INDIVIDUAL & DOBLES',
-    descripcion: 'Jornada recreativa y competitiva mixta entre sedes afiliadas. Modalidades continuas y premiación especial para clubes invitados.',
-    organizador: 'Área de Bienestar',
-    fechaInicio: '15 Abr, 2026',
-    fechaLimiteInscripcion: '10 Abr, 2026',
-    sede: 'Gimnasio Polideportivo Norte',
-    cuposTomados: 22,
-    cuposTotales: 48,
-    estado: 'por iniciar',
-    costoInscripcion: 6000,
-    numeroCuenta: '912-345678-09 (Nequi / Bancolombia)',
-    whatsappContacto: '+57 315 555 7890',
-    estaInscrito: false,
-  },
-])
+    const inscritos: Torneo[] = []
+    const disponibles: Torneo[] = []
+
+    for (const t of torneosRemotos) {
+      let estaInscrito = false
+      if (userId) {
+        const inscripciones = await obtenerInscripcionesDB(t.id)
+        estaInscrito = inscripciones.some((ins: any) => ins.jugadorId === userId || ins.id === userId)
+      }
+
+      if (estaInscrito) {
+        inscritos.push({ ...t, estaInscrito: true })
+      } else {
+        disponibles.push({ ...t, estaInscrito: false })
+      }
+    }
+
+    misTorneos.value = inscritos
+    torneosDisponibles.value = disponibles
+  } catch (err) {
+    console.error('Error al cargar torneos desde la base de datos:', err)
+  } finally {
+    cargando.value = false
+  }
+})
 
 const misTorneosFiltrados = computed(() => {
   return misTorneos.value.filter((t) => {
@@ -308,14 +262,35 @@ const handleAbrirInscripcion = (torneo: Torneo) => {
   modalInscripcionRef.value?.open()
 }
 
-const handleConfirmarInscripcion = (torneo: Torneo) => {
+const handleConfirmarInscripcion = async (torneo: Torneo) => {
+  const usuario = authStore.usuario
+  if (!usuario) return
+
+  // 1. Crear documento de inscripción en Firestore vinculado al usuario autenticado
+  const nuevaInscripcion = {
+    id: `${torneo.id}_${usuario.id}`,
+    torneoId: torneo.id,
+    jugadorId: usuario.id,
+    nombre: `${usuario.nombre} ${usuario.apellido || ''}`.trim(),
+    iniciales: `${usuario.nombre?.[0] || 'J'}${usuario.apellido?.[0] || ''}`.toUpperCase(),
+    telefono: usuario.telefono || '',
+    tipo: usuario.tipo || 'camper',
+    pagoValidado: false,
+    subestado: 'PENDIENTE',
+    fechaInscripcion: new Date().toISOString(),
+  }
+
+  try {
+    await guardarInscripcionDB(nuevaInscripcion)
+  } catch (err) {
+    console.error('Error al guardar inscripción en base de datos:', err)
+  }
+
+  // 2. Actualizar estado reactivo local
   const torneoEnDisponibles = torneosDisponibles.value.find((t) => t.id === torneo.id)
   if (torneoEnDisponibles) {
     torneoEnDisponibles.estaInscrito = true
     torneoEnDisponibles.subestado = 'PENDIENTE'
-    if (torneoEnDisponibles.cuposTomados) {
-      torneoEnDisponibles.cuposTomados += 1
-    }
   }
 
   const existe = misTorneos.value.some((t) => t.id === torneo.id)

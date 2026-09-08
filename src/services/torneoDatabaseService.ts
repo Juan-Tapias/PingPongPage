@@ -10,7 +10,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Torneo, EstadoTorneo } from '@/types'
+import type { Torneo, EstadoTorneo, Usuario } from '@/types'
 
 const COLECCION_TORNEOS = 'torneos'
 const COLECCION_PARTIDOS = 'partidos'
@@ -86,8 +86,43 @@ export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> =
 }
 
 /**
- * Obtiene los partidos de un torneo
+ * Guarda o actualiza la inscripción de un jugador a un torneo en Firestore
  */
+export const guardarInscripcionDB = async (inscripcion: {
+  id?: string
+  torneoId: string
+  jugadorId: string
+  nombre: string
+  iniciales?: string
+  telefono?: string
+  tipo?: string
+  pagoValidado?: boolean
+  subestado?: string
+  fechaInscripcion?: string
+}): Promise<void> => {
+  const docId = inscripcion.id || `${inscripcion.torneoId}_${inscripcion.jugadorId}`
+  const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, docId)
+  await setDoc(inscripcionRef, { ...inscripcion, id: docId })
+}
+
+export const actualizarEstadoInscripcionDB = async (
+  inscripcionId: string,
+  pagoValidado: boolean,
+  subestado: string = 'INSCRITO'
+): Promise<void> => {
+  const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, inscripcionId)
+  await updateDoc(inscripcionRef, {
+    pagoValidado,
+    subestado,
+  })
+}
+
+export const eliminarInscripcionDB = async (inscripcionId: string): Promise<void> => {
+  const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, inscripcionId)
+  await deleteDoc(inscripcionRef)
+}
+
+
 export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
   try {
     const q = query(collection(db, COLECCION_PARTIDOS), where('torneoId', '==', torneoId))
@@ -112,3 +147,49 @@ export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
     await setDoc(pRef, partido)
   }
 }
+
+export const actualizarPartidoDB = async (partidoId: string, datos: any): Promise<void> => {
+  const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
+  await updateDoc(pRef, datos)
+}
+
+export const actualizarTablaPosicionesDB = async (torneoId: string, posiciones: any[]): Promise<void> => {
+  try {
+    const torneoRef = doc(db, 'torneos', torneoId)
+    await updateDoc(torneoRef, {
+      tablaPosiciones: posiciones,
+      ultimaActualizacionPosiciones: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.warn('No se pudo actualizar tablaPosiciones en torneo:', error)
+  }
+}
+
+export const actualizarClasificadosPlayoffsDB = async (torneoId: string, clasificados: number): Promise<void> => {
+  try {
+    const torneoRef = doc(db, 'torneos', torneoId)
+    await updateDoc(torneoRef, {
+      clasificadosPlayoffs: clasificados,
+    })
+  } catch (error) {
+    console.warn('No se pudo actualizar clasificadosPlayoffs en torneo:', error)
+  }
+}
+
+/**
+ * Obtiene todos los usuarios registrados en la base de datos
+ */
+export const obtenerUsuariosDB = async (): Promise<Usuario[]> => {
+  try {
+    const snap = await getDocs(collection(db, 'usuarios'))
+    const usuarios: Usuario[] = []
+    snap.forEach((documento) => {
+      usuarios.push({ id: documento.id, ...documento.data() } as Usuario)
+    })
+    return usuarios
+  } catch (error) {
+    console.warn('Error al obtener usuarios desde Firestore:', error)
+    return []
+  }
+}
+

@@ -182,11 +182,6 @@
         </div>
       </div>
 
-      <div class="mt-3.5 flex items-center justify-end text-xs text-slate-500 dark:text-slate-400 pt-1">
-        <span class="font-bold text-emerald-600 dark:text-emerald-400">
-          {{ torneo.cuposTomados || 14 }} / {{ torneo.cuposTotales || 32 }} cupos tomados
-        </span>
-      </div>
     </div>
 
     <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
