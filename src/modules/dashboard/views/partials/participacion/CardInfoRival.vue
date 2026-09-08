@@ -7,7 +7,7 @@
         </div>
         <div>
           <span class="text-[10px] font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
-            Rival de Turno
+            {{ rival.esRivalDeTurno ? 'Rival de Turno (A las 12)' : 'Partido Pendiente' }}
           </span>
           <h4 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug mt-0.5">
             {{ rival.jugador.nombre }}
@@ -55,7 +55,7 @@
       </div>
 
       <span class="text-[10px] text-slate-400 dark:text-slate-400 font-medium">
-        Cálculo estimado según rendimiento previo y estadísticas
+        {{ probabilidadGanancia === 50 ? 'Probabilidad neutral inicial (Sin partidos jugados: 50% / 50%)' : 'Calculado a partir de resultados previos' }}
       </span>
     </div>
   </div>
@@ -63,7 +63,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Clock, KeyRound } from 'lucide-vue-next'
+import { Clock, KeyRound, Calendar } from 'lucide-vue-next'
 import type { BurbujaRival } from '@/types'
 
 const props = defineProps<{
@@ -72,7 +72,8 @@ const props = defineProps<{
 
 const probabilidadGanancia = computed(() => {
   if (!props.rival) return 50
-  const seed = props.rival.jugador.nombre.length
-  return 60 + (seed % 15) 
+  if (props.rival.resultadoParaCentro === 'ganado') return 80
+  if (props.rival.resultadoParaCentro === 'perdido') return 20
+  return 50
 })
 </script>

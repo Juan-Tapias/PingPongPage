@@ -4,11 +4,12 @@
       <div class="flex items-center gap-3">
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+          title="Volver a mis torneos"
+          aria-label="Volver a mis torneos"
+          class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-700/60 transition-colors cursor-pointer shrink-0 shadow-xs"
           @click="$emit('volver')"
         >
-          <ArrowLeft class="w-4 h-4" />
-          <span>Volver a mis torneos</span>
+          <ArrowLeft class="w-5 h-5" />
         </button>
 
         <div class="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
