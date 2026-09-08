@@ -54,7 +54,7 @@
             <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 ring-2 ring-sky-500/20 group-hover:ring-sky-500/40 transition-all">
               {{ userInitials }}
             </div>
-            <div class="flex flex-col text-left min-w-0">
+            <div class="hidden md:flex flex-col text-left min-w-0">
               <span class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-28 sm:max-w-36">
                 {{ authStore.usuario?.nombre || 'Usuario' }} {{ authStore.usuario?.apellido || '' }}
               </span>

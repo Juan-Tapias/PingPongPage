@@ -11,15 +11,19 @@
       />
     </div>
 
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs pt-2 border-t border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-      <span class="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-medium">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+      <div class="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-medium flex-wrap">
         <CheckCircle2 class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-        Mostrando <strong class="text-slate-900 dark:text-white">{{ totalEncontrados }} torneos encontrados</strong> con cupos disponibles
-      </span>
+        <span>Mostrando</span>
+        <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/80 font-bold">
+          {{ totalEncontrados }} torneos
+        </span>
+        <span>con cupos disponibles</span>
+      </div>
 
       <button
         type="button"
-        class="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-semibold cursor-pointer self-start sm:self-auto"
+        class="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-semibold cursor-pointer self-start sm:self-auto text-xs underline sm:no-underline"
         @click="emit('restablecer')"
       >
         Restablecer filtros
