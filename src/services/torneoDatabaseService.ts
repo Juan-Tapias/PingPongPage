@@ -193,3 +193,238 @@ export const obtenerUsuariosDB = async (): Promise<Usuario[]> => {
   }
 }
 
+/**
+ * Genera jugadores de prueba (aprobados) para validar el flujo completo del torneo
+ */
+export const generarJugadoresDemoDB = async (torneoId: string, cantidad: number = 4): Promise<any[]> => {
+  const listaNombres = [
+    { nombre: 'Carlos Mendoza', iniciales: 'CM', telefono: '+57 312 456 7890', tipo: 'camper' },
+    { nombre: 'Andres Rivera', iniciales: 'AR', telefono: '+57 300 876 5432', tipo: 'camper' },
+    { nombre: 'Valentina Gomez', iniciales: 'VG', telefono: '+57 315 234 5678', tipo: 'staff' },
+    { nombre: 'Mateo Hernandez', iniciales: 'MH', telefono: '+57 318 901 2345', tipo: 'camper' },
+    { nombre: 'Daniel Ospina', iniciales: 'DO', telefono: '+57 301 345 6789', tipo: 'camper' },
+    { nombre: 'Sofia Ramirez', iniciales: 'SR', telefono: '+57 316 678 9012', tipo: 'camper' },
+  ]
+
+  const jugadoresCreados: any[] = []
+  const max = Math.min(cantidad, listaNombres.length)
+
+  for (let i = 0; i < max; i++) {
+    const demo = listaNombres[i]
+    if (!demo) continue
+    const idJugador = `demo_player_${i + 1}`
+    const nuevaInscripcion = {
+      id: `${torneoId}_${idJugador}`,
+      torneoId,
+      jugadorId: idJugador,
+      nombre: demo.nombre,
+      iniciales: demo.iniciales,
+      telefono: demo.telefono,
+      tipo: demo.tipo,
+      pagoValidado: true,
+      subestado: 'INSCRITO',
+      fechaInscripcion: new Date().toISOString(),
+    }
+    await guardarInscripcionDB(nuevaInscripcion)
+    jugadoresCreados.push(nuevaInscripcion)
+  }
+
+  return jugadoresCreados
+}
+
+/**
+ * Genera un escenario de torneo hiper-realista completo en Firestore
+ * (Jugadores, Partidos jugados con marcadores, Jornada activa y conflicto de admin)
+ */
+export const generarTorneoDemoCompletoDB = async (torneoId: string, usuarioActual?: any): Promise<void> => {
+  const yoId = usuarioActual?.id || 'usuario_actual'
+  const yoNombre = usuarioActual?.nombre
+    ? `${usuarioActual.nombre} ${usuarioActual.apellido || ''}`.trim()
+    : 'Jose Guillermo Paúl Diaz'
+  const yoIniciales = `${yoNombre[0] || 'J'}${yoNombre.split(' ')[1]?.[0] || 'P'}`.toUpperCase()
+
+  const participantes = [
+    { id: yoId, nombre: yoNombre, iniciales: yoIniciales, telefono: usuarioActual?.telefono || '+57 317 800 1452', tipo: 'camper' },
+    { id: 'demo_carlos', nombre: 'Carlos Mendoza', iniciales: 'CM', telefono: '+57 312 456 7890', tipo: 'camper' },
+    { id: 'demo_andres', nombre: 'Andres Rivera', iniciales: 'AR', telefono: '+57 300 876 5432', tipo: 'camper' },
+    { id: 'demo_valentina', nombre: 'Valentina Gomez', iniciales: 'VG', telefono: '+57 315 234 5678', tipo: 'staff' },
+    { id: 'demo_mateo', nombre: 'Mateo Hernandez', iniciales: 'MH', telefono: '+57 318 901 2345', tipo: 'camper' },
+    { id: 'demo_daniel', nombre: 'Daniel Ospina', iniciales: 'DO', telefono: '+57 301 345 6789', tipo: 'camper' },
+  ]
+
+  for (const p of participantes) {
+    await guardarInscripcionDB({
+      id: `${torneoId}_${p.id}`,
+      torneoId,
+      jugadorId: p.id,
+      nombre: p.nombre,
+      iniciales: p.iniciales,
+      telefono: p.telefono,
+      tipo: p.tipo,
+      pagoValidado: true,
+      subestado: 'INSCRITO',
+      fechaInscripcion: new Date().toISOString(),
+    })
+  }
+
+  const partidos: any[] = [
+    // --- RONDA 1 (JUGADOS) ---
+    {
+      id: `p_${torneoId}_1_1`,
+      torneoId,
+      jugador1Id: yoId,
+      jugador2Id: 'demo_carlos',
+      jugador1: participantes[0],
+      jugador2: participantes[1],
+      jugadorGanadorId: yoId,
+      marcador: '2 - 1',
+      marcadorDetallado: '11-9, 8-11, 11-7',
+      estado: 'jugado',
+      ronda: 1,
+      jornada: 1,
+      diasRestantes: 0,
+      codigoJugador1: '12345',
+      codigoJugador2: '54321',
+      sets: [
+        { setNumero: 1, puntosJugador1: 11, puntosJugador2: 9 },
+        { setNumero: 2, puntosJugador1: 8, puntosJugador2: 11 },
+        { setNumero: 3, puntosJugador1: 11, puntosJugador2: 7 },
+      ],
+    },
+    {
+      id: `p_${torneoId}_1_2`,
+      torneoId,
+      jugador1Id: 'demo_andres',
+      jugador2Id: 'demo_valentina',
+      jugador1: participantes[2],
+      jugador2: participantes[3],
+      jugadorGanadorId: 'demo_andres',
+      marcador: '2 - 0',
+      marcadorDetallado: '11-6, 11-4',
+      estado: 'jugado',
+      ronda: 1,
+      jornada: 1,
+      diasRestantes: 0,
+      codigoJugador1: '23456',
+      codigoJugador2: '65432',
+      sets: [
+        { setNumero: 1, puntosJugador1: 11, puntosJugador2: 6 },
+        { setNumero: 2, puntosJugador1: 11, puntosJugador2: 4 },
+      ],
+    },
+    {
+      id: `p_${torneoId}_1_3`,
+      torneoId,
+      jugador1Id: 'demo_mateo',
+      jugador2Id: 'demo_daniel',
+      jugador1: participantes[4],
+      jugador2: participantes[5],
+      jugadorGanadorId: 'demo_daniel',
+      marcador: '1 - 2',
+      marcadorDetallado: '9-11, 11-8, 7-11',
+      estado: 'jugado',
+      ronda: 1,
+      jornada: 1,
+      diasRestantes: 0,
+      codigoJugador1: '34567',
+      codigoJugador2: '76543',
+      sets: [
+        { setNumero: 1, puntosJugador1: 9, puntosJugador2: 11 },
+        { setNumero: 2, puntosJugador1: 11, puntosJugador2: 8 },
+        { setNumero: 3, puntosJugador1: 7, puntosJugador2: 11 },
+      ],
+    },
+
+    // --- RONDA 2 (ACTIVA) ---
+    {
+      id: `p_${torneoId}_2_1`,
+      torneoId,
+      jugador1Id: yoId,
+      jugador2Id: 'demo_andres',
+      jugador1: participantes[0],
+      jugador2: participantes[2],
+      estado: 'pendiente',
+      ronda: 2,
+      jornada: 2,
+      diasRestantes: 2,
+      codigoJugador1: '31924',
+      codigoJugador2: '84015',
+    },
+    {
+      id: `p_${torneoId}_2_2`,
+      torneoId,
+      jugador1Id: 'demo_carlos',
+      jugador2Id: 'demo_mateo',
+      jugador1: participantes[1],
+      jugador2: participantes[4],
+      estado: 'pendiente',
+      ronda: 2,
+      jornada: 2,
+      diasRestantes: 2,
+      codigoJugador1: '49201',
+      codigoJugador2: '71583',
+    },
+    {
+      id: `p_${torneoId}_2_3`,
+      torneoId,
+      jugador1Id: 'demo_valentina',
+      jugador2Id: 'demo_daniel',
+      jugador1: participantes[3],
+      jugador2: participantes[5],
+      estado: 'pendiente',
+      ronda: 2,
+      jornada: 2,
+      diasRestantes: 2,
+      codigoJugador1: '62849',
+      codigoJugador2: '15937',
+    },
+
+    // --- RONDA 3 (EN CONFLICTO / PENDIENTE ADMIN) ---
+    {
+      id: `p_${torneoId}_3_1`,
+      torneoId,
+      jugador1Id: yoId,
+      jugador2Id: 'demo_valentina',
+      jugador1: participantes[0],
+      jugador2: participantes[3],
+      estado: 'pendiente_admin',
+      ronda: 3,
+      jornada: 3,
+      diasRestantes: 0,
+      codigoJugador1: '95123',
+      codigoJugador2: '35789',
+    },
+    {
+      id: `p_${torneoId}_3_2`,
+      torneoId,
+      jugador1Id: 'demo_carlos',
+      jugador2Id: 'demo_daniel',
+      jugador1: participantes[1],
+      jugador2: participantes[5],
+      estado: 'pendiente',
+      ronda: 3,
+      jornada: 3,
+      diasRestantes: 2,
+      codigoJugador1: '84261',
+      codigoJugador2: '26481',
+    },
+    {
+      id: `p_${torneoId}_3_3`,
+      torneoId,
+      jugador1Id: 'demo_andres',
+      jugador2Id: 'demo_mateo',
+      jugador1: participantes[2],
+      jugador2: participantes[4],
+      estado: 'pendiente',
+      ronda: 3,
+      jornada: 3,
+      diasRestantes: 2,
+      codigoJugador1: '73915',
+      codigoJugador2: '51937',
+    },
+  ]
+
+  await guardarPartidosDB(partidos)
+  await actualizarEstadoTorneoDB(torneoId, 'en curso')
+}
+
