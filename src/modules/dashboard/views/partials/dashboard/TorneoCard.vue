@@ -64,14 +64,16 @@
         </div>
 
         <div
-          v-if="torneo.estado === 'finalizado' && torneo.subestado !== 'PENDIENTE' && torneo.posicionFinal"
+          v-if="(torneo.estado === 'en curso' || torneo.estado === 'finalizado') && torneo.subestado !== 'PENDIENTE'"
           class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60"
         >
           <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
             <Award class="w-3.5 h-3.5 text-amber-500" />
-            Posición final:
+            {{ torneo.estado === 'finalizado' ? 'Posición final:' : 'Tu posición actual:' }}
           </span>
-          <strong class="text-emerald-600 dark:text-emerald-400 font-bold">{{ torneo.posicionFinal }}</strong>
+          <strong class="text-emerald-600 dark:text-emerald-400 font-bold">
+            {{ posicionTexto }}
+          </strong>
         </div>
       </div>
     </div>
@@ -228,6 +230,7 @@ import {
 } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import type { Torneo } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
 interface Props {
   torneo: Torneo
@@ -241,6 +244,45 @@ const emit = defineEmits<{
   (e: 'verTorneo', torneo: Torneo): void
   (e: 'verEstado', torneo: Torneo): void
 }>()
+
+const authStore = useAuthStore()
+
+const formatearPosicionOrdinal = (val?: string | number) => {
+  if (!val) return '1er Lugar'
+  const str = String(val).trim()
+  if (str.includes('Lugar')) return str
+
+  const num = parseInt(str, 10)
+  if (isNaN(num) || num <= 0) return str
+
+  if (num === 1) return '1er Lugar 🏆'
+  if (num === 2) return '2do Lugar 🥈'
+  if (num === 3) return '3er Lugar 🥉'
+  return `${num}to Lugar`
+}
+
+const posicionTexto = computed(() => {
+  if (props.torneo.posicionFinal) {
+    return formatearPosicionOrdinal(props.torneo.posicionFinal)
+  }
+
+  if (props.torneo.posicionActual) {
+    return formatearPosicionOrdinal(props.torneo.posicionActual)
+  }
+
+  const tabla = (props.torneo as any).tablaPosiciones
+  if (tabla && Array.isArray(tabla) && tabla.length > 0) {
+    const userId = authStore.usuario?.id
+    if (userId) {
+      const miFila = tabla.find((f: any) => f.jugadorId === userId || f.id === userId)
+      if (miFila && miFila.posicion) {
+        return formatearPosicionOrdinal(miFila.posicion)
+      }
+    }
+  }
+
+  return '1er Lugar'
+})
 
 // Borde superior de color para la tarjeta en "Mis Torneos"
 const topBorderClass = computed(() => {
