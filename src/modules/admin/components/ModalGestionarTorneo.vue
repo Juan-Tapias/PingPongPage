@@ -880,7 +880,12 @@ watch(
       // 2. Obtener partidos reales del torneo desde Firestore
       const partidosDB = await obtenerPartidosDB(torneoActual.id)
       if (partidosDB.length > 0) {
-        partidosTorneo.value = partidosDB
+        partidosTorneo.value = partidosDB.map((p) => {
+          if (p.estado === 'en_curso' && !p.marcador && !p.enVivo) {
+            return { ...p, estado: 'pendiente' }
+          }
+          return p
+        })
         fixtureGenerado.value = true
       } else {
         partidosTorneo.value = []
@@ -997,8 +1002,8 @@ const faseActualTexto = computed(() => {
 
 const partidosFiltrados = computed(() => {
   if (filtroPartidos.value === 'todos') return partidosTorneo.value
-  if (filtroPartidos.value === 'en_curso') return partidosTorneo.value.filter(p => p.estado === 'en_curso')
-  if (filtroPartidos.value === 'pendientes') return partidosTorneo.value.filter(p => p.estado === 'pendiente')
+  if (filtroPartidos.value === 'en_curso') return partidosTorneo.value.filter(p => p.estado === 'en_curso' && (p.marcador || p.enVivo))
+  if (filtroPartidos.value === 'pendientes') return partidosTorneo.value.filter(p => p.estado === 'pendiente' || (p.estado === 'en_curso' && !p.marcador && !p.enVivo))
   if (filtroPartidos.value === 'conflictos') return partidosTorneo.value.filter(p => p.estado === 'pendiente_admin')
   if (filtroPartidos.value === 'jugados') return partidosTorneo.value.filter(p => p.estado === 'jugado')
   return partidosTorneo.value
@@ -1006,8 +1011,8 @@ const partidosFiltrados = computed(() => {
 
 const contarPartidosPorTipo = (tipo: string) => {
   if (tipo === 'todos') return partidosTorneo.value.length
-  if (tipo === 'en_curso') return partidosTorneo.value.filter(p => p.estado === 'en_curso').length
-  if (tipo === 'pendientes') return partidosTorneo.value.filter(p => p.estado === 'pendiente').length
+  if (tipo === 'en_curso') return partidosTorneo.value.filter(p => p.estado === 'en_curso' && (p.marcador || p.enVivo)).length
+  if (tipo === 'pendientes') return partidosTorneo.value.filter(p => p.estado === 'pendiente' || (p.estado === 'en_curso' && !p.marcador && !p.enVivo)).length
   if (tipo === 'conflictos') return partidosTorneo.value.filter(p => p.estado === 'pendiente_admin').length
   if (tipo === 'jugados') return partidosTorneo.value.filter(p => p.estado === 'jugado').length
   return 0
@@ -1204,7 +1209,7 @@ const generarPartidos = async () => {
           iniciales: item.jugador2.iniciales || item.jugador2.nombre?.substring(0, 2).toUpperCase() || 'J2',
           foto: (item.jugador2 as any).foto || null,
         },
-        estado: 'en_curso',
+        estado: 'pendiente',
         diasRestantes: 2,
         marcador: null,
         marcadorDetallado: null,
