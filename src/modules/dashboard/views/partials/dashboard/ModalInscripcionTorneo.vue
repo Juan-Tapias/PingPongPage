@@ -66,14 +66,11 @@
     </div>
 
     <template #footer>
-      <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 w-full">
-        <Button variant="ghost" size="sm" @click="close">
-          Cerrar
-        </Button>
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 w-full">
         <Button
           variant="outline"
           size="sm"
-          class="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+          class="border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
           @click="handleEnviarWhatsApp"
         >
           <MessageSquare class="w-3.5 h-3.5 mr-1.5" />

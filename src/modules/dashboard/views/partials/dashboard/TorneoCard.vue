@@ -64,14 +64,14 @@
         </div>
 
         <div
-          v-if="torneo.estado === 'finalizado'"
+          v-if="torneo.estado === 'finalizado' && torneo.subestado !== 'PENDIENTE' && torneo.posicionFinal"
           class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60"
         >
           <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
             <Award class="w-3.5 h-3.5 text-amber-500" />
             Posición final:
           </span>
-          <strong class="text-emerald-600 dark:text-emerald-400 font-bold">{{ torneo.posicionFinal || 'Completado' }}</strong>
+          <strong class="text-emerald-600 dark:text-emerald-400 font-bold">{{ torneo.posicionFinal }}</strong>
         </div>
       </div>
     </div>

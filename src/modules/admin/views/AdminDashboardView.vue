@@ -95,8 +95,8 @@
             <!-- Encabezado de la Tarjeta -->
             <div class="p-4 sm:p-5 space-y-3">
               <div class="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
-                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 truncate max-w-[180px]">
-                  {{ torneo.categoria || 'TORNEO OFICIAL' }}
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 truncate">
+                  TORNEO OFICIAL
                 </span>
 
                 <!-- Badge de Estado Dinámico con selector rápido -->
@@ -120,9 +120,6 @@
                 <h3 class="text-base font-bold font-heading text-slate-900 dark:text-white tracking-tight line-clamp-1">
                   {{ torneo.nombre }}
                 </h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                  {{ torneo.descripcion || 'Sin descripción especificada para este torneo.' }}
-                </p>
               </div>
 
               <!-- Metadatos (Organizador y Fechas) -->
@@ -267,7 +264,6 @@ const torneosFiltrados = computed(() => {
   return torneos.value.filter(t => {
     const coincideBusqueda =
       t.nombre.toLowerCase().includes(busquedaTorneo.value.toLowerCase()) ||
-      (t.categoria && t.categoria.toLowerCase().includes(busquedaTorneo.value.toLowerCase())) ||
       (t.organizador && t.organizador.toLowerCase().includes(busquedaTorneo.value.toLowerCase()))
 
     const coincideEstado = filtroEstado.value === 'todos' || t.estado === filtroEstado.value
