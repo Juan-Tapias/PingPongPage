@@ -495,8 +495,10 @@ export function useTorneoGrupo(torneo: Torneo) {
 
     partidos.value.forEach((p) => {
       if (p.estado === 'jugado' && p.jugadorGanadorId) {
-        const stats1 = statsMap.get(p.jugador1Id)
-        const stats2 = statsMap.get(p.jugador2Id)
+        const entry1 = Array.from(statsMap.entries()).find(([k]) => sonMismoJugador(k, p.jugador1Id))
+        const stats1 = entry1 ? entry1[1] : undefined
+        const entry2 = Array.from(statsMap.entries()).find(([k]) => sonMismoJugador(k, p.jugador2Id))
+        const stats2 = entry2 ? entry2[1] : undefined
 
         if (stats1 && stats2) {
           stats1.pj += 1
@@ -509,24 +511,24 @@ export function useTorneoGrupo(torneo: Torneo) {
 
           if (p.sets && p.sets.length > 0) {
             p.sets.forEach((s) => {
-              if (s.ganadorId === p.jugador1Id) {
+              if (sonMismoJugador(s.ganadorId, p.jugador1Id)) {
                 sf1 += 1
                 sc2 += 1
-              } else if (s.ganadorId === p.jugador2Id) {
+              } else if (sonMismoJugador(s.ganadorId, p.jugador2Id)) {
                 sf2 += 1
                 sc1 += 1
               }
             })
           } else {
-            if (p.jugadorGanadorId === p.jugador1Id) {
-              sf1 = 3
+            if (sonMismoJugador(p.jugadorGanadorId, p.jugador1Id)) {
+              sf1 = 2
               sc1 = 1
               sf2 = 1
-              sc2 = 3
+              sc2 = 2
             } else {
               sf1 = 1
-              sc1 = 3
-              sf2 = 3
+              sc1 = 2
+              sf2 = 2
               sc2 = 1
             }
           }
@@ -536,7 +538,7 @@ export function useTorneoGrupo(torneo: Torneo) {
           stats2.sf += sf2
           stats2.sc += sc2
 
-          if (p.jugadorGanadorId === p.jugador1Id) {
+          if (sonMismoJugador(p.jugadorGanadorId, p.jugador1Id)) {
             stats1.pg += 1
             stats1.puntos += 2
             stats2.pp += 1
