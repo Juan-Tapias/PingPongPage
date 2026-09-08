@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="spinGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="ballGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#fef08a" />
+    </linearGradient>
+  </defs>
+  <!-- Fondo redondeado con gradiente naranja característico de SpinApp -->
+  <rect width="64" height="64" rx="16" fill="url(#spinGradient)" />
+  
+  <!-- Raqueta de Tenis de Mesa -->
+  <circle cx="29" cy="27" r="15" fill="#0f172a" />
+  <circle cx="29" cy="27" r="13.5" fill="#e11d48" />
+  
+  <!-- Mango de Madera -->
+  <path d="M38 36 L49 47 C50.5 48.5 50.5 51 49 52.5 C47.5 54 45 54 43.5 52.5 L33 41 Z" fill="#d97706" />
+  <path d="M39 38 L47 46" stroke="#b45309" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Pelota de Ping Pong con efecto de rotación y brillo -->
+  <circle cx="44" cy="17" r="6.5" fill="url(#ballGradient)" />
+  <path d="M49 12 C46 8 38 9 36 13" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="2 3" opacity="0.9" />
+</svg>
