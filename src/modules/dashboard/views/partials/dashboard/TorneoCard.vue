@@ -120,12 +120,12 @@
         variant="outline"
         size="md"
         block
-        class="border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold cursor-pointer"
+        class="font-bold cursor-pointer"
         @click="emit('verTorneo', torneo)"
       >
-        <Trophy class="w-3.5 h-3.5 mr-2 text-amber-500" />
+        <Trophy class="w-3.5 h-3.5 mr-2 text-amber-500 shrink-0" />
         <span>Ver resultados del torneo</span>
-        <ArrowRight class="w-3.5 h-3.5 ml-1.5 text-slate-400" />
+        <ArrowRight class="w-3.5 h-3.5 ml-1.5 text-slate-400 shrink-0" />
       </Button>
     </div>
   </div>

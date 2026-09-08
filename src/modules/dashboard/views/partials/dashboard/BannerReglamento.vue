@@ -13,14 +13,22 @@
       </p>
     </div>
 
-    <Button variant="outline" size="md" class="border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 shrink-0 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700">
+    <Button
+      variant="outline"
+      size="md"
+      class="border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 shrink-0 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+      @click="abrirReglamento"
+    >
       <span>Ver Reglamento</span>
-      <ExternalLink class="w-4 h-4 ml-1.5" />
+      <BookOpen class="w-4 h-4 ml-1.5 text-orange-500" />
     </Button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { FileText, ExternalLink } from 'lucide-vue-next'
+import { FileText, BookOpen } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
+import { useReglamento } from '@/composables/useReglamento'
+
+const { abrirReglamento } = useReglamento()
 </script>

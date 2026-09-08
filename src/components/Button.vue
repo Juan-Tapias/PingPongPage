@@ -90,9 +90,9 @@ const variantClasses = computed(() => {
     case 'danger':
       return 'bg-danger hover:bg-red-600 text-white shadow-md shadow-red-950/30 border border-red-400/20'
     case 'ghost':
-      return 'bg-transparent hover:bg-slate-100 text-slate-800 hover:text-slate-950 font-semibold border border-transparent'
+      return 'bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white font-semibold border border-transparent'
     case 'outline':
-      return 'bg-white border border-slate-300 hover:border-slate-400 text-slate-800 hover:bg-slate-50 font-bold shadow-xs'
+      return 'bg-white dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold shadow-xs'
     default:
       return 'bg-white text-gray-950 font-bold'
   }
