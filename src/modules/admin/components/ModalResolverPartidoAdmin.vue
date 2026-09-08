@@ -2,6 +2,7 @@
   <Modal
     ref="modalRef"
     width="lg"
+    :footer="false"
     :show-close="true"
     custom-class="w-full !max-w-[560px] 2xl:!max-w-[640px]"
   >

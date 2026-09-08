@@ -30,7 +30,7 @@
         </RouterLink>
 
         <RouterLink
-          v-else
+          v-else-if="authStore.esAdmin"
           to="/admin"
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 transition-colors"
           title="Ingresar al Panel de Administrador"
@@ -53,7 +53,7 @@
             <span class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-24 sm:max-w-none">
               {{ authStore.usuario?.nombre || 'Usuario' }} {{ authStore.usuario?.apellido || '' }}
             </span>
-            <span v-if="authStore.esAdmin || esRutaAdmin" class="text-[9px] font-black text-orange-500 uppercase tracking-wider">
+            <span v-if="authStore.esAdmin" class="text-[9px] font-black text-orange-500 uppercase tracking-wider">
               Admin
             </span>
           </div>
