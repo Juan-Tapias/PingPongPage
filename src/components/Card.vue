@@ -19,12 +19,12 @@ const props = withDefaults(defineProps<Props>(), {
 const variantClasses = computed(() => {
   switch (props.variant) {
     case 'interactive':
-      return 'bg-surface border border-gray-800 hover:border-primary/50 hover:shadow-xl hover:shadow-green-950/20 transition-all duration-200 cursor-pointer'
+      return 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 hover:shadow-xl transition-all duration-200 cursor-pointer'
     case 'glass':
-      return 'bg-surface/80 backdrop-blur-md border border-gray-800/80 shadow-2xl'
+      return 'bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-xl shadow-slate-300/40 dark:shadow-black/50'
     case 'default':
     default:
-      return 'bg-surface border border-gray-800/80 shadow-xl shadow-black/40'
+      return 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg shadow-slate-200/50 dark:shadow-black/40'
   }
 })
 
@@ -52,7 +52,7 @@ const paddingClasses = computed(() => {
       paddingClasses,
     ]"
   >
-    <header v-if="$slots.header" class="mb-5 pb-4 border-b border-gray-800/60">
+    <header v-if="$slots.header" class="mb-5 pb-4 border-b border-slate-200 dark:border-slate-800">
       <slot name="header" />
     </header>
 
@@ -60,7 +60,7 @@ const paddingClasses = computed(() => {
       <slot />
     </main>
 
-    <footer v-if="$slots.footer" class="mt-6 pt-4 border-t border-gray-800/60">
+    <footer v-if="$slots.footer" class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
       <slot name="footer" />
     </footer>
   </component>

@@ -1,4 +1,11 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import {
+  obtenerInscripcionesDB,
+  obtenerPartidosDB,
+  actualizarPartidoDB,
+  actualizarTablaPosicionesDB,
+} from '@/services/torneoDatabaseService'
 import type {
   JugadorTorneo,
   PartidoGrupo,
@@ -12,6 +19,11 @@ import type {
   PartidoArbitrable,
 } from '@/types'
 
+export function sonMismoJugador(a?: string, b?: string): boolean {
+  if (!a || !b) return false
+  return a === b || a.endsWith(b) || b.endsWith(a)
+}
+
 export function generarCodigoSeguridad(jugadorId: string, rivalId: string): string {
   let hash = 0
   const combinacion = `${jugadorId}::vs::${rivalId}`
@@ -23,6 +35,48 @@ export function generarCodigoSeguridad(jugadorId: string, rivalId: string): stri
   return pin.toString()
 }
 
+/**
+ * Algoritmo Berger oficial para generar el fixture de Round Robin por jornadas/rondas.
+ * Garantiza que en cada jornada (ronda) todos los participantes tengan exactamente 1 partido simultáneo.
+ */
+export function generarFixtureBerger<T extends { id?: string; jugadorId?: string; nombre?: string; iniciales?: string }>(
+  participantes: T[],
+): { jugador1: T; jugador2: T; ronda: number }[] {
+  const lista = [...participantes]
+  if (lista.length < 2) return []
+
+  const tieneBye = lista.length % 2 !== 0
+  const dummy: any = { id: '__BYE__', jugadorId: '__BYE__', nombre: 'Descanso', iniciales: 'BY' }
+  if (tieneBye) {
+    lista.push(dummy)
+  }
+
+  const n = lista.length
+  const totalRondas = n - 1
+  const partidosPorRonda = n / 2
+  const fixture: { jugador1: T; jugador2: T; ronda: number }[] = []
+
+  for (let ronda = 1; ronda <= totalRondas; ronda++) {
+    for (let i = 0; i < partidosPorRonda; i++) {
+      const j1 = lista[i]
+      const j2 = lista[n - 1 - i]
+      const j1Id = j1?.jugadorId || j1?.id
+      const j2Id = j2?.jugadorId || j2?.id
+      if (j1 && j2 && j1Id !== '__BYE__' && j2Id !== '__BYE__') {
+        fixture.push({
+          jugador1: j1,
+          jugador2: j2,
+          ronda,
+        })
+      }
+    }
+    const ultimo = lista.pop()!
+    lista.splice(1, 0, ultimo)
+  }
+
+  return fixture
+}
+
 export interface MalleroTorneo {
   jugador: JugadorTorneo
   totalMallas: number
@@ -30,243 +84,115 @@ export interface MalleroTorneo {
 }
 
 export function useTorneoGrupo(torneo: Torneo) {
-  const usuarioActual: JugadorTorneo = {
-    id: 'j-yo',
-    nombre: 'Sebastián Tapias',
-    iniciales: 'ST',
-    telefono: '310 987 6543',
-    tipo: 'camper',
-    esUsuarioActual: true,
+  const authStore = useAuthStore()
+
+  const u = authStore.usuario
+  const usuarioActual: JugadorTorneo = u
+    ? {
+        id: u.id,
+        nombre: `${u.nombre} ${u.apellido || ''}`.trim(),
+        iniciales: `${u.nombre?.[0] || 'J'}${u.apellido?.[0] || ''}`.toUpperCase(),
+        telefono: u.telefono || '',
+        tipo: u.tipo || 'camper',
+        esUsuarioActual: true,
+      }
+    : {
+        id: 'jugador-sesion',
+        nombre: 'Mi Perfil',
+        iniciales: 'YO',
+        telefono: '',
+        tipo: 'camper',
+        esUsuarioActual: true,
+      }
+
+  const jugadores = ref<JugadorTorneo[]>([usuarioActual])
+  const jugadorEnCentro = ref<JugadorTorneo>(usuarioActual)
+  const partidos = ref<PartidoGrupo[]>([])
+
+  const cargarDatosTorneo = async () => {
+    if (!torneo?.id) return
+    try {
+      const inscritos = await obtenerInscripcionesDB(torneo.id)
+      if (inscritos.length > 0) {
+        const mapaJugadores = new Map<string, JugadorTorneo>()
+        inscritos.forEach((ins: any) => {
+          const idJugador = ins.jugadorId || ins.id
+          if (!mapaJugadores.has(idJugador)) {
+            mapaJugadores.set(idJugador, {
+              id: idJugador,
+              nombre: ins.nombre || ins.jugadorNombre || 'Participante',
+              iniciales: ins.iniciales || (ins.nombre ? ins.nombre.substring(0, 2).toUpperCase() : 'JG'),
+              telefono: ins.telefono || '',
+              tipo: ins.tipo || 'camper',
+              esUsuarioActual: idJugador === authStore.usuario?.id,
+            })
+          }
+        })
+        jugadores.value = Array.from(mapaJugadores.values())
+      } else {
+        jugadores.value = [usuarioActual]
+      }
+
+      const yo = jugadores.value.find((j) => j.esUsuarioActual)
+      jugadorEnCentro.value = yo || jugadores.value[0] || usuarioActual
+
+      const partidosDB = await obtenerPartidosDB(torneo.id)
+      if (partidosDB.length > 0) {
+        partidos.value = partidosDB.map((p: any) => {
+          const j1Id = p.jugador1?.id || p.jugador1Id
+          const j2Id = p.jugador2?.id || p.jugador2Id
+          const rondaOficial = p.ronda || p.jornada || 1
+
+          return {
+            id: p.id,
+            jugador1Id: j1Id,
+            jugador2Id: j2Id,
+            jugador1: p.jugador1,
+            jugador2: p.jugador2,
+            jugadorGanadorId: p.ganadorId || p.jugadorGanadorId,
+            marcador: p.marcador,
+            marcadorDetallado: p.marcadorDetallado,
+            estado: p.estado || 'pendiente',
+            diasRestantes: p.diasRestantes ?? 2,
+            ronda: rondaOficial,
+            jornada: rondaOficial,
+            sets: p.sets,
+            arbitroId: p.arbitroId,
+            mesa: p.mesa,
+            codigoJugador1: p.codigoJugador1 || generarCodigoSeguridad(j1Id, j2Id),
+            codigoJugador2: p.codigoJugador2 || generarCodigoSeguridad(j2Id, j1Id),
+          }
+        })
+      } else {
+        const crucesBerger = generarFixtureBerger(jugadores.value)
+        const listaPartidos: PartidoGrupo[] = crucesBerger.map((cruce) => {
+          const idA = cruce.jugador1.id || 'J1'
+          const idB = cruce.jugador2.id || 'J2'
+          return {
+            id: `p-${idA}-${idB}`,
+            jugador1Id: idA,
+            jugador2Id: idB,
+            jugador1: cruce.jugador1,
+            jugador2: cruce.jugador2,
+            ronda: cruce.ronda,
+            jornada: cruce.ronda,
+            estado: 'pendiente',
+            diasRestantes: 2,
+            codigoJugador1: generarCodigoSeguridad(idA, idB),
+            codigoJugador2: generarCodigoSeguridad(idB, idA),
+          }
+        })
+        partidos.value = listaPartidos
+      }
+    } catch (err) {
+      console.warn('Error al cargar datos reales del torneo en useTorneoGrupo:', err)
+    }
   }
 
-  const jugadores = ref<JugadorTorneo[]>([
-    usuarioActual,
-    { id: 'j-1', nombre: 'Carlos Mendoza', iniciales: 'CM', telefono: '312 456 7890', tipo: 'camper' },
-    { id: 'j-2', nombre: 'David Gómez', iniciales: 'DG', telefono: '314 567 8901', tipo: 'trabajador' },
-    { id: 'j-3', nombre: 'Andrés Silva', iniciales: 'AS', telefono: '316 678 9012', tipo: 'camper' },
-    { id: 'j-4', nombre: 'Mateo Fernández', iniciales: 'MF', telefono: '318 789 0123', tipo: 'trabajador' },
-    { id: 'j-5', nombre: 'Alejandro Vargas', iniciales: 'AV', telefono: '320 890 1234', tipo: 'camper' },
-    { id: 'j-6', nombre: 'Camilo Ruiz', iniciales: 'CR', telefono: '322 901 2345', tipo: 'camper' },
-    { id: 'j-7', nombre: 'Javier Ortiz', iniciales: 'JO', telefono: '311 234 5678', tipo: 'trabajador' },
-    { id: 'j-8', nombre: 'Lucas Morales', iniciales: 'LM', telefono: '313 345 6789', tipo: 'camper' },
-    { id: 'j-9', nombre: 'Felipe Torres', iniciales: 'FT', telefono: '315 456 7891', tipo: 'trabajador' },
-    { id: 'j-10', nombre: 'Daniel Castro', iniciales: 'DC', telefono: '317 567 8902', tipo: 'camper' },
-    { id: 'j-11', nombre: 'Nicolás Herrera', iniciales: 'NH', telefono: '319 678 9013', tipo: 'camper' },
-    { id: 'j-12', nombre: 'Valentina Ríos', iniciales: 'VR', telefono: '321 789 0124', tipo: 'trabajador' },
-    { id: 'j-13', nombre: 'Santiago Peña', iniciales: 'SP', telefono: '323 890 1235', tipo: 'camper' },
-    { id: 'j-14', nombre: 'Sofía Martínez', iniciales: 'SM', telefono: '325 901 2346', tipo: 'camper' },
-  ])
-
-  const jugadorEnCentro = ref<JugadorTorneo>(usuarioActual)
-
-  const esPorIniciar = torneo.estado === 'por iniciar'
-
-  const partidos = ref<PartidoGrupo[]>([
-    {
-      id: 'p-yo-1',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-1',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-yo',
-      marcador: esPorIniciar ? undefined : '3 - 1',
-      marcadorDetallado: esPorIniciar ? undefined : '11-8, 9-11, 11-7, 11-9',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-      ronda: 1,
-    },
-    {
-      id: 'p-yo-2',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-2',
-      estado: esPorIniciar ? 'pendiente' : 'pendiente_admin',
-      diasRestantes: 0,
-      ronda: 2,
-    },
-    {
-      id: 'p-yo-3',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-3',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-yo',
-      marcador: esPorIniciar ? undefined : '3 - 0',
-      marcadorDetallado: esPorIniciar ? undefined : '11-6, 11-7, 11-8',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-      ronda: 3,
-    },
-    {
-      id: 'p-yo-4',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-4',
-      estado: 'pendiente',
-      diasRestantes: 2, // Rival de turno a las 12 en punto
-      ronda: 4,
-    },
-    {
-      id: 'p-yo-5',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-5',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 5,
-    },
-    {
-      id: 'p-yo-6',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-6',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 6,
-    },
-    {
-      id: 'p-yo-7',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-7',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 7,
-    },
-    {
-      id: 'p-yo-8',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-8',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 8,
-    },
-    {
-      id: 'p-yo-9',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-9',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 9,
-    },
-    {
-      id: 'p-yo-10',
-      jugador1Id: 'j-yo',
-      jugador2Id: 'j-10',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 10,
-    },
-
-    {
-      id: 'p-1-2',
-      jugador1Id: 'j-1',
-      jugador2Id: 'j-2',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-1',
-      marcador: esPorIniciar ? undefined : '3 - 2',
-      marcadorDetallado: esPorIniciar ? undefined : '11-9, 8-11, 11-7, 7-11, 11-9',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-    },
-    {
-      id: 'p-1-3',
-      jugador1Id: 'j-1',
-      jugador2Id: 'j-3',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-3',
-      marcador: esPorIniciar ? undefined : '0 - 3',
-      marcadorDetallado: esPorIniciar ? undefined : '8-11, 6-11, 9-11',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-    },
-    {
-      id: 'p-1-4',
-      jugador1Id: 'j-1',
-      jugador2Id: 'j-4',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-1',
-      marcador: esPorIniciar ? undefined : '3 - 1',
-      marcadorDetallado: esPorIniciar ? undefined : '11-5, 11-8, 9-11, 11-7',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-    },
-    {
-      id: 'p-2-3',
-      jugador1Id: 'j-2',
-      jugador2Id: 'j-3',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-2',
-      marcador: esPorIniciar ? undefined : '3 - 0',
-      marcadorDetallado: esPorIniciar ? undefined : '11-7, 11-8, 11-9',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-    },
-    {
-      id: 'p-2-4',
-      jugador1Id: 'j-2',
-      jugador2Id: 'j-4',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-4',
-      marcador: esPorIniciar ? undefined : '1 - 3',
-      marcadorDetallado: esPorIniciar ? undefined : '11-8, 8-11, 9-11, 6-11',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-    },
-    {
-      id: 'p-3-4',
-      jugador1Id: 'j-3',
-      jugador2Id: 'j-4',
-      jugadorGanadorId: esPorIniciar ? undefined : 'j-3',
-      marcador: esPorIniciar ? undefined : '3 - 2',
-      marcadorDetallado: esPorIniciar ? undefined : '11-9, 9-11, 11-6, 8-11, 11-8',
-      estado: esPorIniciar ? 'pendiente' : 'jugado',
-      diasRestantes: 2,
-    },
-
-    {
-      id: 'p-1-5',
-      jugador1Id: 'j-1',
-      jugador2Id: 'j-5',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 4,
-    },
-    {
-      id: 'p-2-6',
-      jugador1Id: 'j-2',
-      jugador2Id: 'j-6',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 4,
-    },
-    {
-      id: 'p-3-7',
-      jugador1Id: 'j-3',
-      jugador2Id: 'j-7',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 4,
-    },
-    {
-      id: 'p-4-8',
-      jugador1Id: 'j-4',
-      jugador2Id: 'j-8',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 4,
-    },
-    {
-      id: 'p-5-6',
-      jugador1Id: 'j-5',
-      jugador2Id: 'j-6',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 5,
-    },
-    {
-      id: 'p-7-8',
-      jugador1Id: 'j-7',
-      jugador2Id: 'j-8',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 5,
-    },
-    {
-      id: 'p-9-10',
-      jugador1Id: 'j-9',
-      jugador2Id: 'j-10',
-      estado: 'pendiente',
-      diasRestantes: 2,
-      ronda: 5,
-    },
-  ])
+  cargarDatosTorneo()
+  watch(() => torneo?.id, () => {
+    cargarDatosTorneo()
+  })
 
   partidos.value.forEach((p) => {
     if (!p.codigoJugador1 || !p.codigoJugador2) {
@@ -275,11 +201,45 @@ export function useTorneoGrupo(torneo: Torneo) {
     }
   })
 
+
+  const resolverJugador = (id: string, fallbackObj?: any): JugadorTorneo => {
+    const encontrado = jugadores.value.find((j) => sonMismoJugador(j.id, id))
+    if (encontrado) return encontrado
+
+    if (fallbackObj && fallbackObj.nombre) {
+      return {
+        id: fallbackObj.id || id,
+        nombre: fallbackObj.nombre,
+        iniciales: fallbackObj.iniciales || fallbackObj.nombre.substring(0, 2).toUpperCase(),
+        telefono: fallbackObj.telefono || '',
+        tipo: fallbackObj.tipo || 'camper',
+      }
+    }
+
+    return {
+      id,
+      nombre: 'Participante',
+      iniciales: 'PA',
+      telefono: '',
+      tipo: 'camper',
+    }
+  }
+
+  // Determina la ronda activa del torneo (la jornada en disputa actual)
+  const rondaActual = computed<number>(() => {
+    if (partidos.value.length === 0) return 1
+    const pendientes = partidos.value.filter((p) => p.estado !== 'jugado' && !p.marcador)
+    if (pendientes.length === 0) {
+      return Math.max(...partidos.value.map((p) => p.ronda || 1))
+    }
+    return Math.min(...pendientes.map((p) => p.ronda || 1))
+  })
+
   const buscarPartido = (idA: string, idB: string): PartidoGrupo => {
     const encontrado = partidos.value.find(
       (p) =>
-        (p.jugador1Id === idA && p.jugador2Id === idB) ||
-        (p.jugador1Id === idB && p.jugador2Id === idA),
+        (sonMismoJugador(p.jugador1Id, idA) && sonMismoJugador(p.jugador2Id, idB)) ||
+        (sonMismoJugador(p.jugador1Id, idB) && sonMismoJugador(p.jugador2Id, idA)),
     )
 
     if (encontrado) {
@@ -295,6 +255,7 @@ export function useTorneoGrupo(torneo: Torneo) {
       jugador1Id: idA,
       jugador2Id: idB,
       estado: 'pendiente',
+      ronda: 1,
       diasRestantes: 2,
       codigoJugador1: generarCodigoSeguridad(idA, idB),
       codigoJugador2: generarCodigoSeguridad(idB, idA),
@@ -305,16 +266,41 @@ export function useTorneoGrupo(torneo: Torneo) {
 
   const rivalesPerimetro = computed<BurbujaRival[]>(() => {
     const centroId = jugadorEnCentro.value.id
-    const otrosJugadores = jugadores.value.filter((j) => j.id !== centroId)
+    const otrosJugadores = jugadores.value.filter((j) => !sonMismoJugador(j.id, centroId))
 
     const total = otrosJugadores.length
     if (total === 0) return []
 
-    const indexRivalTurno = otrosJugadores.findIndex((j) => {
-      const p = buscarPartido(centroId, j.id)
-      return p.estado === 'pendiente'
-    })
+    // 1. Identificar el enfrentamiento de la jornada/ronda activa para este jugador central
+    const rActiva = rondaActual.value
+    let partidoDeRonda = partidos.value.find(
+      (p) =>
+        (p.ronda === rActiva || !p.ronda) &&
+        (sonMismoJugador(p.jugador1Id, centroId) || sonMismoJugador(p.jugador2Id, centroId)) &&
+        p.estado !== 'jugado' &&
+        !p.marcador,
+    )
 
+    // Si ya completó el de la ronda activa, tomar el próximo partido pendiente programado
+    if (!partidoDeRonda) {
+      const partidosDeCentro = partidos.value
+        .filter((p) => sonMismoJugador(p.jugador1Id, centroId) || sonMismoJugador(p.jugador2Id, centroId))
+        .sort((a, b) => (a.ronda || 1) - (b.ronda || 1))
+
+      partidoDeRonda =
+        partidosDeCentro.find((p) => p.estado !== 'jugado' && !p.marcador) ||
+        partidosDeCentro[0]
+    }
+
+    // 2. Determinar quién es el rival oficial de turno para esa fecha
+    let idRivalTurno = otrosJugadores[0]?.id
+    if (partidoDeRonda) {
+      const esJ1Centro = sonMismoJugador(partidoDeRonda.jugador1Id, centroId)
+      idRivalTurno = esJ1Centro ? partidoDeRonda.jugador2Id : partidoDeRonda.jugador1Id
+    }
+
+    // 3. Ubicar al rival de turno de la jornada activa exactamente a las 12 en punto (índice 0)
+    const indexRivalTurno = otrosJugadores.findIndex((j) => sonMismoJugador(j.id, idRivalTurno))
     const shift = indexRivalTurno >= 0 ? indexRivalTurno : 0
     const jugadoresRotados = [
       ...otrosJugadores.slice(shift),
@@ -328,7 +314,7 @@ export function useTorneoGrupo(torneo: Torneo) {
       let ganadorNombre: string | undefined = undefined
 
       if (partido.estado === 'jugado' && partido.jugadorGanadorId) {
-        if (partido.jugadorGanadorId === centroId) {
+        if (sonMismoJugador(partido.jugadorGanadorId, centroId)) {
           resultadoParaCentro = 'ganado' // Verde
           ganadorNombre = jugadorEnCentro.value.nombre
         } else {
@@ -337,10 +323,6 @@ export function useTorneoGrupo(torneo: Torneo) {
         }
       }
       // Color del borde de la burbuja orbital:
-      // Verde: Victoria (partidos ya jugados a la derecha)
-      // Rojo: Derrota (partidos ya jugados a la derecha)
-      // Naranja: Pendiente Administrador (partidos vencidos a la derecha)
-      // Gris: No jugado / Pendiente (rival a las 12 y todos los pendientes futuros a la izquierda)
       let colorBorde: ColorBordeBurbuja = 'gris'
       if (partido.estado === 'jugado') {
         colorBorde = resultadoParaCentro === 'ganado' ? 'verde' : 'rojo'
@@ -350,7 +332,7 @@ export function useTorneoGrupo(torneo: Torneo) {
         colorBorde = 'gris'
       }
 
-      const esRivalDeTurno = index === 0 && torneo.estado === 'en curso'
+      const esRivalDeTurno = index === 0
       const diasRestantes = esRivalDeTurno ? (partido.diasRestantes ?? 2) : 2
       const codigoSeguridadPropio = generarCodigoSeguridad(centroId, jugador.id)
 
@@ -385,39 +367,44 @@ export function useTorneoGrupo(torneo: Torneo) {
     jugadorEnCentro.value = usuarioActual
   }
 
-  // ==========================================
-  // ARBITRAJE DE PARTIDOS
-  // ==========================================
   const arbitroActual = ref<JugadorTorneo>(usuarioActual)
 
   const setArbitroActual = (jugador: JugadorTorneo) => {
     arbitroActual.value = jugador
   }
 
-  // Partidos pendientes que el árbitro puede oficiar (excluye si el árbitro es jugador en esa ronda)
   const partidosDisponiblesParaArbitrar = computed<PartidoArbitrable[]>(() => {
     const aId = arbitroActual.value.id
-    return partidos.value
-      .filter((p) => p.estado === 'pendiente' && p.jugador1Id !== aId && p.jugador2Id !== aId)
-      .map((p) => {
-        const jugador1 = jugadores.value.find((j) => j.id === p.jugador1Id) ?? {
-          id: p.jugador1Id,
-          nombre: 'Jugador 1',
-          iniciales: 'J1',
-          telefono: '300 000 0000',
-        }
-        const jugador2 = jugadores.value.find((j) => j.id === p.jugador2Id) ?? {
-          id: p.jugador2Id,
-          nombre: 'Jugador 2',
-          iniciales: 'J2',
-          telefono: '300 000 0000',
-        }
-        return {
-          partido: p,
-          jugador1,
-          jugador2,
-        }
+    const rActiva = rondaActual.value
+
+    let partidosValidos = partidos.value.filter((p) => {
+      const esRondaActiva = (p.ronda === rActiva || !p.ronda)
+      const noJugado = p.estado !== 'jugado' && !p.marcador
+      const noParticipa = !sonMismoJugador(p.jugador1Id, aId) && !sonMismoJugador(p.jugador2Id, aId)
+      return esRondaActiva && noJugado && noParticipa
+    })
+
+    if (partidosValidos.length === 0) {
+      const partidosAjenos = partidos.value.filter((p) => {
+        const noJugado = p.estado !== 'jugado' && !p.marcador
+        const noParticipa = !sonMismoJugador(p.jugador1Id, aId) && !sonMismoJugador(p.jugador2Id, aId)
+        return noJugado && noParticipa
       })
+      if (partidosAjenos.length > 0) {
+        const proxRonda = Math.min(...partidosAjenos.map((p) => p.ronda || 1))
+        partidosValidos = partidosAjenos.filter((p) => (p.ronda || 1) === proxRonda)
+      }
+    }
+
+    return partidosValidos.map((p) => {
+      const jugador1 = resolverJugador(p.jugador1Id, p.jugador1)
+      const jugador2 = resolverJugador(p.jugador2Id, p.jugador2)
+      return {
+        partido: p,
+        jugador1,
+        jugador2,
+      }
+    })
   })
 
   // Validación de seguridad con códigos de 5 dígitos
@@ -447,8 +434,8 @@ export function useTorneoGrupo(torneo: Torneo) {
     }
   }
 
-  // Registrar resultado de partido arbitrado (al mejor de 3 sets)
-  const registrarResultadoPartido = (
+  // Registrar resultado de partido arbitrado (al mejor de 3 sets) y persistir en Firestore
+  const registrarResultadoPartido = async (
     partidoId: string,
     setsJugados: SetPartido[],
     ganadorId: string,
@@ -459,13 +446,13 @@ export function useTorneoGrupo(torneo: Torneo) {
     const partido = partidos.value[pIndex]
     if (!partido) return
 
-    const setsG1 = setsJugados.filter((s) => s.ganadorId === partido.jugador1Id).length
-    const setsG2 = setsJugados.filter((s) => s.ganadorId === partido.jugador2Id).length
+    const setsG1 = setsJugados.filter((s) => sonMismoJugador(s.ganadorId, partido.jugador1Id)).length
+    const setsG2 = setsJugados.filter((s) => sonMismoJugador(s.ganadorId, partido.jugador2Id)).length
 
     const marcadorResumen = `${setsG1} - ${setsG2}`
     const marcadorDetallado = setsJugados.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
 
-    partidos.value[pIndex] = {
+    const partidoActualizado: PartidoGrupo = {
       ...partido,
       estado: 'jugado',
       jugadorGanadorId: ganadorId,
@@ -474,6 +461,25 @@ export function useTorneoGrupo(torneo: Torneo) {
       arbitroId: arbitroActual.value.id,
       sets: setsJugados,
       diasRestantes: 0,
+    }
+
+    partidos.value[pIndex] = partidoActualizado
+
+    // Persistir de forma inmediata en Firestore
+    try {
+      await actualizarPartidoDB(partidoId, {
+        estado: 'jugado',
+        jugadorGanadorId: ganadorId,
+        marcador: marcadorResumen,
+        marcadorDetallado,
+        arbitroId: arbitroActual.value.id,
+        sets: setsJugados,
+        diasRestantes: 0,
+      })
+
+      await actualizarTablaPosicionesDB(torneo.id, tablaPosiciones.value)
+    } catch (err) {
+      console.warn('Error al persistir resultado en base de datos:', err)
     }
   }
 
@@ -581,26 +587,9 @@ export function useTorneoGrupo(torneo: Torneo) {
     }))
   })
 
-  // -------------------------------------------------------------
-  // CÁLCULO DE "EL MÁS MALLERO" DEL TORNEO (ACUMULADO DE MALLAS)
-  // -------------------------------------------------------------
   const mallasPorJugador = computed<Map<string, number>>(() => {
     const mapa = new Map<string, number>()
     jugadores.value.forEach((j) => mapa.set(j.id, 0))
-
-    const mockMallas: Record<string, number> = {
-      'j-4': 14,
-      'j-1': 11,
-      'j-3': 9,
-      'j-yo': 8,
-      'j-5': 6,
-      'j-2': 5,
-    }
-    Object.entries(mockMallas).forEach(([id, cant]) => {
-      mapa.set(id, cant)
-    })
-
-    // Sumar de los sets registrados en tiempo real por los árbitros
     partidos.value.forEach((p) => {
       if (p.sets && p.sets.length > 0) {
         p.sets.forEach((set) => {

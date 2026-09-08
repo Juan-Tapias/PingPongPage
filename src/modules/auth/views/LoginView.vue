@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useForm, useField } from 'vee-validate'
 import { useRouter, RouterLink } from 'vue-router'
-import { Trophy, ShieldCheck, UserCheck } from 'lucide-vue-next'
 import Card from '@/components/Card.vue'
 import Input from '@/components/Input.vue'
 import Button from '@/components/Button.vue'
@@ -33,26 +32,19 @@ const onSubmit = handleSubmit(async (values) => {
   } catch {
   }
 })
-
-const iniciarComoAdminDemo = () => {
-  authStore.loginDemoAdmin()
-  router.push('/admin')
-}
-
-const iniciarComoJugadorDemo = () => {
-  authStore.loginDemoJugador()
-  router.push('/')
-}
 </script>
 
 <template>
-  <div class="min-h-screen w-full flex items-center justify-center p-4 bg-background">
+  <div class="min-h-screen w-full flex items-center justify-center p-4 bg-slate-100/90 dark:bg-[#080d1a] transition-colors duration-300">
     <div class="w-full max-w-md flex flex-col gap-6">
       <header class="text-center flex flex-col items-center">
-        <h1 class="text-3xl font-bold font-heading text-white tracking-tight">
+        <div class="w-12 h-12 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black text-xl shadow-md mb-2">
+          🏓
+        </div>
+        <h1 class="text-3xl font-black font-heading text-slate-900 dark:text-white tracking-tight">
           SpinApp Torneo
         </h1>
-        <p class="text-sm text-slate-300 mt-1">
+        <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">
           Inicia sesión para acceder a tus partidos y tabla de posiciones
         </p>
       </header>
@@ -60,7 +52,7 @@ const iniciarComoJugadorDemo = () => {
       <Card variant="glass" padding="lg">
         <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
           <div v-if="authStore.errorAuth"
-            class="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium flex items-center gap-2">
+            class="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2">
             <span>{{ authStore.errorAuth }}</span>
           </div>
 
@@ -71,49 +63,16 @@ const iniciarComoJugadorDemo = () => {
             :error="errors.password" required />
 
           <div class="mt-2 flex justify-center">
-            <Button type="submit" variant="primary" size="md" :loading="authStore.cargando">
+            <Button type="submit" variant="primary" size="md" block :loading="authStore.cargando">
               Iniciar Sesión
             </Button>
           </div>
         </form>
 
-        <!-- Botones de Acceso Rápido / Demo para Pruebas -->
-        <div class="mt-5 pt-4 border-t border-slate-700/60 flex flex-col gap-2.5">
-          <div class="flex items-center justify-center gap-2">
-            <div class="h-px bg-slate-700 flex-1"></div>
-            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              Acceso Rápido de Prueba
-            </span>
-            <div class="h-px bg-slate-700 flex-1"></div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-500/40 transition-all cursor-pointer shadow-xs"
-              @click="iniciarComoAdminDemo"
-              title="Entrar como Administrador de la plataforma"
-            >
-              <ShieldCheck class="w-4 h-4 text-emerald-400" />
-              <span>Admin Demo</span>
-            </button>
-
-            <button
-              type="button"
-              class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold text-blue-300 bg-blue-950/60 hover:bg-blue-900/80 border border-blue-500/40 transition-all cursor-pointer shadow-xs"
-              @click="iniciarComoJugadorDemo"
-              title="Entrar como Jugador del torneo"
-            >
-              <UserCheck class="w-4 h-4 text-blue-400" />
-              <span>Jugador Demo</span>
-            </button>
-          </div>
-        </div>
-
         <template #footer>
-          <div class="text-center text-xs text-gray-400">
+          <div class="text-center text-xs text-slate-600 dark:text-slate-400 font-medium">
             ¿Aún no estás inscrito?
-            <RouterLink to="/registro" class="font-semibold text-primary hover:text-green-400 transition-colors ml-1">
+            <RouterLink to="/registro" class="font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 transition-colors ml-1">
               Crear cuenta de jugador
             </RouterLink>
           </div>

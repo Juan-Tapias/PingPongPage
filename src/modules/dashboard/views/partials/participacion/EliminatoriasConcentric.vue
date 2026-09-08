@@ -29,7 +29,7 @@
           <div class="flex flex-col">
             <span class="text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">Premio Acumulado</span>
             <span class="text-xs font-black font-mono text-amber-950 dark:text-amber-200">
-              ${{ playoffs.bolsaPremio.toLocaleString('es-CO') }} COP
+              ${{ playoffs.bolsaPremioFormateada }} COP
             </span>
           </div>
           <span class="text-[9px] font-extrabold bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded ml-1">
@@ -452,7 +452,7 @@
               </span>
             </div>
             <p class="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
-              El ganador se lleva ${{ playoffs.bolsaPremio.toLocaleString('es-CO') }} COP
+              El ganador se lleva ${{ playoffs.bolsaPremioFormateada }} COP
             </p>
           </div>
 
@@ -477,7 +477,7 @@
                 </div>
 
                 <span class="text-[10px] font-black font-mono text-amber-900 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
-                  ${{ playoffs.bolsaPremio.toLocaleString('es-CO') }}
+                  ${{ playoffs.bolsaPremioFormateada }}
                 </span>
               </div>
 
@@ -633,16 +633,22 @@ import Button from '@/components/Button.vue'
 import { usePlayoffs } from '@/modules/dashboard/composables/usePlayoffs'
 import type { FilaPosicion, PartidoPlayoff, RondaPlayoff, EstadoPartido } from '@/types'
 
-const props = defineProps<{
-  filasPosiciones: FilaPosicion[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    filasPosiciones: FilaPosicion[]
+    cantidadClasificados?: number
+  }>(),
+  {
+    cantidadClasificados: 4,
+  }
+)
 
 const modoVista = ref<'completo' | 'mi-camino'>('completo')
 const rondaMovilActiva = ref<'todas' | 'play_in' | 'cuartos' | 'semifinal' | 'final'>('todas')
 const modalPlayoffRef = ref<InstanceType<typeof Modal> | null>(null)
 const partidoSeleccionado = ref<PartidoPlayoff | null>(null)
 
-const playoffs = usePlayoffs(props.filasPosiciones)
+const playoffs = usePlayoffs(props.filasPosiciones, props.cantidadClasificados)
 
 const rondasNavegacion = [
   { id: 'todas' as const, nombre: 'Todas', cantidad: 11 },

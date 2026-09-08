@@ -291,6 +291,7 @@
     <div v-show="tabActiva === 'playoffs'" class="w-full">
       <EliminatoriasConcentric
         :filas-posiciones="tablaPosiciones"
+        :cantidad-clasificados="props.torneo?.clasificadosPlayoffs || 4"
       />
     </div>
 

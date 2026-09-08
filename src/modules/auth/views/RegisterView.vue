@@ -44,13 +44,16 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <div class="min-h-screen w-full flex items-center justify-center p-4 bg-background py-10">
+  <div class="min-h-screen w-full flex items-center justify-center p-4 bg-slate-100/90 dark:bg-[#080d1a] transition-colors duration-300 py-10">
     <div class="w-full max-w-lg flex flex-col gap-6">
       <header class="text-center flex flex-col items-center">
-        <h1 class="text-3xl font-semibold font-heading text-white tracking-tight">
+        <div class="w-12 h-12 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black text-xl shadow-md mb-2">
+          🏓
+        </div>
+        <h1 class="text-3xl font-black font-heading text-slate-900 dark:text-white tracking-tight">
           SpinApp Torneo
         </h1>
-        <p class="text-sm text-slate-300 mt-1">
+        <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">
           Regístrate para participar en el torneo de ping pong
         </p>
       </header>
@@ -135,6 +138,7 @@ const onSubmit = handleSubmit(async (values) => {
               type="submit"
               variant="primary"
               size="md"
+              block
               :loading="authStore.cargando"
             >
               Completar Registro
@@ -143,11 +147,11 @@ const onSubmit = handleSubmit(async (values) => {
         </form>
 
         <template #footer>
-          <div class="text-center text-xs text-gray-400">
+          <div class="text-center text-xs text-slate-600 dark:text-slate-400 font-medium">
             ¿Ya tienes una cuenta registrada?
             <RouterLink
               to="/login"
-              class="font-semibold text-emerald-400 hover:text-emerald-300 transition-colors ml-1"
+              class="font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 transition-colors ml-1"
             >
               Inicia sesión aquí
             </RouterLink>
