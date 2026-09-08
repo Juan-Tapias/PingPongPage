@@ -281,10 +281,13 @@
         <CardAvanceTorneo
           :torneo="torneo"
           :partidos="partidos"
+          :jugador-centro="jugadorEnCentro"
         />
 
         <CardInfoRival
           :rival="rivalDeTurno"
+          :tabla-posiciones="tablaPosiciones"
+          :jugador-centro="jugadorEnCentro"
         />
       </div>
     </div>
