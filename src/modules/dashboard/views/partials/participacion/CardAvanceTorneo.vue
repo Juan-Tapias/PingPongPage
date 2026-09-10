@@ -55,21 +55,31 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Trophy } from 'lucide-vue-next'
-import type { Torneo, PartidoGrupo } from '@/types'
+import type { Torneo, PartidoGrupo, JugadorTorneo } from '@/types'
 
 const props = defineProps<{
   torneo: Torneo
   partidos: PartidoGrupo[]
+  jugadorCentro?: JugadorTorneo
 }>()
 
+function sonMismoJugador(a?: string, b?: string): boolean {
+  if (!a || !b) return false
+  return a === b || a.endsWith(b) || b.endsWith(a)
+}
+
+const targetId = computed(() => props.jugadorCentro?.id || 'jugador-sesion')
+
 const partidosUsuario = computed(() => {
-  return props.partidos.filter((p) => p.jugador1Id === 'j-yo' || p.jugador2Id === 'j-yo')
+  return props.partidos.filter((p) => {
+    return sonMismoJugador(p.jugador1Id, targetId.value) || sonMismoJugador(p.jugador2Id, targetId.value)
+  })
 })
 
 const totalPartidos = computed(() => partidosUsuario.value.length)
 
 const partidosJugados = computed(() => {
-  return partidosUsuario.value.filter((p) => p.estado === 'jugado').length
+  return partidosUsuario.value.filter((p) => p.estado === 'jugado' || !!p.marcador).length
 })
 
 const porcentajeAvance = computed(() => {
@@ -78,16 +88,16 @@ const porcentajeAvance = computed(() => {
 })
 
 const victorias = computed(() => {
-  return partidosUsuario.value.filter((p) => p.jugadorGanadorId === 'j-yo').length
+  return partidosUsuario.value.filter((p) => sonMismoJugador(p.jugadorGanadorId, targetId.value)).length
 })
 
 const derrotas = computed(() => {
   return partidosUsuario.value.filter(
-    (p) => p.estado === 'jugado' && p.jugadorGanadorId && p.jugadorGanadorId !== 'j-yo',
+    (p) => (p.estado === 'jugado' || !!p.marcador) && p.jugadorGanadorId && !sonMismoJugador(p.jugadorGanadorId, targetId.value),
   ).length
 })
 
 const pendientes = computed(() => {
-  return partidosUsuario.value.filter((p) => p.estado === 'pendiente').length
+  return partidosUsuario.value.filter((p) => p.estado !== 'jugado' && !p.marcador).length
 })
 </script>

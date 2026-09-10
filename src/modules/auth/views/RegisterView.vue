@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { useForm, useField } from 'vee-validate'
 import { useRouter, RouterLink } from 'vue-router'
-import { Trophy } from 'lucide-vue-next'
+import { BookOpen } from 'lucide-vue-next'
 import Card from '@/components/Card.vue'
 import Input from '@/components/Input.vue'
 import Button from '@/components/Button.vue'
 import SelectorTipoUsuario from './partials/SelectorTipoUsuario.vue'
 import { registroSchema } from '@/modules/auth/schemas/authSchemas'
 import { useAuthStore } from '@/stores/auth'
+import { useReglamento } from '@/composables/useReglamento'
 import type { TipoUsuario } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { abrirReglamento } = useReglamento()
 
 const { handleSubmit, errors } = useForm({
   validationSchema: registroSchema,
@@ -23,6 +25,7 @@ const { handleSubmit, errors } = useForm({
     tipo: '' as TipoUsuario,
     password: '',
     confirmPassword: '',
+    aceptaReglamento: false,
   },
 })
 
@@ -33,6 +36,7 @@ const { value: telefono } = useField<string>('telefono')
 const { value: tipo } = useField<TipoUsuario | ''>('tipo')
 const { value: password } = useField<string>('password')
 const { value: confirmPassword } = useField<string>('confirmPassword')
+const { value: aceptaReglamento } = useField<boolean>('aceptaReglamento')
 
 const onSubmit = handleSubmit(async (values) => {
   try {
@@ -131,6 +135,32 @@ const onSubmit = handleSubmit(async (values) => {
               :error="errors.confirmPassword"
               required
             />
+          </div>
+
+          <!-- Aceptación del Reglamento Oficial -->
+          <div class="flex flex-col gap-1 mt-1 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800">
+            <label class="flex items-start gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300 select-none">
+              <input
+                id="registro-acepta-reglamento"
+                v-model="aceptaReglamento"
+                type="checkbox"
+                class="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 shrink-0 cursor-pointer"
+              />
+              <span class="leading-relaxed">
+                He leído y acepto el
+                <button
+                  type="button"
+                  class="font-bold text-orange-600 dark:text-orange-400 hover:underline cursor-pointer inline-flex items-center gap-1 ml-0.5"
+                  @click.prevent="abrirReglamento"
+                >
+                  <span>Reglamento Oficial ITTF / Torneo</span>
+                  <BookOpen class="w-3.5 h-3.5 text-orange-500" />
+                </button>
+              </span>
+            </label>
+            <span v-if="errors.aceptaReglamento" class="text-[11px] text-red-500 dark:text-red-400 font-medium pl-6">
+              {{ errors.aceptaReglamento }}
+            </span>
           </div>
 
           <div class="mt-3 flex justify-center">

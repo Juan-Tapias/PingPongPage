@@ -55,6 +55,7 @@ export interface Torneo {
   mesaAsignada?: string
   sorteoLlaves?: string
   posicionFinal?: string
+  posicionActual?: string
   clasificadosPlayoffs?: number
 }
 

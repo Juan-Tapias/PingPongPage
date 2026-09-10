@@ -75,7 +75,6 @@
         <FiltrosDisponibles
           v-else
           v-model="busquedaDisponibles"
-          v-model:categoria="filtroCategoria"
           :total-encontrados="torneosDisponiblesFiltrados.length"
           @restablecer="busquedaDisponibles = ''"
         />
@@ -245,15 +244,7 @@ const torneosDisponiblesFiltrados = computed(() => {
       t.organizador.toLowerCase().includes(busquedaDisponibles.value.toLowerCase()) ||
       (t.sede && t.sede.toLowerCase().includes(busquedaDisponibles.value.toLowerCase()))
 
-    const coincideCategoria =
-      filtroCategoria.value === 'todas' ||
-      (t.categoria && t.categoria.toLowerCase().includes(filtroCategoria.value.toLowerCase()))
-
-    const coincideModalidad =
-      filtroModalidad.value === 'todas' ||
-      (t.modalidad && t.modalidad.toLowerCase().includes(filtroModalidad.value.toLowerCase()))
-
-    return coincideTexto && coincideCategoria && coincideModalidad
+    return coincideTexto
   })
 })
 

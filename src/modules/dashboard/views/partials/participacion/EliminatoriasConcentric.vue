@@ -1,30 +1,30 @@
 <template>
   <div class="flex flex-col gap-6 w-full animate-in fade-in duration-200">
 
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-300">
-      <div class="flex items-start sm:items-center gap-3.5">
-        <div class="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
-          <Crown class="w-6 h-6" />
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-300">
+      <div class="flex items-start sm:items-center gap-3">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
+          <Crown class="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
-        <div>
-          <div class="flex flex-wrap items-center gap-2">
-            <h3 class="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading tracking-tight">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <h3 class="text-base sm:text-lg font-black text-slate-900 dark:text-white font-heading tracking-tight leading-snug">
               Cuadro Oficial de Eliminatorias (Playoffs)
             </h3>
-            <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
               Fase 2 • Eliminación Directa
             </span>
           </div>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Top 4 clasificados con pase directo (BYE) a Cuartos • Puestos 5° al 12° disputan el Play-In
+            Top 4 clasificados directos a Cuartos • Puestos 5° al 12° disputan el Play-In
           </p>
         </div>
       </div>
 
       <!-- Tarjeta de Bolsa y Conmutador de Modo -->
-      <div class="flex flex-wrap items-center gap-3">
+      <div class="flex flex-wrap items-center justify-between sm:justify-start gap-2.5 w-full lg:w-auto">
         <!-- Bolsa Acumulada $90.000 COP -->
-        <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300">
+        <div class="flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300">
           <Trophy class="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
           <div class="flex flex-col">
             <span class="text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">Premio Acumulado</span>
@@ -32,7 +32,7 @@
               ${{ playoffs.bolsaPremioFormateada }} COP
             </span>
           </div>
-          <span class="text-[9px] font-extrabold bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded ml-1">
+          <span class="text-[9px] font-extrabold bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded ml-1 shrink-0">
             100% Ganador
           </span>
         </div>
@@ -42,7 +42,7 @@
           <button
             type="button"
             :class="[
-              'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
+              'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
               modoVista === 'completo'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -56,7 +56,7 @@
           <button
             type="button"
             :class="[
-              'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
+              'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
               modoVista === 'mi-camino'
                 ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -91,8 +91,13 @@
     <!-- ============================================== -->
     <!-- CUADRO DE LLAVES / BRACKET CLARO Y ESTRUCTURADO -->
     <!-- ============================================== -->
-    <div class="w-full bg-slate-50/70 dark:bg-[#070e1e] rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 sm:p-6 overflow-x-auto shadow-xs transition-colors duration-300">
-      <div class="min-w-280 flex items-start gap-5 lg:gap-6 justify-between">
+    <div class="w-full bg-slate-50/70 dark:bg-[#070e1e] rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-6 overflow-x-auto shadow-xs transition-colors duration-300">
+      <div
+        :class="[
+          rondaMovilActiva === 'todas' ? 'min-w-[900px]' : 'w-full min-w-full',
+          'flex items-start gap-4 lg:gap-6 justify-between'
+        ]"
+      >
         <!-- ========================================== -->
         <!-- COLUMNA 1: PLAY-IN (Puestos 5 al 12) -->
         <!-- ========================================== -->

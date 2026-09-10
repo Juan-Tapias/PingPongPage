@@ -41,6 +41,9 @@ export const registroSchema = toTypedSchema(
         .min(1, 'La contraseña es obligatoria')
         .min(6, 'La contraseña debe tener al menos 6 caracteres'),
       confirmPassword: z.string().min(1, 'Confirma tu contraseña'),
+      aceptaReglamento: z.boolean().refine((val) => val === true, {
+        message: 'Debes leer y aceptar el Reglamento Oficial para registrarte',
+      }),
     })
     .refine((data) => data.password === data.confirmPassword, {
       message: 'Las contraseñas no coinciden',

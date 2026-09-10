@@ -16,7 +16,7 @@
         </RouterLink>
       </div>
 
-      <!-- Zona Derecha: Switcher, Theme Toggle, Usuario y Salir -->
+      <!-- Zona Derecha: Switcher, Theme Toggle y Dropdown de Usuario con Opción de Salir -->
       <div class="flex items-center gap-2 sm:gap-3 min-w-0">
         <!-- Switcher visual: Panel Admin <-> Vista Jugador -->
         <RouterLink
@@ -30,7 +30,7 @@
         </RouterLink>
 
         <RouterLink
-          v-else
+          v-else-if="authStore.esAdmin"
           to="/admin"
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 transition-colors"
           title="Ingresar al Panel de Administrador"
@@ -44,47 +44,77 @@
 
         <div class="h-4 sm:h-5 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
 
-        <!-- Info del Usuario / Admin -->
-        <div class="flex items-center gap-2 min-w-0">
-          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-            {{ userInitials }}
-          </div>
-          <div class="flex flex-col min-w-0">
-            <span class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-24 sm:max-w-none">
-              {{ authStore.usuario?.nombre || 'Usuario' }} {{ authStore.usuario?.apellido || '' }}
-            </span>
-            <span v-if="authStore.esAdmin || esRutaAdmin" class="text-[9px] font-black text-orange-500 uppercase tracking-wider">
-              Admin
-            </span>
+        <!-- Info y Menú Desplegable del Usuario -->
+        <div ref="navUsuarioRef" class="relative">
+          <button
+            type="button"
+            class="flex items-center gap-2 sm:gap-2.5 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-200/80 dark:hover:border-slate-700/60 transition-all cursor-pointer select-none group"
+            @click="menuUsuarioAbierto = !menuUsuarioAbierto"
+          >
+            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 ring-2 ring-sky-500/20 group-hover:ring-sky-500/40 transition-all">
+              {{ userInitials }}
+            </div>
+            <div class="hidden md:flex flex-col text-left min-w-0">
+              <span class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-tight truncate max-w-28 sm:max-w-36">
+                {{ authStore.usuario?.nombre || 'Usuario' }} {{ authStore.usuario?.apellido || '' }}
+              </span>
+              <span v-if="authStore.esAdmin" class="text-[9px] font-black text-orange-500 uppercase tracking-wider">
+                Admin
+              </span>
+            </div>
+            <ChevronDown class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform duration-200" :class="{ 'rotate-180': menuUsuarioAbierto }" />
+          </button>
+
+          <!-- Dropdown Desplegable -->
+          <div
+            v-if="menuUsuarioAbierto"
+            class="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div class="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/80">
+              <p class="text-xs font-bold text-slate-900 dark:text-white truncate">
+                {{ authStore.usuario?.nombre }} {{ authStore.usuario?.apellido }}
+              </p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                {{ authStore.usuario?.email }}
+              </p>
+              <span v-if="authStore.esAdmin" class="inline-block mt-1.5 px-2 py-0.5 rounded text-[9px] font-black uppercase bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                Administrador
+              </span>
+              <span v-else class="inline-block mt-1.5 px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                Jugador Competidor
+              </span>
+            </div>
+
+            <div class="p-1">
+              <button
+                type="button"
+                class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer text-left"
+                @click="handleLogout"
+              >
+                <LogOut class="w-4 h-4 text-red-500 shrink-0" />
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
           </div>
         </div>
-
-        <div class="h-4 sm:h-5 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
-
-        <button
-          type="button"
-          class="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-semibold text-slate-500 hover:text-red-500 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer shrink-0"
-          @click="handleLogout"
-          title="Cerrar sesión"
-        >
-          <LogOut class="w-4 h-4 text-red-500" />
-          <span class="hidden sm:inline">Salir</span>
-        </button>
       </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { Trophy, LogOut, ShieldCheck, Users } from 'lucide-vue-next'
+import { Trophy, LogOut, ShieldCheck, Users, ChevronDown } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import ThemeTogglePingPong from '@/components/ThemeTogglePingPong.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+
+const menuUsuarioAbierto = ref(false)
+const navUsuarioRef = ref<HTMLElement | null>(null)
 
 const esRutaAdmin = computed(() => route.path.startsWith('/admin'))
 
@@ -94,7 +124,22 @@ const userInitials = computed(() => {
   return `${nombre}${apellido}`.toUpperCase()
 })
 
+const handleClickOutside = (event: MouseEvent) => {
+  if (navUsuarioRef.value && !navUsuarioRef.value.contains(event.target as Node)) {
+    menuUsuarioAbierto.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutside)
+})
+
 const handleLogout = async () => {
+  menuUsuarioAbierto.value = false
   try {
     await authStore.logout()
     router.push('/login')

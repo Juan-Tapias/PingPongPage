@@ -7,7 +7,7 @@
         </div>
         <div>
           <span class="text-[10px] font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
-            Rival de Turno
+            {{ rival.esRivalDeTurno ? 'Rival de Turno (A las 12)' : 'Partido Pendiente' }}
           </span>
           <h4 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug mt-0.5">
             {{ rival.jugador.nombre }}
@@ -55,7 +55,7 @@
       </div>
 
       <span class="text-[10px] text-slate-400 dark:text-slate-400 font-medium">
-        Cálculo estimado según rendimiento previo y estadísticas
+        {{ leyendaProbabilidad }}
       </span>
     </div>
   </div>
@@ -64,15 +64,64 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Clock, KeyRound } from 'lucide-vue-next'
-import type { BurbujaRival } from '@/types'
+import type { BurbujaRival, FilaPosicion, JugadorTorneo } from '@/types'
 
 const props = defineProps<{
   rival: BurbujaRival | null | undefined
+  tablaPosiciones?: FilaPosicion[]
+  jugadorCentro?: JugadorTorneo
 }>()
 
-const probabilidadGanancia = computed(() => {
-  if (!props.rival) return 50
-  const seed = props.rival.jugador.nombre.length
-  return 60 + (seed % 15) 
+function sonMismoJugador(a?: string, b?: string): boolean {
+  if (!a || !b) return false
+  return a === b || a.endsWith(b) || b.endsWith(a)
+}
+
+const probabilidadCalculada = computed(() => {
+  if (!props.rival) {
+    return { porcentaje: 50, leyenda: 'Probabilidad neutral inicial (50% / 50%)' }
+  }
+
+  // Si el partido ya fue jugado directamente entre ambos:
+  if (props.rival.estadoPartido === 'jugado' || props.rival.marcador) {
+    if (props.rival.resultadoParaCentro === 'ganado') {
+      return { porcentaje: 100, leyenda: '¡Victoria obtenida! Partido finalizado.' }
+    } else if (props.rival.resultadoParaCentro === 'perdido') {
+      return { porcentaje: 0, leyenda: 'Partido finalizado: Derrota registrada.' }
+    }
+  }
+
+  // Si la partida está PENDIENTE:
+  if (props.tablaPosiciones && props.tablaPosiciones.length > 0) {
+    const statsCentro = props.tablaPosiciones.find((f) => sonMismoJugador(f.jugadorId, props.jugadorCentro?.id))
+    const statsRival = props.tablaPosiciones.find((f) => sonMismoJugador(f.jugadorId, props.rival?.jugador.id))
+
+    const pjCentro = statsCentro?.pj || 0
+    const pgCentro = statsCentro?.pg || 0
+    const pjRival = statsRival?.pj || 0
+    const pgRival = statsRival?.pg || 0
+
+    // Si ninguno ha jugado partidos aún en el torneo:
+    if (pjCentro === 0 && pjRival === 0) {
+      return { porcentaje: 50, leyenda: 'Probabilidad neutral inicial (Sin partidos jugados: 50% / 50%)' }
+    }
+
+    const effCentro = pjCentro > 0 ? pgCentro / pjCentro : 0.5
+    const effRival = pjRival > 0 ? pgRival / pjRival : 0.5
+
+    const diff = effCentro - effRival
+    const calc = Math.round(50 + diff * 40)
+    const porcentajePonderado = Math.max(10, Math.min(90, calc))
+
+    return {
+      porcentaje: porcentajePonderado,
+      leyenda: `Calculado por rendimiento: ${pgCentro}/${pjCentro} victorias vs ${pgRival}/${pjRival} rival.`,
+    }
+  }
+
+  return { porcentaje: 50, leyenda: 'Probabilidad neutral inicial (50% / 50%)' }
 })
+
+const probabilidadGanancia = computed(() => probabilidadCalculada.value.porcentaje)
+const leyendaProbabilidad = computed(() => probabilidadCalculada.value.leyenda)
 </script>

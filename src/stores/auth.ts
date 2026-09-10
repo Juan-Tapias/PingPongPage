@@ -20,6 +20,11 @@ export const useAuthStore = defineStore('auth', () => {
   const estaAutenticado = computed(() => !!usuario.value)
   const esAdmin = computed(() => usuario.value?.rol === 'admin')
 
+  let resolverInicializacion: (() => void) | null = null
+  const promesaInicializacion = new Promise<void>((resolve) => {
+    resolverInicializacion = resolve
+  })
+
   const inicializarAuth = () => {
     onAuthStateChanged(auth, async (userFirebase) => {
       try {
@@ -33,9 +38,15 @@ export const useAuthStore = defineStore('auth', () => {
         usuario.value = null
       } finally {
         inicializando.value = false
+        if (resolverInicializacion) {
+          resolverInicializacion()
+          resolverInicializacion = null
+        }
       }
     })
   }
+
+  const esperarInicializacion = () => promesaInicializacion
 
   const login = async (credenciales: CredencialesLogin) => {
     cargando.value = true
@@ -96,6 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
     estaAutenticado,
     esAdmin,
     inicializarAuth,
+    esperarInicializacion,
     login,
     registro,
     logout,

@@ -25,8 +25,16 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
     return bolsaPremio.value.toLocaleString('es-CO')
   })
 
+  // Verificar si la fase regular ya comenzó con partidos disputados
+  const hayPartidosJugados = computed(() => {
+    return filasPosiciones.some((f) => f.pj > 0 || f.pg > 0 || f.pp > 0)
+  })
+
   // Mapear los jugadores clasificados desde las posiciones reales de la tabla
   const clasificados = computed<JugadorTorneo[]>(() => {
+    if (!hayPartidosJugados.value) {
+      return []
+    }
     return filasPosiciones.map((f) => ({
       id: f.jugadorId,
       nombre: f.nombre,

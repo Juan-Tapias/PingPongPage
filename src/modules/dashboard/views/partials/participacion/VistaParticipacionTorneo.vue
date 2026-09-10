@@ -4,24 +4,30 @@
       <div class="flex items-center gap-3">
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+          title="Volver a mis torneos"
+          aria-label="Volver a mis torneos"
+          class="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-700/60 transition-colors cursor-pointer shrink-0 shadow-xs"
           @click="$emit('volver')"
         >
-          <ArrowLeft class="w-4 h-4" />
-          <span>Volver a mis torneos</span>
+          <ArrowLeft class="w-5 h-5" />
         </button>
 
         <div class="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
 
         <div>
-          <div class="flex items-center gap-2">
-            <h2 class="text-lg sm:text-xl font-black font-heading text-slate-900 dark:text-white tracking-tight">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="text-lg sm:text-xl font-black font-heading text-slate-900 dark:text-white tracking-tight leading-snug">
               {{ torneo.nombre }}
             </h2>
             <span
-              class="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-md tracking-wider"
-              :class="torneo.estado === 'en curso' ? 'bg-sky-100 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'"
+              class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shrink-0 border"
+              :class="
+                torneo.estado === 'en curso'
+                  ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+              "
             >
+              <span v-if="torneo.estado === 'en curso'" class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
               {{ torneo.estado }}
             </span>
           </div>
@@ -31,22 +37,22 @@
         </div>
       </div>
 
-      <div v-if="torneo.estado !== 'por iniciar'" class="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+      <div v-if="torneo.estado !== 'por iniciar'" class="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full sm:w-auto">
         <Button
           variant="outline"
           size="sm"
-          class="gap-1.5 border-emerald-600 dark:border-emerald-500 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer font-bold"
+          class="gap-1.5 border-emerald-600 dark:border-emerald-500 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer font-bold w-full sm:w-auto justify-center"
           @click="abrirModalArbitraje"
         >
           <ShieldCheck class="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
           <span>Arbitrar un partido</span>
         </Button>
 
-        <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700">
+        <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-x-auto w-full sm:w-auto">
           <button
             type="button"
             :class="[
-              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
               tabActiva === 'grafica'
                 ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -60,7 +66,7 @@
           <button
             type="button"
             :class="[
-              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
               tabActiva === 'posiciones'
                 ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -68,13 +74,13 @@
             @click="tabActiva = 'posiciones'"
           >
             <ListOrdered class="w-3.5 h-3.5" />
-            <span>Tabla de posiciones</span>
+            <span>Posiciones</span>
           </button>
 
           <button
             type="button"
             :class="[
-              'flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
+              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
               tabActiva === 'playoffs'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -275,10 +281,13 @@
         <CardAvanceTorneo
           :torneo="torneo"
           :partidos="partidos"
+          :jugador-centro="jugadorEnCentro"
         />
 
         <CardInfoRival
           :rival="rivalDeTurno"
+          :tabla-posiciones="tablaPosiciones"
+          :jugador-centro="jugadorEnCentro"
         />
       </div>
     </div>

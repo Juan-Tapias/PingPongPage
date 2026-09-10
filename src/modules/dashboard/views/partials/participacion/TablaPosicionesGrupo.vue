@@ -27,8 +27,8 @@
             <th scope="col" class="py-3 px-2 sm:px-3 text-center" title="Partidos Jugados">PJ</th>
             <th scope="col" class="py-3 px-2 sm:px-3 text-center text-emerald-700 dark:text-emerald-400" title="Partidos Ganados">PG</th>
             <th scope="col" class="py-3 px-2 sm:px-3 text-center text-rose-700 dark:text-rose-400" title="Partidos Perdidos">PP</th>
-            <th scope="col" class="py-3 px-2 sm:px-3 text-center hidden sm:table-cell text-slate-500 dark:text-slate-400" title="Sets a Favor">SF</th>
-            <th scope="col" class="py-3 px-2 sm:px-3 text-center hidden sm:table-cell text-slate-500 dark:text-slate-400" title="Sets en Contra">SC</th>
+            <th scope="col" class="py-3 px-2 sm:px-3 text-center text-slate-500 dark:text-slate-400" title="Sets a Favor">SF</th>
+            <th scope="col" class="py-3 px-2 sm:px-3 text-center text-slate-500 dark:text-slate-400" title="Sets en Contra">SC</th>
             <th scope="col" class="py-3 px-3 sm:px-4 text-center font-black text-slate-800 dark:text-white" title="Puntos Totales">Pts</th>
           </tr>
         </thead>
@@ -84,8 +84,8 @@
             <td class="py-3 px-2 sm:px-3 text-center font-mono">{{ fila.pj }}</td>
             <td class="py-3 px-2 sm:px-3 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400">{{ fila.pg }}</td>
             <td class="py-3 px-2 sm:px-3 text-center font-mono font-bold text-rose-700 dark:text-rose-400">{{ fila.pp }}</td>
-            <td class="py-3 px-2 sm:px-3 text-center font-mono hidden sm:table-cell text-slate-500 dark:text-slate-400">{{ fila.sf }}</td>
-            <td class="py-3 px-2 sm:px-3 text-center font-mono hidden sm:table-cell text-slate-500 dark:text-slate-400">{{ fila.sc }}</td>
+            <td class="py-3 px-2 sm:px-3 text-center font-mono text-slate-500 dark:text-slate-400">{{ fila.sf }}</td>
+            <td class="py-3 px-2 sm:px-3 text-center font-mono text-slate-500 dark:text-slate-400">{{ fila.sc }}</td>
             <td class="py-3 px-3 sm:px-4 text-center font-mono font-black text-sm text-slate-900 dark:text-white bg-slate-50/50 dark:bg-slate-900/40">
               {{ fila.puntos }}
             </td>

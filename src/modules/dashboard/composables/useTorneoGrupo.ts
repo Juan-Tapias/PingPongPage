@@ -374,27 +374,17 @@ export function useTorneoGrupo(torneo: Torneo) {
   }
 
   const partidosDisponiblesParaArbitrar = computed<PartidoArbitrable[]>(() => {
-    const aId = arbitroActual.value.id
+    // El árbitro siempre debe ser el usuario autenticado (jugador en sesión)
+    const aId = usuarioActual.id
     const rActiva = rondaActual.value
 
-    let partidosValidos = partidos.value.filter((p) => {
+    // Filtrar estrictamente partidos de la ronda activa que están pendientes y donde el usuario autenticado NO participa
+    const partidosValidos = partidos.value.filter((p) => {
       const esRondaActiva = (p.ronda === rActiva || !p.ronda)
       const noJugado = p.estado !== 'jugado' && !p.marcador
       const noParticipa = !sonMismoJugador(p.jugador1Id, aId) && !sonMismoJugador(p.jugador2Id, aId)
       return esRondaActiva && noJugado && noParticipa
     })
-
-    if (partidosValidos.length === 0) {
-      const partidosAjenos = partidos.value.filter((p) => {
-        const noJugado = p.estado !== 'jugado' && !p.marcador
-        const noParticipa = !sonMismoJugador(p.jugador1Id, aId) && !sonMismoJugador(p.jugador2Id, aId)
-        return noJugado && noParticipa
-      })
-      if (partidosAjenos.length > 0) {
-        const proxRonda = Math.min(...partidosAjenos.map((p) => p.ronda || 1))
-        partidosValidos = partidosAjenos.filter((p) => (p.ronda || 1) === proxRonda)
-      }
-    }
 
     return partidosValidos.map((p) => {
       const jugador1 = resolverJugador(p.jugador1Id, p.jugador1)

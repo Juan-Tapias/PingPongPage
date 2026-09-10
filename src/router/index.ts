@@ -33,8 +33,13 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+
+  // Esperar la respuesta inicial de Firebase (evita redirección falsa al recargar la página)
+  if (authStore.inicializando) {
+    await authStore.esperarInicializacion()
+  }
 
   if (to.meta.requiresAuth && !authStore.estaAutenticado) {
     return next('/login')

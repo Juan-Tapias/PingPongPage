@@ -101,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Clock, AlertTriangle, Eye, KeyRound } from 'lucide-vue-next'
+import { Clock, AlertTriangle, Eye, KeyRound, Calendar } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { BurbujaRival, JugadorTorneo } from '@/types'
@@ -141,10 +141,10 @@ const textoEstadoEnfrentamiento = computed(() => {
 
 const badgeEstadoClase = computed(() => {
   if (!props.burbuja) return 'bg-slate-100 text-slate-700'
-  if (props.burbuja.esRivalDeTurno) return 'bg-sky-100 text-sky-800'
-  if (props.burbuja.resultadoParaCentro === 'ganado') return 'bg-emerald-100 text-emerald-800'
-  if (props.burbuja.resultadoParaCentro === 'perdido') return 'bg-rose-100 text-rose-800'
-  return 'bg-slate-100 text-slate-700'
+  if (props.burbuja.esRivalDeTurno) return 'bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+  if (props.burbuja.resultadoParaCentro === 'ganado') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+  if (props.burbuja.resultadoParaCentro === 'perdido') return 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
 })
 
 const textoFechaLimite = computed(() => {
@@ -156,9 +156,9 @@ const textoFechaLimite = computed(() => {
 
 const estiloFechaLimite = computed(() => {
   if (!props.burbuja) return 'bg-slate-100 text-slate-700'
-  if (props.burbuja.diasRestantes >= 2) return 'bg-slate-100 text-slate-700'
-  if (props.burbuja.diasRestantes === 1) return 'bg-amber-100 text-amber-900 border border-amber-300'
-  return 'bg-rose-100 text-rose-900 border border-rose-300'
+  if (props.burbuja.diasRestantes >= 2) return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+  if (props.burbuja.diasRestantes === 1) return 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300'
+  return 'bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300'
 })
 
 const handleVerRival = () => {
