@@ -29,7 +29,7 @@ const emblemSizes = computed(() => {
 
 <template>
   <!-- Variante ICON: Solo el escudo circular oficial en SVG -->
-  <div v-if="variant === 'icon'" class="relative inline-flex items-center justify-center shrink-0">
+  <div v-if="variant === 'icon'" class="relative inline-flex items-center justify-center shrink-0 rounded-full overflow-hidden">
     <img
       src="/logo.svg"
       alt="SpinApp Torneo"
@@ -39,7 +39,7 @@ const emblemSizes = computed(() => {
 
   <!-- Variante FULL: Logo Centrado con Escudo Circular SVG Oficial -->
   <div v-else-if="variant === 'full'" class="flex flex-col items-center justify-center text-center group select-none">
-    <div class="relative flex items-center justify-center">
+    <div class="relative flex items-center justify-center rounded-full overflow-hidden">
       <img
         src="/logo.svg"
         alt="SpinApp Torneo Ping Pong"
@@ -50,7 +50,7 @@ const emblemSizes = computed(() => {
 
   <!-- Variante HORIZONTAL: Escudo Circular SVG + Marca para Navbar y Footers -->
   <div v-else class="flex items-center gap-2.5 sm:gap-3 select-none group">
-    <div class="relative flex items-center justify-center shrink-0">
+    <div class="relative flex items-center justify-center shrink-0 rounded-full overflow-hidden">
       <img
         src="/logo.svg"
         alt="SpinApp Torneo"
