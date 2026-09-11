@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   setDoc,
   updateDoc,
@@ -10,11 +11,12 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Torneo, EstadoTorneo, Usuario } from '@/types'
+import type { Torneo, EstadoTorneo, Usuario, FilaPosicionOficial, TablaPosicionesTorneo } from '@/types'
 
 const COLECCION_TORNEOS = 'torneos'
 const COLECCION_PARTIDOS = 'partidos'
 const COLECCION_INSCRIPCIONES = 'inscripciones'
+export const COLECCION_TABLAS_POSICIONES = 'tablas_posiciones'
 
 /**
  * Obtiene todos los torneos registrados en la base de datos
@@ -153,16 +155,169 @@ export const actualizarPartidoDB = async (partidoId: string, datos: any): Promis
   await updateDoc(pRef, datos)
 }
 
-export const actualizarTablaPosicionesDB = async (torneoId: string, posiciones: any[]): Promise<void> => {
+/**
+ * Obtiene la tabla de posiciones oficial de un torneo desde la colección dedicada 'tablas_posiciones'
+ */
+export const obtenerTablaPosicionesDB = async (torneoId: string): Promise<TablaPosicionesTorneo | null> => {
   try {
-    const torneoRef = doc(db, 'torneos', torneoId)
-    await updateDoc(torneoRef, {
-      tablaPosiciones: posiciones,
-      ultimaActualizacionPosiciones: new Date().toISOString(),
-    })
+    const docRef = doc(db, COLECCION_TABLAS_POSICIONES, torneoId)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as TablaPosicionesTorneo
+    }
+    return null
   } catch (error) {
-    console.warn('No se pudo actualizar tablaPosiciones en torneo:', error)
+    console.warn('Error al obtener tabla de posiciones desde Firestore:', error)
+    return null
   }
+}
+
+/**
+ * Guarda o actualiza la tabla de posiciones oficial en la colección dedicada 'tablas_posiciones'
+ */
+export const guardarTablaPosicionesDB = async (
+  torneoId: string,
+  posiciones: FilaPosicionOficial[],
+  totalPartidosJugados: number = 0,
+): Promise<void> => {
+  try {
+    const tablaRef = doc(db, COLECCION_TABLAS_POSICIONES, torneoId)
+    const payload: TablaPosicionesTorneo = {
+      id: torneoId,
+      torneoId,
+      tipoFase: 'round_robin',
+      posiciones,
+      totalPartidosJugados,
+      actualizadoEn: new Date().toISOString(),
+    }
+    await setDoc(tablaRef, payload)
+  } catch (error) {
+    console.warn('Error al guardar tabla de posiciones en la colección tablas_posiciones:', error)
+  }
+}
+
+/**
+ * Alias compatible hacia atrás para persistir en la nueva colección
+ */
+export const actualizarTablaPosicionesDB = async (torneoId: string, posiciones: any[]): Promise<void> => {
+  await guardarTablaPosicionesDB(torneoId, posiciones)
+}
+
+/**
+ * Algoritmo oficial de cálculo de métricas para la tabla de posiciones (PJ, PG, PP, SF, SC, PTS)
+ */
+export const calcularTablaDesdePartidos = (
+  jugadores: any[],
+  partidos: any[],
+  clasificadosPlayoffs: number = 4,
+): FilaPosicionOficial[] => {
+  if (!jugadores || jugadores.length === 0) return []
+
+  const partidosJugados = (partidos || []).filter((p) => p.estado === 'jugado')
+
+  const filas: FilaPosicionOficial[] = jugadores.map((jugador) => {
+    let pj = 0
+    let pg = 0
+    let pp = 0
+    let sf = 0
+    let sc = 0
+
+    const idJugador = jugador.id || jugador.jugadorId
+
+    partidosJugados.forEach((partido) => {
+      const j1Id = partido.jugador1?.id || partido.jugador1Id
+      const j2Id = partido.jugador2?.id || partido.jugador2Id
+      const esJ1 = j1Id === idJugador || j1Id?.endsWith(idJugador) || idJugador?.endsWith(j1Id)
+      const esJ2 = j2Id === idJugador || j2Id?.endsWith(idJugador) || idJugador?.endsWith(j2Id)
+
+      if (esJ1 || esJ2) {
+        pj++
+        const ganadorId = partido.ganadorId || partido.jugadorGanadorId
+        const esGanador = ganadorId === idJugador || (ganadorId && (ganadorId.endsWith(idJugador) || idJugador.endsWith(ganadorId)))
+
+        if (esGanador) {
+          pg++
+        } else if (ganadorId) {
+          pp++
+        }
+
+        // Sets
+        if (partido.sets && Array.isArray(partido.sets) && partido.sets.length > 0) {
+          partido.sets.forEach((s: any) => {
+            const setGanador = s.ganadorId
+            const ganoEsteSet = setGanador === idJugador || (setGanador && (setGanador.endsWith(idJugador) || idJugador.endsWith(setGanador)))
+            if (ganoEsteSet) {
+              sf++
+            } else if (setGanador) {
+              sc++
+            }
+          })
+        } else if (partido.marcador && typeof partido.marcador === 'string') {
+          const partes = partido.marcador.split('-').map((str: string) => parseInt(str.trim()))
+          if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
+            if (esJ1) {
+              sf += partes[0]
+              sc += partes[1]
+            } else {
+              sf += partes[1]
+              sc += partes[0]
+            }
+          }
+        }
+      }
+    })
+
+    const puntos = pg * 2 + pp * 1
+
+    return {
+      posicion: 0,
+      jugadorId: idJugador,
+      nombre: jugador.nombre || jugador.jugadorNombre || 'Jugador',
+      iniciales: jugador.iniciales || jugador.nombre?.substring(0, 2).toUpperCase() || 'JG',
+      tipo: jugador.tipo || 'camper',
+      pj,
+      pg,
+      pp,
+      sf,
+      sc,
+      puntos,
+      destino: '',
+    }
+  })
+
+  // Ordenar por: 1) Puntos, 2) Diferencia de Sets (SF - SC), 3) Sets a Favor (SF)
+  filas.sort((a, b) => {
+    if (b.puntos !== a.puntos) return b.puntos - a.puntos
+    const difB = b.sf - b.sc
+    const difA = a.sf - a.sc
+    if (difB !== difA) return difB - difA
+    return b.sf - a.sf
+  })
+
+  // Asignar posición y destino según clasificadosPlayoffs
+  return filas.map((fila, idx) => {
+    const pos = idx + 1
+    let destino = 'Eliminado'
+    if (clasificadosPlayoffs === 2) {
+      destino = pos <= 2 ? 'Gran Final' : 'Fase Regular'
+    } else if (clasificadosPlayoffs === 4) {
+      destino = pos <= 4 ? 'Cuartos (BYE)' : 'Play-In'
+    } else if (clasificadosPlayoffs === 6) {
+      if (pos <= 2) destino = 'Semis (BYE)'
+      else if (pos <= 6) destino = 'Cuartos'
+      else destino = 'Play-In'
+    } else if (clasificadosPlayoffs === 8) {
+      destino = pos <= 8 ? 'Cuartos de Final' : 'Fase Regular'
+    } else {
+      destino = pos <= 4 ? 'Cuartos (BYE)' : 'Play-In'
+    }
+
+    return {
+      ...fila,
+      posicion: pos,
+      destino,
+    }
+  })
 }
 
 export const actualizarClasificadosPlayoffsDB = async (torneoId: string, clasificados: number): Promise<void> => {
@@ -193,238 +348,5 @@ export const obtenerUsuariosDB = async (): Promise<Usuario[]> => {
   }
 }
 
-/**
- * Genera jugadores de prueba (aprobados) para validar el flujo completo del torneo
- */
-export const generarJugadoresDemoDB = async (torneoId: string, cantidad: number = 4): Promise<any[]> => {
-  const listaNombres = [
-    { nombre: 'Carlos Mendoza', iniciales: 'CM', telefono: '+57 312 456 7890', tipo: 'camper' },
-    { nombre: 'Andres Rivera', iniciales: 'AR', telefono: '+57 300 876 5432', tipo: 'camper' },
-    { nombre: 'Valentina Gomez', iniciales: 'VG', telefono: '+57 315 234 5678', tipo: 'staff' },
-    { nombre: 'Mateo Hernandez', iniciales: 'MH', telefono: '+57 318 901 2345', tipo: 'camper' },
-    { nombre: 'Daniel Ospina', iniciales: 'DO', telefono: '+57 301 345 6789', tipo: 'camper' },
-    { nombre: 'Sofia Ramirez', iniciales: 'SR', telefono: '+57 316 678 9012', tipo: 'camper' },
-  ]
 
-  const jugadoresCreados: any[] = []
-  const max = Math.min(cantidad, listaNombres.length)
-
-  for (let i = 0; i < max; i++) {
-    const demo = listaNombres[i]
-    if (!demo) continue
-    const idJugador = `demo_player_${i + 1}`
-    const nuevaInscripcion = {
-      id: `${torneoId}_${idJugador}`,
-      torneoId,
-      jugadorId: idJugador,
-      nombre: demo.nombre,
-      iniciales: demo.iniciales,
-      telefono: demo.telefono,
-      tipo: demo.tipo,
-      pagoValidado: true,
-      subestado: 'INSCRITO',
-      fechaInscripcion: new Date().toISOString(),
-    }
-    await guardarInscripcionDB(nuevaInscripcion)
-    jugadoresCreados.push(nuevaInscripcion)
-  }
-
-  return jugadoresCreados
-}
-
-/**
- * Genera un escenario de torneo hiper-realista completo en Firestore
- * (Jugadores, Partidos jugados con marcadores, Jornada activa y conflicto de admin)
- */
-export const generarTorneoDemoCompletoDB = async (torneoId: string, usuarioActual?: any): Promise<void> => {
-  const yoId = usuarioActual?.id || 'usuario_actual'
-  const yoNombre = usuarioActual?.nombre
-    ? `${usuarioActual.nombre} ${usuarioActual.apellido || ''}`.trim()
-    : 'Jose Guillermo Paúl Diaz'
-  const yoIniciales = `${yoNombre[0] || 'J'}${yoNombre.split(' ')[1]?.[0] || 'P'}`.toUpperCase()
-
-  const participantes = [
-    { id: yoId, nombre: yoNombre, iniciales: yoIniciales, telefono: usuarioActual?.telefono || '+57 317 800 1452', tipo: 'camper' },
-    { id: 'demo_carlos', nombre: 'Carlos Mendoza', iniciales: 'CM', telefono: '+57 312 456 7890', tipo: 'camper' },
-    { id: 'demo_andres', nombre: 'Andres Rivera', iniciales: 'AR', telefono: '+57 300 876 5432', tipo: 'camper' },
-    { id: 'demo_valentina', nombre: 'Valentina Gomez', iniciales: 'VG', telefono: '+57 315 234 5678', tipo: 'staff' },
-    { id: 'demo_mateo', nombre: 'Mateo Hernandez', iniciales: 'MH', telefono: '+57 318 901 2345', tipo: 'camper' },
-    { id: 'demo_daniel', nombre: 'Daniel Ospina', iniciales: 'DO', telefono: '+57 301 345 6789', tipo: 'camper' },
-  ]
-
-  for (const p of participantes) {
-    await guardarInscripcionDB({
-      id: `${torneoId}_${p.id}`,
-      torneoId,
-      jugadorId: p.id,
-      nombre: p.nombre,
-      iniciales: p.iniciales,
-      telefono: p.telefono,
-      tipo: p.tipo,
-      pagoValidado: true,
-      subestado: 'INSCRITO',
-      fechaInscripcion: new Date().toISOString(),
-    })
-  }
-
-  const partidos: any[] = [
-    // --- RONDA 1 (JUGADOS) ---
-    {
-      id: `p_${torneoId}_1_1`,
-      torneoId,
-      jugador1Id: yoId,
-      jugador2Id: 'demo_carlos',
-      jugador1: participantes[0],
-      jugador2: participantes[1],
-      jugadorGanadorId: yoId,
-      marcador: '2 - 1',
-      marcadorDetallado: '11-9, 8-11, 11-7',
-      estado: 'jugado',
-      ronda: 1,
-      jornada: 1,
-      diasRestantes: 0,
-      codigoJugador1: '12345',
-      codigoJugador2: '54321',
-      sets: [
-        { setNumero: 1, puntosJugador1: 11, puntosJugador2: 9 },
-        { setNumero: 2, puntosJugador1: 8, puntosJugador2: 11 },
-        { setNumero: 3, puntosJugador1: 11, puntosJugador2: 7 },
-      ],
-    },
-    {
-      id: `p_${torneoId}_1_2`,
-      torneoId,
-      jugador1Id: 'demo_andres',
-      jugador2Id: 'demo_valentina',
-      jugador1: participantes[2],
-      jugador2: participantes[3],
-      jugadorGanadorId: 'demo_andres',
-      marcador: '2 - 0',
-      marcadorDetallado: '11-6, 11-4',
-      estado: 'jugado',
-      ronda: 1,
-      jornada: 1,
-      diasRestantes: 0,
-      codigoJugador1: '23456',
-      codigoJugador2: '65432',
-      sets: [
-        { setNumero: 1, puntosJugador1: 11, puntosJugador2: 6 },
-        { setNumero: 2, puntosJugador1: 11, puntosJugador2: 4 },
-      ],
-    },
-    {
-      id: `p_${torneoId}_1_3`,
-      torneoId,
-      jugador1Id: 'demo_mateo',
-      jugador2Id: 'demo_daniel',
-      jugador1: participantes[4],
-      jugador2: participantes[5],
-      jugadorGanadorId: 'demo_daniel',
-      marcador: '1 - 2',
-      marcadorDetallado: '9-11, 11-8, 7-11',
-      estado: 'jugado',
-      ronda: 1,
-      jornada: 1,
-      diasRestantes: 0,
-      codigoJugador1: '34567',
-      codigoJugador2: '76543',
-      sets: [
-        { setNumero: 1, puntosJugador1: 9, puntosJugador2: 11 },
-        { setNumero: 2, puntosJugador1: 11, puntosJugador2: 8 },
-        { setNumero: 3, puntosJugador1: 7, puntosJugador2: 11 },
-      ],
-    },
-
-    // --- RONDA 2 (ACTIVA) ---
-    {
-      id: `p_${torneoId}_2_1`,
-      torneoId,
-      jugador1Id: yoId,
-      jugador2Id: 'demo_andres',
-      jugador1: participantes[0],
-      jugador2: participantes[2],
-      estado: 'pendiente',
-      ronda: 2,
-      jornada: 2,
-      diasRestantes: 2,
-      codigoJugador1: '31924',
-      codigoJugador2: '84015',
-    },
-    {
-      id: `p_${torneoId}_2_2`,
-      torneoId,
-      jugador1Id: 'demo_carlos',
-      jugador2Id: 'demo_mateo',
-      jugador1: participantes[1],
-      jugador2: participantes[4],
-      estado: 'pendiente',
-      ronda: 2,
-      jornada: 2,
-      diasRestantes: 2,
-      codigoJugador1: '49201',
-      codigoJugador2: '71583',
-    },
-    {
-      id: `p_${torneoId}_2_3`,
-      torneoId,
-      jugador1Id: 'demo_valentina',
-      jugador2Id: 'demo_daniel',
-      jugador1: participantes[3],
-      jugador2: participantes[5],
-      estado: 'pendiente',
-      ronda: 2,
-      jornada: 2,
-      diasRestantes: 2,
-      codigoJugador1: '62849',
-      codigoJugador2: '15937',
-    },
-
-    // --- RONDA 3 (EN CONFLICTO / PENDIENTE ADMIN) ---
-    {
-      id: `p_${torneoId}_3_1`,
-      torneoId,
-      jugador1Id: yoId,
-      jugador2Id: 'demo_valentina',
-      jugador1: participantes[0],
-      jugador2: participantes[3],
-      estado: 'pendiente_admin',
-      ronda: 3,
-      jornada: 3,
-      diasRestantes: 0,
-      codigoJugador1: '95123',
-      codigoJugador2: '35789',
-    },
-    {
-      id: `p_${torneoId}_3_2`,
-      torneoId,
-      jugador1Id: 'demo_carlos',
-      jugador2Id: 'demo_daniel',
-      jugador1: participantes[1],
-      jugador2: participantes[5],
-      estado: 'pendiente',
-      ronda: 3,
-      jornada: 3,
-      diasRestantes: 2,
-      codigoJugador1: '84261',
-      codigoJugador2: '26481',
-    },
-    {
-      id: `p_${torneoId}_3_3`,
-      torneoId,
-      jugador1Id: 'demo_andres',
-      jugador2Id: 'demo_mateo',
-      jugador1: participantes[2],
-      jugador2: participantes[4],
-      estado: 'pendiente',
-      ronda: 3,
-      jornada: 3,
-      diasRestantes: 2,
-      codigoJugador1: '73915',
-      codigoJugador2: '51937',
-    },
-  ]
-
-  await guardarPartidosDB(partidos)
-  await actualizarEstadoTorneoDB(torneoId, 'en curso')
-}
 
