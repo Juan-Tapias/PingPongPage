@@ -130,10 +130,7 @@ const onRegisterSubmit = handleRegisterSubmit(async (values) => {
       </div>
 
       <!-- Control de Modo Claro / Modo Oscuro con diseño de Mesa de Ping Pong -->
-      <div class="flex items-center gap-2 p-1 sm:p-1.5 rounded-full bg-white/70 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-md">
-        <span class="hidden sm:inline text-[11px] font-bold text-slate-500 dark:text-slate-400 pl-2 pr-1 select-none">
-          Tema:
-        </span>
+      <div class="flex items-center p-0.5 rounded-full bg-white/70 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-md">
         <ThemeTogglePingPong />
       </div>
     </header>
