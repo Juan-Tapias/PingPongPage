@@ -271,44 +271,52 @@ export function useTorneoGrupo(torneo: Torneo) {
     const total = otrosJugadores.length
     if (total === 0) return []
 
-    // 1. Identificar el enfrentamiento de la jornada/ronda activa para este jugador central
-    const rActiva = rondaActual.value
-    let partidoDeRonda = partidos.value.find(
-      (p) =>
-        (p.ronda === rActiva || !p.ronda) &&
-        (sonMismoJugador(p.jugador1Id, centroId) || sonMismoJugador(p.jugador2Id, centroId)) &&
-        p.estado !== 'jugado' &&
-        !p.marcador,
+    // 1. Obtener todos los partidos de este jugador central ordenados cronológicamente por ronda
+    const partidosDelCentro = partidos.value
+      .filter((p) => sonMismoJugador(p.jugador1Id, centroId) || sonMismoJugador(p.jugador2Id, centroId))
+      .sort((a, b) => (a.ronda || 1) - (b.ronda || 1))
+
+    // 2. Mapear los partidos ordenados por fecha a la lista de rivales
+    let rivalesOrdenados: { jugador: JugadorTorneo; partido: PartidoGrupo }[] = []
+
+    if (partidosDelCentro.length > 0) {
+      partidosDelCentro.forEach((p) => {
+        const idRival = sonMismoJugador(p.jugador1Id, centroId) ? p.jugador2Id : p.jugador1Id
+        const jRival = resolverJugador(idRival, sonMismoJugador(p.jugador1Id, centroId) ? p.jugador2 : p.jugador1)
+        if (jRival && !sonMismoJugador(jRival.id, centroId)) {
+          // Evitar duplicados si existiera algún cruce redundante
+          if (!rivalesOrdenados.some((r) => sonMismoJugador(r.jugador.id, jRival.id))) {
+            rivalesOrdenados.push({ jugador: jRival, partido: p })
+          }
+        }
+      })
+    }
+
+    // Agregar cualquier jugador faltante que no esté en partidosDelCentro aún (fallback de seguridad)
+    otrosJugadores.forEach((j) => {
+      if (!rivalesOrdenados.some((r) => sonMismoJugador(r.jugador.id, j.id))) {
+        rivalesOrdenados.push({ jugador: j, partido: buscarPartido(centroId, j.id) })
+      }
+    })
+
+    // 3. Encontrar el índice del primer partido PENDIENTE POR JUGAR (ronda más próxima sin disputar)
+    let indexPendiente = rivalesOrdenados.findIndex(
+      (item) => item.partido.estado !== 'jugado' && !item.partido.marcador,
     )
 
-    // Si ya completó el de la ronda activa, tomar el próximo partido pendiente programado
-    if (!partidoDeRonda) {
-      const partidosDeCentro = partidos.value
-        .filter((p) => sonMismoJugador(p.jugador1Id, centroId) || sonMismoJugador(p.jugador2Id, centroId))
-        .sort((a, b) => (a.ronda || 1) - (b.ronda || 1))
-
-      partidoDeRonda =
-        partidosDeCentro.find((p) => p.estado !== 'jugado' && !p.marcador) ||
-        partidosDeCentro[0]
+    // Si ya completó todos sus partidos del grupo, mantener el orden cronológico original (índice 0)
+    if (indexPendiente === -1) {
+      indexPendiente = 0
     }
 
-    // 2. Determinar quién es el rival oficial de turno para esa fecha
-    let idRivalTurno = otrosJugadores[0]?.id
-    if (partidoDeRonda) {
-      const esJ1Centro = sonMismoJugador(partidoDeRonda.jugador1Id, centroId)
-      idRivalTurno = esJ1Centro ? partidoDeRonda.jugador2Id : partidoDeRonda.jugador1Id
-    }
-
-    // 3. Ubicar al rival de turno de la jornada activa exactamente a las 12 en punto (índice 0)
-    const indexRivalTurno = otrosJugadores.findIndex((j) => sonMismoJugador(j.id, idRivalTurno))
-    const shift = indexRivalTurno >= 0 ? indexRivalTurno : 0
-    const jugadoresRotados = [
-      ...otrosJugadores.slice(shift),
-      ...otrosJugadores.slice(0, shift),
+    // 4. Rotar el arreglo para que el partido PENDIENTE POR JUGAR quede a las 12 en punto (índice 0)
+    const rivalesRotados = [
+      ...rivalesOrdenados.slice(indexPendiente),
+      ...rivalesOrdenados.slice(0, indexPendiente),
     ]
 
-    return jugadoresRotados.map((jugador, index) => {
-      const partido = buscarPartido(centroId, jugador.id)
+    return rivalesRotados.map((item, index) => {
+      const { jugador, partido } = item
 
       let resultadoParaCentro: ResultadoPartido = 'pendiente'
       let ganadorNombre: string | undefined = undefined
@@ -322,6 +330,7 @@ export function useTorneoGrupo(torneo: Torneo) {
           ganadorNombre = jugador.nombre
         }
       }
+
       // Color del borde de la burbuja orbital:
       let colorBorde: ColorBordeBurbuja = 'gris'
       if (partido.estado === 'jugado') {

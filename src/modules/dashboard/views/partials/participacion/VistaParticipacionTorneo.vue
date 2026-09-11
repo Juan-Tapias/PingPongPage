@@ -241,11 +241,11 @@
           <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5">
             <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950 shrink-0"></span>
-              Partido Ganado
+              Jugado (Ganado)
             </span>
             <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full border-2 border-rose-500 bg-rose-50 dark:bg-rose-950 shrink-0"></span>
-              Partido Perdido
+              Jugado (Perdido)
             </span>
             <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full border-2 border-orange-500 bg-orange-50 dark:bg-orange-950 shrink-0"></span>
@@ -253,11 +253,11 @@
             </span>
             <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-slate-50 dark:bg-slate-800 shrink-0"></span>
-              No Jugado (Pendiente)
+              Pendiente (Gris)
             </span>
-            <span v-if="torneo.estado === 'en curso'" class="flex items-center gap-1.5 text-sky-800 dark:text-sky-300">
+            <span v-if="torneo.estado === 'en curso'" class="flex items-center gap-1.5 text-sky-800 dark:text-sky-300 font-extrabold">
               <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse shrink-0"></span>
-              Luz Azul: Rival a las 12
+              Luz Azul: Pendiente por Jugar (A las 12)
             </span>
           </div>
 

@@ -212,7 +212,7 @@ const posicionesRivales = computed(() => {
   const offsetInicial = -Math.PI / 2 // -90 grados = 12 en punto
 
   return props.rivales.map((burbuja, index) => {
-    const angulo = offsetInicial - (index * 2 * Math.PI) / total
+    const angulo = offsetInicial + (index * 2 * Math.PI) / total
     const x = cx + radio * Math.cos(angulo)
     const y = cy + radio * Math.sin(angulo)
 
