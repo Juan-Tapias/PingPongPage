@@ -204,17 +204,6 @@
                 <span>{{ fixtureGenerado ? `Partidos Generados (${totalPartidosEstimados} programados)` : 'Generar Partidos' }}</span>
               </Button>
 
-              <!-- Botón directo para generar jugadores demo si no hay suficientes participantes -->
-              <Button
-                v-if="!fixtureGenerado && jugadoresAprobados.length < 2"
-                variant="outline"
-                size="md"
-                class="w-full sm:w-auto shrink-0 justify-center gap-1.5 font-bold cursor-pointer text-orange-600 dark:text-orange-400 border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20"
-                @click="generarEscenarioCompletoDemo"
-              >
-                <UserPlus class="w-4 h-4" />
-                <span>+ Cargar Escenario Realista Completo</span>
-              </Button>
 
               <!-- Botón directo para ir a la pestaña si ya fueron generados -->
               <Button
@@ -690,14 +679,7 @@
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Las inscripciones y comprobantes de pago aparecerán aquí a medida que los jugadores se registren.
             </p>
-            <button
-              type="button"
-              class="mt-4 px-4 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
-              @click="generarJugadoresDemo"
-            >
-              <UserPlus class="w-4 h-4" />
-              <span>Generar 4 Jugadores de Prueba (Demo)</span>
-            </button>
+
           </div>
         </div>
 
@@ -713,14 +695,7 @@
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              class="px-3 py-1.5 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
-              @click="generarJugadoresDemo"
-            >
-              <UserPlus class="w-3.5 h-3.5" />
-              <span>+ Cargar Jugadores Demo</span>
-            </button>
+
 
             <span class="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto shadow-2xs">
               {{ jugadoresAprobados.length }} / {{ jugadoresTorneo.length }} Jugadores Aprobados (${{ (torneo?.costoInscripcion || 6000).toLocaleString('es-CO') }} COP c/u)
@@ -810,7 +785,6 @@ import {
   Crown,
   Share2,
   Users,
-  UserPlus,
   Swords,
   RefreshCw,
   CheckCircle2,
@@ -831,10 +805,12 @@ import {
   actualizarEstadoInscripcionDB,
   eliminarInscripcionDB,
   actualizarClasificadosPlayoffsDB,
-  generarJugadoresDemoDB,
-  generarTorneoDemoCompletoDB,
+  obtenerTablaPosicionesDB,
+  guardarTablaPosicionesDB,
+  calcularTablaDesdePartidos,
 } from '@/services/torneoDatabaseService'
 import { generarFixtureBerger, generarCodigoSeguridad } from '@/modules/dashboard/composables/useTorneoGrupo'
+import type { FilaPosicionOficial } from '@/types'
 
 const props = defineProps<{
   torneo: Torneo | null
@@ -864,6 +840,7 @@ const subfiltrosPartidos = [
 // Lista reactiva de participantes y partidos según el torneo seleccionado
 const jugadoresTorneo = ref<any[]>([])
 const partidosTorneo = ref<any[]>([])
+const tablaPosicionesRemota = ref<FilaPosicionOficial[]>([])
 
 // Observador para inicializar el estado del torneo seleccionado consultando la base de datos
 watch(
@@ -873,11 +850,11 @@ watch(
 
     tabActiva.value = 'fases'
     try {
-      // 1. Obtener inscripciones reales del torneo desde Firestore
+      // 1. Obtener inscripciones reales del torneo desde Firestore (colección 'inscripciones')
       const inscritosDB = await obtenerInscripcionesDB(torneoActual.id)
       jugadoresTorneo.value = inscritosDB.length > 0 ? inscritosDB : []
 
-      // 2. Obtener partidos reales del torneo desde Firestore
+      // 2. Obtener partidos reales del torneo desde Firestore (colección 'partidos')
       const partidosDB = await obtenerPartidosDB(torneoActual.id)
       if (partidosDB.length > 0) {
         partidosTorneo.value = partidosDB.map((p) => {
@@ -891,10 +868,33 @@ watch(
         partidosTorneo.value = []
         fixtureGenerado.value = torneoActual.estado === 'en curso' || torneoActual.estado === 'finalizado'
       }
+
+      // 3. Obtener tabla de posiciones desde la colección dedicada 'tablas_posiciones'
+      const tablaDoc = await obtenerTablaPosicionesDB(torneoActual.id)
+      if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
+        tablaPosicionesRemota.value = tablaDoc.posiciones
+      } else {
+        // Si no existe aún en 'tablas_posiciones', calcularla y guardarla en la nueva colección
+        const aprobados = jugadoresTorneo.value.filter((j) => j.pagoValidado)
+        if (aprobados.length > 0) {
+          const calculada = calcularTablaDesdePartidos(
+            aprobados,
+            partidosTorneo.value,
+            clasificadosSeleccionados.value,
+          )
+          tablaPosicionesRemota.value = calculada
+          if (calculada.length > 0) {
+            await guardarTablaPosicionesDB(torneoActual.id, calculada)
+          }
+        } else {
+          tablaPosicionesRemota.value = []
+        }
+      }
     } catch (e) {
       console.warn('Error al recuperar datos del torneo desde Firestore:', e)
       jugadoresTorneo.value = []
       partidosTorneo.value = []
+      tablaPosicionesRemota.value = []
       fixtureGenerado.value = false
     }
   },
@@ -953,6 +953,13 @@ const cambiarClasificadosPlayoffs = async (valor: number) => {
   clasificadosSeleccionados.value = valor
   if (props.torneo?.id) {
     await actualizarClasificadosPlayoffsDB(props.torneo.id, valor)
+    const tablaActualizada = calcularTablaDesdePartidos(
+      jugadoresAprobados.value,
+      partidosTorneo.value,
+      valor,
+    )
+    tablaPosicionesRemota.value = tablaActualizada
+    await guardarTablaPosicionesDB(props.torneo.id, tablaActualizada)
     mensajeEstado.value = `¡Formato de Playoffs actualizado! Clasifican Top ${valor}.`
     setTimeout(() => { mensajeEstado.value = '' }, 3500)
   }
@@ -1018,92 +1025,18 @@ const contarPartidosPorTipo = (tipo: string) => {
   return 0
 }
 
-// Tabla de posiciones oficial calculada para el Round Robin (solo jugadores admitidos)
-const posicionesTorneo = computed(() => {
+// Tabla de posiciones oficial consumida desde la colección 'tablas_posiciones' (o calculada reactivamente)
+const posicionesTorneo = computed<FilaPosicionOficial[]>(() => {
+  if (tablaPosicionesRemota.value && tablaPosicionesRemota.value.length > 0) {
+    return tablaPosicionesRemota.value
+  }
   if (!fixtureGenerado.value || jugadoresAprobados.value.length === 0) return []
 
-  const partidosJugados = partidosTorneo.value.filter(
-    (p) => p.estado === 'jugado' || (!!p.marcador && p.marcador !== 'Reprogramar' && p.estado !== 'pendiente')
+  return calcularTablaDesdePartidos(
+    jugadoresAprobados.value,
+    partidosTorneo.value,
+    clasificadosSeleccionados.value,
   )
-
-  const sonCompatibles = (id1?: string, id2?: string) => {
-    if (!id1 || !id2) return false
-    const c1 = id1.trim().toLowerCase()
-    const c2 = id2.trim().toLowerCase()
-    return c1 === c2 || c1.endsWith(c2) || c2.endsWith(c1) || c1.includes(c2) || c2.includes(c1)
-  }
-
-  const coincideJ = (j: any, tId?: string, tObj?: any) => {
-    if (!j) return false
-    const jId = j.id || j.jugadorId
-    const jNombre = j.nombre || j.jugadorNombre
-    if (tId && jId && sonCompatibles(jId, tId)) return true
-    if (tId && jNombre && tId.trim().toLowerCase() === jNombre.trim().toLowerCase()) return true
-    if (tObj) {
-      const oId = tObj.id || tObj.jugadorId
-      if (oId && jId && sonCompatibles(jId, oId)) return true
-      if (tObj.nombre && jNombre && tObj.nombre.trim().toLowerCase() === jNombre.trim().toLowerCase()) return true
-    }
-    return false
-  }
-
-  return jugadoresAprobados.value.map((jugador) => {
-    let pj = 0
-    let pg = 0
-    let pp = 0
-    let sf = 0
-    let sc = 0
-
-    partidosJugados.forEach((partido) => {
-      const esJ1 = coincideJ(jugador, partido.jugador1Id, partido.jugador1)
-      const esJ2 = coincideJ(jugador, partido.jugador2Id, partido.jugador2)
-
-      if (esJ1 || esJ2) {
-        pj++
-        const ganadorId = partido.ganadorId || partido.jugadorGanadorId
-        const esGanador = (ganadorId && coincideJ(jugador, ganadorId))
-
-        if (esGanador) {
-          pg++
-        } else if (ganadorId) {
-          pp++
-        }
-
-        if (partido.marcador && typeof partido.marcador === 'string') {
-          const partes = partido.marcador.split('-').map((s: string) => parseInt(s.trim(), 10))
-          if (partes.length === 2 && !isNaN(partes[0]!) && !isNaN(partes[1]!)) {
-            if (esJ1) {
-              sf += partes[0]!
-              sc += partes[1]!
-            } else {
-              sf += partes[1]!
-              sc += partes[0]!
-            }
-          }
-        }
-      }
-    })
-
-    const puntos = pg * 2 + pp * 1
-
-    return {
-      jugadorId: jugador.id,
-      nombre: jugador.nombre,
-      iniciales: jugador.iniciales || jugador.nombre?.substring(0, 2).toUpperCase() || 'J',
-      tipo: jugador.tipo || 'camper',
-      pj,
-      pg,
-      pp,
-      sf,
-      sc,
-      puntos,
-    }
-  }).sort((a, b) => {
-    if (b.puntos !== a.puntos) return b.puntos - a.puntos
-    const difSetsB = b.sf - b.sc
-    const difSetsA = a.sf - a.sc
-    return difSetsB - difSetsA
-  })
 })
 
 const obtenerBadgeEstado = (estado: EstadoTorneo) => {
@@ -1154,46 +1087,6 @@ const rechazarJugador = async (jugador: any) => {
   }
 }
 
-const generarJugadoresDemo = async () => {
-  if (!props.torneo) return
-  try {
-    const creados = await generarJugadoresDemoDB(props.torneo.id, 4)
-    const idsExistentes = new Set(jugadoresTorneo.value.map(j => j.id))
-    for (const c of creados) {
-      if (!idsExistentes.has(c.id)) {
-        jugadoresTorneo.value.push(c)
-      }
-    }
-    mensajeEstado.value = '¡Jugadores de prueba agregados y aprobados exitosamente!'
-    setTimeout(() => { mensajeEstado.value = '' }, 4000)
-  } catch (error) {
-    console.error('Error al generar jugadores demo:', error)
-  }
-}
-
-const generarEscenarioCompletoDemo = async () => {
-  if (!props.torneo) return
-  animandoGeneracion.value = true
-  try {
-    const authStore = useAuthStore()
-    await generarTorneoDemoCompletoDB(props.torneo.id, authStore.usuario)
-
-    const inscritosDB = await obtenerInscripcionesDB(props.torneo.id)
-    jugadoresTorneo.value = inscritosDB
-
-    const partidosDB = await obtenerPartidosDB(props.torneo.id)
-    partidosTorneo.value = partidosDB
-    fixtureGenerado.value = true
-    actualizarEstado('en curso')
-
-    mensajeEstado.value = '¡Escenario realista cargado! R1 completada, R2 activa con partidos para arbitrar y disputas para admin.'
-    setTimeout(() => { mensajeEstado.value = '' }, 5000)
-  } catch (error) {
-    console.error('Error al generar escenario completo demo:', error)
-  } finally {
-    animandoGeneracion.value = false
-  }
-}
 
 // Generación Oficial de Partidos (Transición obligatoria a Fase 1: En Curso)
 const generarPartidos = async () => {
@@ -1244,11 +1137,22 @@ const generarPartidos = async () => {
 
     partidosTorneo.value = listaPartidosGenerados
 
-    // Persistir en Firestore
+    // Generar tabla inicial en la nueva colección independiente 'tablas_posiciones'
+    const tablaInicial = calcularTablaDesdePartidos(
+      participantes,
+      listaPartidosGenerados,
+      clasificadosSeleccionados.value,
+    )
+    tablaPosicionesRemota.value = tablaInicial
+
+    // Persistir en Firestore en sus respectivas colecciones dedicadas
     try {
       await guardarPartidosDB(listaPartidosGenerados)
+      if (props.torneo?.id) {
+        await guardarTablaPosicionesDB(props.torneo.id, tablaInicial, 0)
+      }
     } catch (err) {
-      console.warn('Error al guardar partidos en base de datos:', err)
+      console.warn('Error al guardar partidos y tabla en base de datos:', err)
     }
 
     // Transición oficial e inmediata del torneo a Fase 1: En Curso

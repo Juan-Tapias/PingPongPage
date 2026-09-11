@@ -129,13 +129,27 @@ export interface FilaPosicion {
   posicion: number
   jugadorId: string
   nombre: string
+  iniciales?: string
+  tipo?: string
   pj: number      // Partidos jugados
   pg: number      // Partidos ganados
   pp: number      // Partidos perdidos
   sf: number      // Sets a favor
   sc: number      // Sets en contra
   puntos: number
+  destino?: string
   esUsuarioActual?: boolean
+}
+
+export type FilaPosicionOficial = FilaPosicion
+
+export interface TablaPosicionesTorneo {
+  id: string              // ID del documento (igual a torneoId)
+  torneoId: string        // Relación foránea explícita
+  tipoFase: 'round_robin' | 'playoffs'
+  posiciones: FilaPosicionOficial[]
+  totalPartidosJugados: number
+  actualizadoEn: string   // Timestamp ISO
 }
 
 // ==========================================

@@ -3,16 +3,8 @@
     <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
       <!-- Logo y Nombre -->
       <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
-        <RouterLink to="/" class="flex items-center gap-2 sm:gap-2.5 hover:opacity-90 transition-opacity">
-          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-orange-600 flex items-center justify-center text-white shadow-xs">
-            <Trophy class="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-          <div class="flex items-center gap-1 sm:gap-1.5">
-            <span class="text-base sm:text-lg font-bold font-heading text-slate-900 dark:text-white tracking-tight">SpinApp</span>
-            <span class="text-[9px] sm:text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 tracking-wider">
-              Torneo
-            </span>
-          </div>
+        <RouterLink to="/" class="flex items-center hover:opacity-95 transition-opacity">
+          <Logo variant="horizontal" />
         </RouterLink>
       </div>
 
@@ -108,6 +100,7 @@ import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { Trophy, LogOut, ShieldCheck, Users, ChevronDown } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import ThemeTogglePingPong from '@/components/ThemeTogglePingPong.vue'
+import Logo from '@/components/Logo.vue'
 
 const router = useRouter()
 const route = useRoute()

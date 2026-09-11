@@ -5,6 +5,8 @@ import {
   obtenerPartidosDB,
   actualizarPartidoDB,
   actualizarTablaPosicionesDB,
+  obtenerTablaPosicionesDB,
+  guardarTablaPosicionesDB,
 } from '@/services/torneoDatabaseService'
 import type {
   JugadorTorneo,
@@ -132,6 +134,7 @@ export function useTorneoGrupo(torneo: Torneo) {
   const jugadores = ref<JugadorTorneo[]>([usuarioActual])
   const jugadorEnCentro = ref<JugadorTorneo>(usuarioActual)
   const partidos = ref<PartidoGrupo[]>([])
+  const tablaPosicionesRemota = ref<FilaPosicion[]>([])
 
   const cargarDatosTorneo = async () => {
     if (!torneo?.id) return
@@ -159,6 +162,15 @@ export function useTorneoGrupo(torneo: Torneo) {
 
       const yo = jugadores.value.find((j) => j.esUsuarioActual)
       jugadorEnCentro.value = yo || jugadores.value[0] || usuarioActual
+
+      // Cargar tabla oficial desde la colección independiente 'tablas_posiciones'
+      const tablaDoc = await obtenerTablaPosicionesDB(torneo.id)
+      if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
+        tablaPosicionesRemota.value = tablaDoc.posiciones.map((pos) => ({
+          ...pos,
+          esUsuarioActual: sonMismoJugador(pos.jugadorId, usuarioActual.id),
+        }))
+      }
 
       const partidosDB = await obtenerPartidosDB(torneo.id)
       if (partidosDB.length > 0) {
@@ -507,6 +519,13 @@ export function useTorneoGrupo(torneo: Torneo) {
   }
 
   const tablaPosiciones = computed<FilaPosicion[]>(() => {
+    if (tablaPosicionesRemota.value.length > 0) {
+      return tablaPosicionesRemota.value.map((f) => ({
+        ...f,
+        esUsuarioActual: sonMismoJugador(f.jugadorId, usuarioActual.id),
+      }))
+    }
+
     const statsMap = new Map<
       string,
       { pj: number; pg: number; pp: number; sf: number; sc: number; puntos: number }
