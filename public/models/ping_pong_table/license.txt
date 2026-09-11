@@ -1,0 +1,11 @@
+Model Information:
+* title:	Ping pong table from Poly by Google
+* source:	https://sketchfab.com/3d-models/ping-pong-table-from-poly-by-google-9ec96134d8e34be89cf946226dbf4209
+* author:	IronEqual (https://sketchfab.com/ie-niels)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Ping pong table from Poly by Google" (https://sketchfab.com/3d-models/ping-pong-table-from-poly-by-google-9ec96134d8e34be89cf946226dbf4209) by IronEqual (https://sketchfab.com/ie-niels) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
