@@ -21,7 +21,31 @@ import type {
 
 export function sonMismoJugador(a?: string, b?: string): boolean {
   if (!a || !b) return false
-  return a === b || a.endsWith(b) || b.endsWith(a)
+  const cA = a.trim().toLowerCase()
+  const cB = b.trim().toLowerCase()
+  if (cA === cB) return true
+  if (cA.endsWith(cB) || cB.endsWith(cA)) return true
+  if (cA.includes(cB) || cB.includes(cA)) return true
+  return false
+}
+
+export function coincideJugador(j: any, targetId?: string, targetObj?: any): boolean {
+  if (!j) return false
+  const jId = j.id || j.jugadorId
+  const jNombre = j.nombre || j.jugadorNombre
+
+  if (targetId) {
+    if (jId && sonMismoJugador(jId, targetId)) return true
+    if (jNombre && targetId.trim().toLowerCase() === jNombre.trim().toLowerCase()) return true
+  }
+  if (targetObj) {
+    const tId = targetObj.id || targetObj.jugadorId
+    if (tId && jId && sonMismoJugador(jId, tId)) return true
+    if (targetObj.nombre && jNombre) {
+      if (jNombre.trim().toLowerCase() === targetObj.nombre.trim().toLowerCase()) return true
+    }
+  }
+  return false
 }
 
 export function generarCodigoSeguridad(jugadorId: string, rivalId: string): string {
@@ -493,13 +517,17 @@ export function useTorneoGrupo(torneo: Torneo) {
     })
 
     partidos.value.forEach((p) => {
-      if (p.estado === 'jugado' && p.jugadorGanadorId) {
-        const entry1 = Array.from(statsMap.entries()).find(([k]) => sonMismoJugador(k, p.jugador1Id))
-        const stats1 = entry1 ? entry1[1] : undefined
-        const entry2 = Array.from(statsMap.entries()).find(([k]) => sonMismoJugador(k, p.jugador2Id))
-        const stats2 = entry2 ? entry2[1] : undefined
+      const estaJugado = p.estado === 'jugado' || (!!p.marcador && p.marcador !== 'Reprogramar' && p.estado !== 'pendiente')
+      const ganadorId = p.jugadorGanadorId || (p as any).ganadorId
 
-        if (stats1 && stats2) {
+      if (estaJugado && (ganadorId || p.marcador)) {
+        const j1 = jugadores.value.find((j) => coincideJugador(j, p.jugador1Id, p.jugador1))
+        const j2 = jugadores.value.find((j) => coincideJugador(j, p.jugador2Id, p.jugador2))
+
+        const stats1 = j1 ? statsMap.get(j1.id) : undefined
+        const stats2 = j2 ? statsMap.get(j2.id) : undefined
+
+        if (stats1 && stats2 && j1 && j2) {
           stats1.pj += 1
           stats2.pj += 1
 
@@ -510,25 +538,29 @@ export function useTorneoGrupo(torneo: Torneo) {
 
           if (p.sets && p.sets.length > 0) {
             p.sets.forEach((s) => {
-              if (sonMismoJugador(s.ganadorId, p.jugador1Id)) {
+              if (coincideJugador(j1, s.ganadorId)) {
                 sf1 += 1
                 sc2 += 1
-              } else if (sonMismoJugador(s.ganadorId, p.jugador2Id)) {
+              } else if (coincideJugador(j2, s.ganadorId)) {
                 sf2 += 1
                 sc1 += 1
               }
             })
-          } else {
-            if (sonMismoJugador(p.jugadorGanadorId, p.jugador1Id)) {
-              sf1 = 2
-              sc1 = 1
-              sf2 = 1
-              sc2 = 2
+          } else if (p.marcador && typeof p.marcador === 'string') {
+            const partes = p.marcador.split('-').map((s) => parseInt(s.trim(), 10))
+            if (partes.length === 2 && !isNaN(partes[0]!) && !isNaN(partes[1]!)) {
+              sf1 = partes[0]!
+              sc1 = partes[1]!
+              sf2 = partes[1]!
+              sc2 = partes[0]!
+            }
+          }
+
+          if (sf1 === 0 && sc1 === 0 && sf2 === 0 && sc2 === 0) {
+            if (ganadorId && coincideJugador(j1, ganadorId)) {
+              sf1 = 2; sc1 = 0; sf2 = 0; sc2 = 2
             } else {
-              sf1 = 1
-              sc1 = 2
-              sf2 = 2
-              sc2 = 1
+              sf1 = 0; sc1 = 2; sf2 = 2; sc2 = 0
             }
           }
 
@@ -537,7 +569,9 @@ export function useTorneoGrupo(torneo: Torneo) {
           stats2.sf += sf2
           stats2.sc += sc2
 
-          if (sonMismoJugador(p.jugadorGanadorId, p.jugador1Id)) {
+          const esGanadorJ1 = (ganadorId && coincideJugador(j1, ganadorId)) || sf1 > sf2
+
+          if (esGanadorJ1) {
             stats1.pg += 1
             stats1.puntos += 2
             stats2.pp += 1

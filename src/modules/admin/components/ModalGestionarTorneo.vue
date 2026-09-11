@@ -1022,8 +1022,30 @@ const contarPartidosPorTipo = (tipo: string) => {
 const posicionesTorneo = computed(() => {
   if (!fixtureGenerado.value || jugadoresAprobados.value.length === 0) return []
 
-  // Calcular métricas reales a partir de los partidos con resultado
-  const partidosJugados = partidosTorneo.value.filter((p) => p.estado === 'jugado')
+  const partidosJugados = partidosTorneo.value.filter(
+    (p) => p.estado === 'jugado' || (!!p.marcador && p.marcador !== 'Reprogramar' && p.estado !== 'pendiente')
+  )
+
+  const sonCompatibles = (id1?: string, id2?: string) => {
+    if (!id1 || !id2) return false
+    const c1 = id1.trim().toLowerCase()
+    const c2 = id2.trim().toLowerCase()
+    return c1 === c2 || c1.endsWith(c2) || c2.endsWith(c1) || c1.includes(c2) || c2.includes(c1)
+  }
+
+  const coincideJ = (j: any, tId?: string, tObj?: any) => {
+    if (!j) return false
+    const jId = j.id || j.jugadorId
+    const jNombre = j.nombre || j.jugadorNombre
+    if (tId && jId && sonCompatibles(jId, tId)) return true
+    if (tId && jNombre && tId.trim().toLowerCase() === jNombre.trim().toLowerCase()) return true
+    if (tObj) {
+      const oId = tObj.id || tObj.jugadorId
+      if (oId && jId && sonCompatibles(jId, oId)) return true
+      if (tObj.nombre && jNombre && tObj.nombre.trim().toLowerCase() === jNombre.trim().toLowerCase()) return true
+    }
+    return false
+  }
 
   return jugadoresAprobados.value.map((jugador) => {
     let pj = 0
@@ -1033,27 +1055,29 @@ const posicionesTorneo = computed(() => {
     let sc = 0
 
     partidosJugados.forEach((partido) => {
-      const esJugador1 = partido.jugador1?.id === jugador.id || partido.jugador1Id === jugador.id
-      const esJugador2 = partido.jugador2?.id === jugador.id || partido.jugador2Id === jugador.id
+      const esJ1 = coincideJ(jugador, partido.jugador1Id, partido.jugador1)
+      const esJ2 = coincideJ(jugador, partido.jugador2Id, partido.jugador2)
 
-      if (esJugador1 || esJugador2) {
+      if (esJ1 || esJ2) {
         pj++
         const ganadorId = partido.ganadorId || partido.jugadorGanadorId
-        if (ganadorId === jugador.id) {
+        const esGanador = (ganadorId && coincideJ(jugador, ganadorId))
+
+        if (esGanador) {
           pg++
         } else if (ganadorId) {
           pp++
         }
 
         if (partido.marcador && typeof partido.marcador === 'string') {
-          const partes = partido.marcador.split('-').map((s: string) => parseInt(s.trim()))
-          if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
-            if (esJugador1) {
-              sf += partes[0]
-              sc += partes[1]
+          const partes = partido.marcador.split('-').map((s: string) => parseInt(s.trim(), 10))
+          if (partes.length === 2 && !isNaN(partes[0]!) && !isNaN(partes[1]!)) {
+            if (esJ1) {
+              sf += partes[0]!
+              sc += partes[1]!
             } else {
-              sf += partes[1]
-              sc += partes[0]
+              sf += partes[1]!
+              sc += partes[0]!
             }
           }
         }
