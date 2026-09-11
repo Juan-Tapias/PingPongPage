@@ -61,14 +61,14 @@
           :style="{ animationDelay: `${(idx * 0.45).toFixed(2)}s` }"
         >
           <circle
-            r="40"
+            :r="radioBurbuja + 2"
             fill="#000000"
             fill-opacity="0.35"
             class="filter drop-shadow-[0_12px_18px_rgba(0,0,0,0.4)] transition-transform duration-300 group-hover:scale-105"
           />
 
           <circle
-            r="38"
+            :r="radioBurbuja"
             fill="#1e293b"
             :stroke="obtenerColorBorde(item.burbuja)"
             :stroke-width="obtenerGrosorBorde(item.burbuja)"
@@ -77,27 +77,27 @@
 
           <circle
             v-if="item.burbuja.resultadoParaCentro === 'ganado'"
-            cx="26"
-            cy="-26"
-            r="8"
+            :cx="badgeOffset"
+            :cy="-badgeOffset"
+            :r="badgeRadio"
             fill="#10b981"
             stroke="#ffffff"
             stroke-width="2"
           />
           <circle
             v-else-if="item.burbuja.resultadoParaCentro === 'perdido'"
-            cx="26"
-            cy="-26"
-            r="8"
+            :cx="badgeOffset"
+            :cy="-badgeOffset"
+            :r="badgeRadio"
             fill="#ef4444"
             stroke="#ffffff"
             stroke-width="2"
           />
           <circle
             v-else-if="item.burbuja.colorBorde === 'naranja' || item.burbuja.partido.estado === 'pendiente_admin'"
-            cx="26"
-            cy="-26"
-            r="8"
+            :cx="badgeOffset"
+            :cy="-badgeOffset"
+            :r="badgeRadio"
             fill="#f97316"
             stroke="#ffffff"
             stroke-width="2"
@@ -105,16 +105,20 @@
 
           <text
             x="0"
-            y="-6"
+            :y="radioBurbuja > 24 ? -6 : 0"
             text-anchor="middle"
             dominant-baseline="middle"
             fill="#ffffff"
-            class="text-sm font-black tracking-wider uppercase pointer-events-none select-none"
+            :class="[
+              'font-black tracking-wider uppercase pointer-events-none select-none',
+              radioBurbuja > 30 ? 'text-sm' : radioBurbuja > 22 ? 'text-xs' : 'text-[9px]'
+            ]"
           >
             {{ item.burbuja.jugador.iniciales }}
           </text>
 
           <text
+            v-if="radioBurbuja > 24"
             x="0"
             y="12"
             text-anchor="middle"
@@ -200,6 +204,25 @@ const emit = defineEmits<{
 
 const tieneLuzAzulActiva = computed(() => {
   return props.torneo.estado === 'en curso'
+})
+
+const radioBurbuja = computed(() => {
+  const n = props.rivales.length
+  if (n <= 6) return 38
+  if (n <= 10) return 32
+  if (n <= 16) return 26
+  if (n <= 24) return 20
+  return 16
+})
+
+const badgeOffset = computed(() => {
+  const r = radioBurbuja.value
+  return Math.round(r * 0.7)
+})
+
+const badgeRadio = computed(() => {
+  const r = radioBurbuja.value
+  return Math.max(5, Math.round(r * 0.22))
 })
 
 const posicionesRivales = computed(() => {
