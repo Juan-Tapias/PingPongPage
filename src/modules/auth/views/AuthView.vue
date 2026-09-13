@@ -9,6 +9,7 @@ import ThemeTogglePingPong from '@/components/ThemeTogglePingPong.vue'
 import SelectorTipoUsuario from './partials/SelectorTipoUsuario.vue'
 import AuthDecorativePanel from './partials/AuthDecorativePanel.vue'
 import Logo from '@/components/Logo.vue'
+import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
 import { loginSchema, registroSchema } from '@/modules/auth/schemas/authSchemas'
 import { useAuthStore } from '@/stores/auth'
 import { useReglamento } from '@/composables/useReglamento'
@@ -115,10 +116,9 @@ const onRegisterSubmit = handleRegisterSubmit(async (values) => {
 </script>
 
 <template>
-  <div class="min-h-screen w-full flex flex-col items-center justify-center p-2.5 sm:p-6 lg:p-8 py-3 sm:py-8 bg-slate-100 dark:bg-[#070b14] text-slate-800 dark:text-slate-100 transition-colors duration-500 relative overflow-x-hidden">
-    <!-- Luces ambientales de fondo -->
-    <div class="fixed top-0 -left-20 w-96 h-96 bg-orange-500/10 dark:bg-orange-600/15 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="fixed bottom-0 -right-20 w-96 h-96 bg-indigo-500/10 dark:bg-purple-900/20 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="min-h-screen w-full flex flex-col items-center justify-center p-2.5 sm:p-6 lg:p-8 py-3 sm:py-8 bg-slate-100 dark:bg-[#060a14] text-slate-800 dark:text-slate-100 transition-colors duration-500 relative overflow-x-hidden">
+    <!-- Fondo Oficial de Estadio WTT & Líneas de Cancha Reglamentarias -->
+    <FondoEstadioCancha />
 
     <!-- Barra Superior Flotante con Selector de Tema (Mesa de Ping Pong) -->
     <header class="w-full max-w-5xl flex items-center justify-between py-1.5 px-1 mb-2.5 sm:mb-4 z-20">

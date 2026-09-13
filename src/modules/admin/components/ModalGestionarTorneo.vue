@@ -747,6 +747,16 @@
                   <td class="py-3.5 px-4 text-right">
                     <div class="flex items-center justify-end gap-2">
                       <button
+                        type="button"
+                        class="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-600 text-blue-600 hover:text-white border border-blue-200 dark:border-blue-900 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                        title="Ver y auditar comprobante bancario"
+                        @click="verComprobanteJugador(jugador)"
+                      >
+                        <Receipt class="w-3.5 h-3.5" />
+                        <span>Comprobante</span>
+                      </button>
+
+                      <button
                         v-if="!jugador.pagoValidado"
                         type="button"
                         class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
@@ -776,6 +786,13 @@
       </div>
     </div>
   </Modal>
+
+  <!-- Modal Auditoría de Comprobante -->
+  <ModalVerComprobante
+    ref="modalComprobanteRef"
+    @aprobar="handleAprobarComprobante"
+    @rechazar="handleRechazarComprobante"
+  />
 </template>
 
 <script setup lang="ts">
@@ -793,9 +810,11 @@ import {
   ListOrdered,
   Check,
   X,
+  Receipt,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
+import ModalVerComprobante from './ModalVerComprobante.vue'
 import type { Torneo, EstadoTorneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -1084,6 +1103,38 @@ const rechazarJugador = async (jugador: any) => {
     }, 4000)
   } catch (error) {
     console.error('Error al rechazar jugador:', error)
+  }
+}
+
+// Auditoría y Verificación de Comprobante
+const modalComprobanteRef = ref()
+
+const verComprobanteJugador = (jugador: any) => {
+  modalComprobanteRef.value?.open({
+    id: jugador.id,
+    jugadorNombre: jugador.nombre,
+    jugadorTelefono: jugador.telefono,
+    torneoNombre: props.torneo?.nombre || 'Torneo Ping Pong',
+    monto: props.torneo?.costoInscripcion || 6000,
+    referencia: jugador.referencia || `TRX-${(jugador.id || '').substring(0, 8).toUpperCase()}`,
+    cuentaDestino: props.torneo?.numeroCuenta || '312-890-4421',
+    pagoValidado: jugador.pagoValidado,
+    banco: jugador.banco || 'nequi',
+    comprobanteUrl: jugador.comprobanteUrl || null,
+  })
+}
+
+const handleAprobarComprobante = (id: string) => {
+  const jugador = jugadoresTorneo.value.find(j => j.id === id)
+  if (jugador) {
+    aprobarJugador(jugador)
+  }
+}
+
+const handleRechazarComprobante = (id: string) => {
+  const jugador = jugadoresTorneo.value.find(j => j.id === id)
+  if (jugador) {
+    rechazarJugador(jugador)
   }
 }
 
