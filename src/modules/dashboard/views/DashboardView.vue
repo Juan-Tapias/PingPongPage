@@ -1,10 +1,13 @@
 <template>
-  <div class="min-h-screen w-full bg-slate-100 dark:bg-[#080d1a] text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300">
-    <Navbar />
+  <div class="min-h-screen w-full bg-slate-100 dark:bg-[#060a14] text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300 relative overflow-x-hidden">
+    <!-- Fondo Oficial de Estadio WTT & Líneas de Cancha Reglamentarias -->
+    <FondoEstadioCancha />
 
-    <BreadcrumbExpediente />
+    <Navbar class="relative z-10" />
 
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-6">
+    <BreadcrumbExpediente class="relative z-10" />
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-6 relative z-10">
       <VistaParticipacionTorneo
         v-if="torneoParticipacion"
         :torneo="torneoParticipacion"
@@ -12,53 +15,88 @@
       />
 
       <template v-else>
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 class="text-2xl sm:text-3xl font-extrabold font-heading text-slate-900 dark:text-white tracking-tight">
-              Panel del Jugador
-            </h1>
-            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Gestiona tus inscripciones y descubre nuevos torneos disponibles.
-            </p>
-          </div>
-
+        <!-- Hero Banner con Mesa de Ping Pong Vertical (Responsive & Light/Dark Ready) -->
+        <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-300/80 dark:border-slate-800/90 shadow-xl shadow-slate-900/10 dark:shadow-2xl dark:shadow-black/60 bg-[#080d1a] min-h-[210px] sm:min-h-[250px] flex flex-col justify-between sm:justify-end group transition-all duration-300">
+          <!-- Fondo fotográfico con mesa en perspectiva vertical nítida -->
           <div
-            class="grid grid-cols-2 sm:flex items-center p-1 bg-slate-200/80 dark:bg-slate-800 rounded-xl border border-slate-300/70 dark:border-slate-700 w-full sm:w-auto">
-            <button type="button" :class="[
-              'flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
-              tabActiva === 'mis-torneos'
-                ? 'bg-orange-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
-            ]" @click="tabActiva = 'mis-torneos'">
-              <Trophy class="w-3.5 h-3.5" />
-              <span>Mis Torneos</span>
-              <span :class="[
-                'text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-0.5',
-                tabActiva === 'mis-torneos'
-                  ? 'bg-orange-900 text-orange-100'
-                  : 'bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-              ]">
-                {{ misTorneos.length }}
-              </span>
-            </button>
+            class="absolute inset-0 bg-cover bg-center sm:bg-[center_35%] scale-100 group-hover:scale-105 transition-transform duration-700 ease-out pointer-events-none"
+            style="background-image: url('/images/table-vertical.jpg');"
+          ></div>
 
-            <button type="button" :class="[
-              'flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer',
-              tabActiva === 'disponibles'
-                ? 'bg-orange-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
-            ]" @click="tabActiva = 'disponibles'">
-              <Compass class="w-3.5 h-3.5" />
-              <span>Torneos Disponibles</span>
-              <span :class="[
-                'text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-0.5',
-                tabActiva === 'disponibles'
-                  ? 'bg-orange-900 text-orange-100'
-                  : 'bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300',
-              ]">
-                {{ torneosDisponibles.length }}
-              </span>
-            </button>
+          <!-- Gradientes adaptativos: vertical en móvil para no tapar los tabs, horizontal en desktop para lucir la mesa -->
+          <div class="absolute inset-0 bg-gradient-to-b from-[#080d1a]/90 via-[#080d1a]/50 to-[#080d1a]/95 sm:hidden"></div>
+          <div class="hidden sm:block absolute inset-0 bg-gradient-to-r from-[#080d1a]/90 via-[#080d1a]/50 md:via-[#080d1a]/20 to-transparent"></div>
+          <div class="hidden sm:block absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-[#080d1a]/80 via-[#080d1a]/40 to-transparent"></div>
+          <div class="hidden sm:block absolute top-0 inset-x-0 h-10 bg-gradient-to-b from-[#080d1a]/40 to-transparent"></div>
+
+          <!-- Contenido del Hero -->
+          <div class="relative z-10 p-4 sm:p-6 md:p-8 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
+            <div class="space-y-1.5 sm:space-y-2 max-w-xl">
+              <div class="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-0.5 sm:py-1 rounded-full bg-orange-500/25 border border-orange-500/40 text-orange-300 text-[10px] sm:text-xs font-semibold backdrop-blur-md shadow-xs">
+                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                <span>Expediente Deportivo Oficial</span>
+              </div>
+              <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight font-heading drop-shadow-md">
+                Panel del Jugador
+              </h1>
+              <p class="text-xs sm:text-sm text-slate-200 max-w-md leading-relaxed drop-shadow">
+                <span v-if="authStore.usuario?.nombre" class="text-orange-400 font-bold block sm:inline sm:mr-1">
+                  ¡Listo para el saque, {{ authStore.usuario.nombre }}! 🏓
+                </span>
+                Gestiona tus inscripciones y compite en torneos oficiales.
+              </p>
+            </div>
+
+            <!-- Selector de Tabs con acabado Glassmorphic Adaptable -->
+            <div class="grid grid-cols-2 sm:flex items-center p-1 sm:p-1.5 bg-black/60 backdrop-blur-lg rounded-xl sm:rounded-2xl border border-white/15 w-full sm:w-auto shadow-xl">
+              <button
+                type="button"
+                :class="[
+                  'flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all duration-200 cursor-pointer text-center',
+                  tabActiva === 'mis-torneos'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-600/40'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10',
+                ]"
+                @click="tabActiva = 'mis-torneos'"
+              >
+                <Trophy class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span class="truncate">Mis Torneos</span>
+                <span
+                  :class="[
+                    'text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full font-bold ml-0.5 shrink-0',
+                    tabActiva === 'mis-torneos'
+                      ? 'bg-orange-950/80 text-orange-100'
+                      : 'bg-white/20 text-slate-200',
+                  ]"
+                >
+                  {{ misTorneos.length }}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                :class="[
+                  'flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition-all duration-200 cursor-pointer text-center',
+                  tabActiva === 'disponibles'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-600/40'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10',
+                ]"
+                @click="tabActiva = 'disponibles'"
+              >
+                <Compass class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                <span class="truncate">Disponibles</span>
+                <span
+                  :class="[
+                    'text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full font-bold ml-0.5 shrink-0',
+                    tabActiva === 'disponibles'
+                      ? 'bg-orange-950/80 text-orange-100'
+                      : 'bg-white/20 text-slate-200',
+                  ]"
+                >
+                  {{ torneosDisponibles.length }}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -126,7 +164,12 @@
         <BannerSeguimientoMesas v-if="tabActiva === 'mis-torneos'" />
         <BannerReglamento v-else />
 
-        <KpiEstadisticas v-if="tabActiva === 'mis-torneos'" :torneos-jugados="conteoFinalizado" />
+        <KpiEstadisticas
+          v-if="tabActiva === 'mis-torneos'"
+          :torneos-jugados="conteoFinalizado"
+          :torneos-en-curso="conteoEnCurso"
+          :puntos-ranking="authStore.usuario ? 1250 : 1000"
+        />
       </template>
     </main>
 
@@ -148,6 +191,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { Trophy, Compass } from 'lucide-vue-next'
+import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
 import TorneoCard from './partials/dashboard/TorneoCard.vue'
 import BreadcrumbExpediente from './partials/dashboard/BreadcrumbExpediente.vue'
 import FiltrosMisTorneos from './partials/dashboard/FiltrosMisTorneos.vue'

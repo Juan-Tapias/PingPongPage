@@ -1,220 +1,273 @@
 <template>
+  <!-- ============================================================ -->
+  <!-- MODO: INSCRITO (Tournament Pass / Ficha Oficial de Torneo)    -->
+  <!-- ============================================================ -->
   <div
     v-if="modo === 'inscrito'"
-    :class="[
-      'flex flex-col justify-between h-full rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 p-5 sm:p-6 overflow-hidden',
-      topBorderClass,
-    ]"
+    class="relative flex flex-col justify-between h-full rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0c1222] border border-slate-200/90 dark:border-slate-800/90 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 dark:hover:shadow-emerald-500/10 hover:-translate-y-1.5 transition-all duration-300 overflow-hidden group"
   >
-    <div>
-      <div class="flex items-center justify-between gap-2 mb-3.5">
-        <span
-          :class="[
-            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border',
-            estadoConfig.badgeClass,
-          ]"
-        >
-          <span :class="['w-1.5 h-1.5 rounded-full', estadoConfig.dotClass]" />
-          {{ estadoConfig.texto }}
-        </span>
+    <!-- Barra superior con gradiente de luz dinámico según estado -->
+    <div :class="['h-1.5 w-full shrink-0', topGradientClass]" />
 
-        <span
-          :class="[
-            'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wide border',
-            subestadoConfig.badgeClass,
-          ]"
-        >
-          <component :is="subestadoConfig.icono" class="w-3 h-3" />
-          {{ subestadoConfig.texto }}
-        </span>
-      </div>
-
-      <div class="flex items-start gap-3 mt-1">
-        <div
-          :class="[
-            'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border mt-0.5',
-            estadoConfig.iconBoxClass,
-          ]"
-        >
-          <component :is="estadoConfig.icono" class="w-5 h-5" />
-        </div>
-
-        <div class="flex-1 min-w-0">
-          <h3 class="text-base sm:text-lg font-bold font-heading text-slate-900 dark:text-white leading-snug line-clamp-2">
-            {{ torneo.nombre }}
-          </h3>
-        </div>
-      </div>
-
-      <div class="mt-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-2 text-xs">
-        <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
-          <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-            <User class="w-3.5 h-3.5 text-slate-400" />
-            Organizador:
-          </span>
-          <strong class="text-slate-800 dark:text-slate-200 font-semibold truncate ml-2">{{ torneo.organizador }}</strong>
-        </div>
-
-        <div class="flex items-center justify-between text-slate-600 dark:text-slate-400 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
-          <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-            <Calendar class="w-3.5 h-3.5 text-slate-400" />
-            Inicio:
-          </span>
-          <strong class="text-slate-800 dark:text-slate-200 font-semibold">{{ torneo.fechaInicio }}</strong>
-        </div>
-
-        <div
-          v-if="(torneo.estado === 'en curso' || torneo.estado === 'finalizado') && torneo.subestado !== 'PENDIENTE'"
-          class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60"
-        >
-          <span class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-            <Award class="w-3.5 h-3.5 text-amber-500" />
-            {{ torneo.estado === 'finalizado' ? 'Posición final:' : 'Tu posición actual:' }}
-          </span>
-          <strong class="text-emerald-600 dark:text-emerald-400 font-bold">
-            {{ posicionTexto }}
-          </strong>
-        </div>
-      </div>
+    <!-- Marca de agua decorativa sutil de fondo -->
+    <div class="pointer-events-none absolute -right-6 -bottom-6 w-36 h-36 opacity-5 dark:opacity-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+      <Trophy class="w-full h-full text-current" />
     </div>
 
-    <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
-      <Button
-        v-if="torneo.subestado === 'PENDIENTE'"
-        variant="amber"
-        size="md"
-        block
-        @click="emit('verEstado', torneo)"
-      >
-        <Clock class="w-3.5 h-3.5 mr-2 text-amber-800 shrink-0" />
-        <span class="text-amber-950 font-bold">Verificando pago</span>
-        <ArrowRight class="w-3.5 h-3.5 ml-1.5 text-amber-800 shrink-0" />
-      </Button>
+    <div class="p-5 sm:p-6 flex-1 flex flex-col justify-between relative z-10">
+      <!-- Header: Badges & Estado -->
+      <div>
+        <div class="flex items-center justify-between gap-2 mb-3.5">
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Badge Estado Principal con pulso neón -->
+            <span
+              :class="[
+                'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border tracking-wide uppercase',
+                estadoConfig.badgeClass,
+              ]"
+            >
+              <span :class="['w-2 h-2 rounded-full shrink-0', estadoConfig.dotClass]" />
+              {{ estadoConfig.texto }}
+            </span>
 
-      <Button
-        v-else-if="torneo.estado === 'en curso'"
-        variant="emerald"
-        size="md"
-        block
-        @click="emit('verTorneo', torneo)"
-      >
-        <Flag class="w-3.5 h-3.5 mr-2 text-white" />
-        <span>Ver mi participación</span>
-        <ArrowRight class="w-3.5 h-3.5 ml-1.5" />
-      </Button>
+            <!-- Pill de Mesa Asignada si aplica -->
+            <span
+              v-if="(torneo as any).mesaAsignada"
+              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-500/15 border border-orange-500/30 text-orange-400"
+            >
+              MESA {{ (torneo as any).mesaAsignada }}
+            </span>
+          </div>
 
-      <Button
-        v-else-if="torneo.estado === 'por iniciar'"
-        variant="dark"
-        size="md"
-        block
-        @click="emit('verTorneo', torneo)"
-      >
-        <Eye class="w-3.5 h-3.5 mr-2 text-slate-300" />
-        <span>Ver mi participación</span>
-        <ArrowRight class="w-3.5 h-3.5 ml-1.5" />
-      </Button>
+          <!-- Subestado (INSCRITO / CONFIRMADO / EN VERIFICACIÓN) -->
+          <span
+            :class="[
+              'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border shadow-2xs',
+              subestadoConfig.badgeClass,
+            ]"
+          >
+            <component :is="subestadoConfig.icono" class="w-3 h-3" />
+            {{ subestadoConfig.texto }}
+          </span>
+        </div>
 
-      <Button
-        v-else-if="torneo.estado === 'finalizado'"
-        variant="outline"
-        size="md"
-        block
-        class="font-bold cursor-pointer"
-        @click="emit('verTorneo', torneo)"
-      >
-        <Trophy class="w-3.5 h-3.5 mr-2 text-amber-500 shrink-0" />
-        <span>Ver resultados del torneo</span>
-        <ArrowRight class="w-3.5 h-3.5 ml-1.5 text-slate-400 shrink-0" />
-      </Button>
+        <!-- Título e Identidad del Torneo -->
+        <div class="flex items-start gap-3.5 mt-2">
+          <div
+            :class="[
+              'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border shadow-sm transition-transform duration-300 group-hover:scale-105',
+              estadoConfig.iconBoxClass,
+            ]"
+          >
+            <component :is="estadoConfig.icono" class="w-5 h-5" />
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <span class="text-[10px] font-extrabold uppercase tracking-widest text-orange-500 dark:text-orange-400 block mb-0.5">
+              SpinApp Tournament Cup
+            </span>
+            <h3 class="text-base sm:text-lg font-black font-heading text-slate-900 dark:text-white leading-snug line-clamp-2 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+              {{ torneo.nombre }}
+            </h3>
+          </div>
+        </div>
+
+        <!-- Ticket Data: Metadatos ordenados y limpios -->
+        <div class="mt-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800/80 p-3.5 space-y-2.5">
+          <!-- Organizador & Fecha en 2 columnas -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="flex flex-col">
+              <span class="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                <User class="w-3 h-3 text-slate-400" /> Organizador
+              </span>
+              <strong class="text-slate-800 dark:text-slate-200 font-bold truncate mt-0.5">
+                {{ torneo.organizador }}
+              </strong>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
+                <Calendar class="w-3 h-3 text-slate-400" /> Fecha Inicio
+              </span>
+              <strong class="text-slate-800 dark:text-slate-200 font-bold truncate mt-0.5">
+                {{ torneo.fechaInicio }}
+              </strong>
+            </div>
+          </div>
+
+          <!-- Ficha de Posición Actual / Logro (Estilo Trofeo) -->
+          <div
+            v-if="(torneo.estado === 'en curso' || torneo.estado === 'finalizado') && torneo.subestado !== 'PENDIENTE'"
+            class="pt-2 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between"
+          >
+            <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <Award class="w-3.5 h-3.5 text-amber-500" />
+              {{ torneo.estado === 'finalizado' ? 'Posición Oficial:' : 'Tu Posición Actual:' }}
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-2xs">
+              {{ posicionTexto }}
+            </span>
+          </div>
+
+          <!-- Micro-barra de Progreso del Torneo -->
+          <div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
+            <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1.5">
+              <span>Progreso del Torneo</span>
+              <span class="text-orange-500 dark:text-orange-400 font-semibold">{{ progresoTexto }}</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div
+                :class="['h-full rounded-full transition-all duration-500', barraProgresoClass]"
+                :style="{ width: barraProgresoAncho }"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón de Acción con Punch Deportivo -->
+      <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+        <button
+          v-if="torneo.subestado === 'PENDIENTE'"
+          type="button"
+          class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer transition-all duration-200"
+          @click="emit('verEstado', torneo)"
+        >
+          <Clock class="w-4 h-4 shrink-0" />
+          <span>Verificando Pago</span>
+          <ArrowRight class="w-4 h-4 shrink-0 ml-auto" />
+        </button>
+
+        <button
+          v-else-if="torneo.estado === 'en curso'"
+          type="button"
+          class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer transition-all duration-200"
+          @click="emit('verTorneo', torneo)"
+        >
+          <Flag class="w-4 h-4 shrink-0" />
+          <span>Ver Mi Participación</span>
+          <ArrowRight class="w-4 h-4 shrink-0 ml-auto group-hover:translate-x-1 transition-transform" />
+        </button>
+
+        <button
+          v-else-if="torneo.estado === 'por iniciar'"
+          type="button"
+          class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-white shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer transition-all duration-200"
+          @click="emit('verTorneo', torneo)"
+        >
+          <Eye class="w-4 h-4 shrink-0 text-slate-300" />
+          <span>Ver Mi Participación</span>
+          <ArrowRight class="w-4 h-4 shrink-0 ml-auto group-hover:translate-x-1 transition-transform" />
+        </button>
+
+        <button
+          v-else-if="torneo.estado === 'finalizado'"
+          type="button"
+          class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider border-2 border-slate-300 dark:border-slate-700 hover:border-amber-500 dark:hover:border-amber-500 text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer transition-all duration-200"
+          @click="emit('verTorneo', torneo)"
+        >
+          <Trophy class="w-4 h-4 text-amber-500 shrink-0" />
+          <span>Ver Resultados Finales</span>
+          <ArrowRight class="w-4 h-4 shrink-0 ml-auto group-hover:translate-x-1 transition-transform" />
+        </button>
+      </div>
     </div>
   </div>
 
+  <!-- ============================================================ -->
+  <!-- MODO: DISPONIBLE (Ficha de Inscripción Abierta)               -->
+  <!-- ============================================================ -->
   <div
     v-else
-    class="flex flex-col justify-between h-full rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200 p-5 sm:p-6"
+    class="relative flex flex-col justify-between h-full rounded-2xl sm:rounded-3xl bg-white dark:bg-[#0c1222] border border-slate-200/90 dark:border-slate-800/90 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 dark:hover:shadow-blue-500/10 hover:-translate-y-1.5 transition-all duration-300 overflow-hidden group"
   >
-    <div>
-      <div class="flex items-center justify-between gap-2 mb-3">
-        <span
+    <!-- Barra superior con gradiente de luz -->
+    <div class="h-1.5 w-full shrink-0 bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-600" />
+
+    <div class="p-5 sm:p-6 flex-1 flex flex-col justify-between relative z-10">
+      <div>
+        <div class="flex items-center justify-between gap-2 mb-3.5">
+          <span
+            v-if="torneo.estaInscrito"
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60"
+          >
+            <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600" />
+            INSCRITO
+          </span>
+          <span
+            v-else
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60"
+          >
+            <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            INSCRIPCIÓN ABIERTA
+          </span>
+
+          <!-- Tarifa destacada -->
+          <span class="text-base sm:text-lg font-black font-heading text-emerald-600 dark:text-emerald-400 flex items-baseline gap-1">
+            {{ formatearMoneda(torneo.costoInscripcion) }}
+            <span class="text-[10px] uppercase font-bold text-slate-400">COP</span>
+          </span>
+        </div>
+
+        <span class="text-[10px] font-extrabold uppercase tracking-widest text-orange-500 dark:text-orange-400 block mb-0.5">
+          Torneo Oficial Abierto
+        </span>
+        <h3 class="text-base sm:text-lg font-black font-heading text-slate-900 dark:text-white leading-snug line-clamp-2 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+          {{ torneo.nombre }}
+        </h3>
+
+        <!-- Ficha técnica del torneo -->
+        <div class="mt-4 p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+              <User class="w-3 h-3 text-slate-400" /> Organizador
+            </span>
+            <strong class="text-slate-800 dark:text-slate-200 font-bold truncate mt-0.5">{{ torneo.organizador }}</strong>
+          </div>
+
+          <div class="flex flex-col">
+            <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+              <Calendar class="w-3 h-3 text-slate-400" /> Inicio
+            </span>
+            <strong class="text-slate-800 dark:text-slate-200 font-bold mt-0.5">{{ torneo.fechaInicio }}</strong>
+          </div>
+
+          <div class="flex flex-col">
+            <span class="text-[10px] text-red-500 font-bold flex items-center gap-1">
+              <AlertTriangle class="w-3 h-3 text-red-500" /> Cierre
+            </span>
+            <strong class="text-red-500 font-bold mt-0.5 truncate">{{ torneo.fechaLimiteInscripcion }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón de Inscripción -->
+      <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+        <button
           v-if="torneo.estaInscrito"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+          type="button"
+          disabled
+          class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed"
         >
-          <CheckCircle2 class="w-3.5 h-3.5 text-emerald-600" />
-          Inscrito
-        </span>
-        <span
+          <CheckCircle2 class="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>Ya Estás Inscrito</span>
+        </button>
+
+        <button
           v-else
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+          type="button"
+          class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-600/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer transition-all duration-200"
+          @click="emit('inscribir', torneo)"
         >
-          <span class="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          {{ estadoConfig.texto }}
-        </span>
-
-        <span class="text-base sm:text-lg font-extrabold font-heading text-emerald-600 dark:text-emerald-400">
-          {{ formatearMoneda(torneo.costoInscripcion) }}
-          <span class="text-[10px] uppercase font-bold text-slate-400">COP</span>
-        </span>
+          <span>Inscribirme al Torneo</span>
+          <ArrowRight class="w-4 h-4 ml-auto group-hover:translate-x-1 transition-transform" />
+        </button>
       </div>
-
-      <h3 class="text-lg sm:text-xl font-bold font-heading text-slate-900 dark:text-white leading-snug line-clamp-2">
-        {{ torneo.nombre }}
-      </h3>
-
-      <div class="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-        <div class="flex flex-col">
-          <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-            <User class="w-3 h-3" /> Organizador
-          </span>
-          <strong class="text-slate-800 dark:text-slate-200 font-bold truncate mt-0.5">{{ torneo.organizador }}</strong>
-        </div>
-
-        <div class="flex flex-col">
-          <span class="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-            <Calendar class="w-3 h-3" /> Inicio
-          </span>
-          <strong class="text-slate-800 dark:text-slate-200 font-bold mt-0.5">{{ torneo.fechaInicio }}</strong>
-        </div>
-
-        <div class="flex flex-col">
-          <span class="text-[10px] text-red-500 font-bold flex items-center gap-1">
-            <AlertTriangle class="w-3 h-3" /> Cierre Inscrip.
-          </span>
-          <strong class="text-red-500 font-bold mt-0.5">{{ torneo.fechaLimiteInscripcion }}</strong>
-        </div>
-      </div>
-
-    </div>
-
-    <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800">
-      <Button
-        v-if="torneo.estaInscrito"
-        variant="outline"
-        size="md"
-        block
-        disabled
-        class="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700 cursor-not-allowed font-bold"
-      >
-        <CheckCircle2 class="w-4 h-4 mr-2 text-emerald-600 shrink-0" />
-        <span class="font-bold">Ya estás inscrito</span>
-      </Button>
-
-      <Button
-        v-else
-        variant="emerald"
-        size="md"
-        block
-        @click="emit('inscribir', torneo)"
-      >
-        <span>Inscribirme al Torneo</span>
-        <ArrowRight class="w-4 h-4 ml-2" />
-      </Button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   Calendar,
   User,
@@ -228,9 +281,9 @@ import {
   Flag,
   Eye,
 } from 'lucide-vue-next'
-import Button from '@/components/Button.vue'
 import type { Torneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
+import { obtenerPartidosDB } from '@/services/torneoDatabaseService'
 
 interface Props {
   torneo: Torneo
@@ -247,8 +300,37 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 
+// Partidos reales del torneo para calcular avance matemático real
+const totalPartidos = ref<number | null>(null)
+const partidosJugados = ref<number | null>(null)
+
+const cargarProgresoReal = async () => {
+  if (!props.torneo?.id) return
+  try {
+    const partidos = await obtenerPartidosDB(props.torneo.id)
+    if (partidos && partidos.length > 0) {
+      totalPartidos.value = partidos.length
+      partidosJugados.value = partidos.filter((p: any) => p.estado === 'jugado').length
+    } else {
+      totalPartidos.value = 0
+      partidosJugados.value = 0
+    }
+  } catch {
+    totalPartidos.value = null
+    partidosJugados.value = null
+  }
+}
+
+onMounted(() => {
+  cargarProgresoReal()
+})
+
+watch(() => props.torneo.id, () => {
+  cargarProgresoReal()
+})
+
 const formatearPosicionOrdinal = (val?: string | number) => {
-  if (!val) return '1er Lugar'
+  if (!val) return 'En Clasificación'
   const str = String(val).trim()
   if (str.includes('Lugar')) return str
 
@@ -281,61 +363,103 @@ const posicionTexto = computed(() => {
     }
   }
 
-  return '1er Lugar'
+  if (props.torneo.estado === 'en curso') {
+    return 'En Competencia'
+  }
+
+  return 'Por Disputar'
 })
 
-// Borde superior de color para la tarjeta en "Mis Torneos"
-const topBorderClass = computed(() => {
+// Gradiente superior dinámico para el borde del pase
+const topGradientClass = computed(() => {
   if (props.torneo.subestado === 'PENDIENTE') {
-    return 'border-t-4 border-t-amber-500'
+    return 'bg-gradient-to-r from-amber-500 via-orange-400 to-amber-600'
   }
   switch (props.torneo.estado) {
     case 'en curso':
-      return 'border-t-4 border-t-emerald-600'
+      return 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600'
     case 'por iniciar':
-      return 'border-t-4 border-t-blue-600'
+      return 'bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-600'
     case 'finalizado':
     default:
-      return 'border-t-4 border-t-slate-400'
+      return 'bg-gradient-to-r from-slate-400 via-slate-500 to-slate-400'
   }
+})
+
+// Progreso textual y visual del torneo con cálculos matemáticos reales
+const porcentajeReal = computed(() => {
+  if (props.torneo.estado === 'finalizado') return 100
+  if (totalPartidos.value !== null && totalPartidos.value > 0) {
+    return Math.min(100, Math.round(((partidosJugados.value || 0) / totalPartidos.value) * 100))
+  }
+  return 0
+})
+
+const progresoTexto = computed(() => {
+  if (props.torneo.subestado === 'PENDIENTE') return 'En verificación'
+  if (props.torneo.estado === 'finalizado') return 'Torneo Finalizado (100%)'
+  if (props.torneo.estado === 'por iniciar') return 'Fase de Sorteo (0%)'
+
+  if (totalPartidos.value !== null && totalPartidos.value > 0) {
+    return `${partidosJugados.value} de ${totalPartidos.value} partidos (${porcentajeReal.value}%)`
+  }
+
+  return 'Fase Activa (Sin partidos jugados)'
+})
+
+const barraProgresoAncho = computed(() => {
+  if (props.torneo.subestado === 'PENDIENTE') return '20%'
+  if (props.torneo.estado === 'finalizado') return '100%'
+  if (props.torneo.estado === 'por iniciar') return '5%'
+  if (totalPartidos.value !== null && totalPartidos.value > 0) {
+    return `${Math.max(6, porcentajeReal.value)}%`
+  }
+  return '5%'
+})
+
+const barraProgresoClass = computed(() => {
+  if (props.torneo.subestado === 'PENDIENTE') return 'bg-amber-500'
+  if (props.torneo.estado === 'finalizado') return 'bg-emerald-500'
+  if (props.torneo.estado === 'por iniciar') return 'bg-blue-500'
+  return 'bg-gradient-to-r from-orange-500 to-emerald-500'
 })
 
 // Configuración de Badges e Iconos según estado
 const estadoConfig = computed(() => {
   if (props.torneo.subestado === 'PENDIENTE') {
     return {
-      texto: 'Pendiente',
-      badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60',
+      texto: 'En verificación',
+      badgeClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
       dotClass: 'bg-amber-500 animate-pulse',
       icono: Clock,
-      iconBoxClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/60',
+      iconBoxClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-amber-500/10',
     }
   }
   switch (props.torneo.estado) {
     case 'en curso':
       return {
         texto: 'En curso',
-        badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60',
+        badgeClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
         dotClass: 'bg-emerald-500 animate-pulse',
         icono: Trophy,
-        iconBoxClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/60',
+        iconBoxClass: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-emerald-500/10',
       }
     case 'finalizado':
       return {
         texto: 'Finalizado',
-        badgeClass: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+        badgeClass: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30',
         dotClass: 'bg-slate-400',
         icono: Award,
-        iconBoxClass: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+        iconBoxClass: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
       }
     case 'por iniciar':
     default:
       return {
         texto: 'Por iniciar',
-        badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/60',
+        badgeClass: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30',
         dotClass: 'bg-blue-500',
         icono: Zap,
-        iconBoxClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800/60',
+        iconBoxClass: 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-blue-500/10',
       }
   }
 })
@@ -344,27 +468,27 @@ const subestadoConfig = computed(() => {
   if (props.torneo.subestado === 'PENDIENTE') {
     return {
       texto: 'EN VERIFICACIÓN',
-      badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/60',
+      badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
       icono: Clock,
     }
   }
   if (props.torneo.estado === 'en curso') {
     return {
       texto: props.torneo.subestado || 'INSCRITO',
-      badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60',
+      badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
       icono: CheckCircle2,
     }
   }
   if (props.torneo.estado === 'por iniciar') {
     return {
       texto: props.torneo.subestado || 'CONFIRMADO',
-      badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800/60',
+      badgeClass: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
       icono: CheckCircle2,
     }
   }
   return {
     texto: props.torneo.subestado || 'COMPLETADO',
-    badgeClass: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+    badgeClass: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30',
     icono: CheckCircle2,
   }
 })
