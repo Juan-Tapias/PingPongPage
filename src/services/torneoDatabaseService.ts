@@ -282,5 +282,158 @@ export const obtenerUsuariosDB = async (): Promise<Usuario[]> => {
   }
 }
 
+export interface EstadisticasJugador {
+  torneosJugados: number
+  torneosEnCurso: number
+  partidosJugados: number
+  partidosGanados: number
+  partidosPerdidos: number
+  setsGanados: number
+  setsPerdidos: number
+  efectividad: number
+  puntosRanking: number
+  podios: number
+  etiquetaElo: string
+}
 
+/**
+ * Calcula en tiempo real las estadísticas oficiales de un jugador a partir de sus torneos,
+ * partidos reales y podios disputados en Firestore.
+ */
+export const obtenerEstadisticasJugadorDB = async (
+  usuarioId: string,
+  usuarioNombre?: string,
+  torneosInscritos: Torneo[] = [],
+  rankingBasePerfil?: number,
+): Promise<EstadisticasJugador> => {
+  const baseRating = rankingBasePerfil && rankingBasePerfil > 0 ? rankingBasePerfil : 1000
 
+  const stats: EstadisticasJugador = {
+    torneosJugados: 0,
+    torneosEnCurso: 0,
+    partidosJugados: 0,
+    partidosGanados: 0,
+    partidosPerdidos: 0,
+    setsGanados: 0,
+    setsPerdidos: 0,
+    efectividad: 0,
+    puntosRanking: baseRating,
+    podios: 0,
+    etiquetaElo: 'ELO Base',
+  }
+
+  if (!usuarioId) return stats
+
+  // 1. Torneos oficiales
+  stats.torneosEnCurso = torneosInscritos.filter(
+    (t) => t.subestado !== 'PENDIENTE' && t.estado === 'en curso'
+  ).length
+  stats.torneosJugados = torneosInscritos.filter(
+    (t) => t.subestado !== 'PENDIENTE' && t.estado === 'finalizado'
+  ).length
+
+  // 2. Partidos y sets en cada torneo
+  for (const torneo of torneosInscritos) {
+    if (torneo.subestado === 'PENDIENTE') continue
+
+    try {
+      const partidos = await obtenerPartidosDB(torneo.id)
+      const partidosJugados = partidos.filter((p) => p.estado === 'jugado')
+
+      for (const p of partidosJugados) {
+        const j1Id = String(p.jugador1?.id || p.jugador1Id || '')
+        const j2Id = String(p.jugador2?.id || p.jugador2Id || '')
+        const j1Nombre = p.jugador1?.nombre || ''
+        const j2Nombre = p.jugador2?.nombre || ''
+
+        const esJ1 =
+          (j1Id && (j1Id === usuarioId || j1Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j1Id))) ||
+          (usuarioNombre && j1Nombre && j1Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+        const esJ2 =
+          (j2Id && (j2Id === usuarioId || j2Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j2Id))) ||
+          (usuarioNombre && j2Nombre && j2Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+
+        if (esJ1 || esJ2) {
+          stats.partidosJugados++
+          const ganadorId = String(p.ganadorId || p.jugadorGanadorId || '')
+          const esGanador =
+            (ganadorId && (ganadorId === usuarioId || ganadorId.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + ganadorId))) ||
+            (esJ1 && p.marcador?.startsWith('2')) ||
+            (esJ2 && p.marcador?.endsWith('2'))
+
+          if (esGanador) {
+            stats.partidosGanados++
+          } else if (ganadorId || p.marcador) {
+            stats.partidosPerdidos++
+          }
+
+          // Conteo de sets
+          if (p.sets && Array.isArray(p.sets) && p.sets.length > 0) {
+            p.sets.forEach((s: any) => {
+              const ganoSet =
+                (s.ganadorId && (s.ganadorId === usuarioId || String(s.ganadorId).includes(usuarioId))) ||
+                (esJ1 && Number(s.puntosJugador1) > Number(s.puntosJugador2)) ||
+                (esJ2 && Number(s.puntosJugador2) > Number(s.puntosJugador1))
+
+              if (ganoSet) {
+                stats.setsGanados++
+              } else {
+                stats.setsPerdidos++
+              }
+            })
+          } else if (p.marcador && typeof p.marcador === 'string') {
+            const partes = p.marcador.split('-').map((str: string) => parseInt(str.trim()))
+            if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
+              if (esJ1) {
+                stats.setsGanados += partes[0]
+                stats.setsPerdidos += partes[1]
+              } else {
+                stats.setsGanados += partes[1]
+                stats.setsPerdidos += partes[0]
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Podios en torneos finalizados
+      if (torneo.estado === 'finalizado') {
+        const tabla = await obtenerTablaPosicionesDB(torneo.id)
+        if (tabla && tabla.posiciones) {
+          const miFila = tabla.posiciones.find((pos) => {
+            const posId = String(pos.jugadorId || '')
+            return (
+              posId === usuarioId ||
+              posId.endsWith('_' + usuarioId) ||
+              usuarioId.endsWith('_' + posId) ||
+              (usuarioNombre && pos.nombre && pos.nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+            )
+          })
+          if (miFila && miFila.posicion > 0 && miFila.posicion <= 3) {
+            stats.podios++
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`Error al obtener estadísticas del torneo ${torneo.id}:`, e)
+    }
+  }
+
+  // 4. Efectividad calculada
+  const totalSets = stats.setsGanados + stats.setsPerdidos
+  stats.efectividad = totalSets > 0 ? Math.round((stats.setsGanados / totalSets) * 100) : 0
+
+  // 5. Rating de Circuito Oficial ELO
+  if (stats.partidosJugados > 0) {
+    stats.puntosRanking = Math.max(
+      500,
+      baseRating + stats.partidosGanados * 30 - stats.partidosPerdidos * 15 + stats.podios * 60,
+    )
+    stats.etiquetaElo = 'Rating Oficial'
+  } else {
+    stats.puntosRanking = baseRating
+    stats.etiquetaElo = 'ELO Base'
+  }
+
+  return stats
+}

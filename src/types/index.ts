@@ -10,6 +10,8 @@ export interface Usuario {
   tipo: TipoUsuario
   rol: RolUsuario
   createdAt: number
+  puntosRanking?: number
+  elo?: number
 }
 
 export interface CredencialesLogin {

@@ -3,7 +3,7 @@
   <!-- BARRA UNIFICADA DE RENDIMIENTO DEPORTIVO (OPCIÓN B)          -->
   <!-- ============================================================ -->
   <div class="w-full rounded-2xl sm:rounded-3xl bg-white/90 dark:bg-[#0c1222] border border-slate-200/90 dark:border-slate-800/90 shadow-sm dark:shadow-xl p-3.5 sm:p-5 backdrop-blur-md transition-all duration-300">
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-0 sm:divide-x divide-slate-200/80 dark:divide-slate-800/80">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-0 sm:divide-x divide-slate-200/80 dark:divide-slate-800/80">
       <!-- Métrica 1: Torneos Jugados & En Curso -->
       <div class="flex items-center gap-3 sm:px-4 py-1">
         <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center shrink-0 shadow-2xs">
@@ -48,27 +48,7 @@
         </div>
       </div>
 
-      <!-- Métrica 3: Puntos ELO / Ranking Oficial -->
-      <div class="flex items-center gap-3 sm:px-4 py-1">
-        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center shrink-0 shadow-2xs">
-          <TrendingUp class="w-4 h-4 sm:w-5 sm:h-5" />
-        </div>
-        <div class="min-w-0">
-          <div class="flex items-baseline gap-1.5 flex-wrap">
-            <span class="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white leading-none">
-              {{ (puntosRanking || 1200).toLocaleString('es-CO') }}
-            </span>
-            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
-              ELO Base
-            </span>
-          </div>
-          <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium truncate block mt-0.5">
-            Rating del Circuito
-          </span>
-        </div>
-      </div>
-
-      <!-- Métrica 4: Podios y Reconocimientos -->
+      <!-- Métrica 3: Podios y Reconocimientos -->
       <div class="flex items-center gap-3 sm:px-4 py-1">
         <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center shrink-0 shadow-2xs">
           <Award class="w-4 h-4 sm:w-5 sm:h-5" />
@@ -95,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { Trophy, Activity, TrendingUp, Award } from 'lucide-vue-next'
+import { Trophy, Activity, Award } from 'lucide-vue-next'
 
 interface Props {
   torneosJugados?: number
@@ -103,7 +83,6 @@ interface Props {
   efectividad?: number
   setsGanados?: number
   setsPerdidos?: number
-  puntosRanking?: number
   podios?: number
 }
 
@@ -113,7 +92,6 @@ withDefaults(defineProps<Props>(), {
   efectividad: 0,
   setsGanados: 0,
   setsPerdidos: 0,
-  puntosRanking: 1200,
   podios: 0,
 })
 </script>

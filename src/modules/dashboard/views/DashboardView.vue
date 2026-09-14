@@ -166,9 +166,12 @@
 
         <KpiEstadisticas
           v-if="tabActiva === 'mis-torneos'"
-          :torneos-jugados="conteoFinalizado"
-          :torneos-en-curso="conteoEnCurso"
-          :puntos-ranking="authStore.usuario ? 1250 : 1000"
+          :torneos-jugados="estadisticasJugador.torneosJugados || conteoFinalizado"
+          :torneos-en-curso="estadisticasJugador.torneosEnCurso || conteoEnCurso"
+          :efectividad="estadisticasJugador.efectividad"
+          :sets-ganados="estadisticasJugador.setsGanados"
+          :sets-perdidos="estadisticasJugador.setsPerdidos"
+          :podios="estadisticasJugador.podios"
         />
       </template>
     </main>
@@ -189,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Trophy, Compass } from 'lucide-vue-next'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
 import TorneoCard from './partials/dashboard/TorneoCard.vue'
@@ -204,7 +207,13 @@ import ModalVerificacionPago from './partials/dashboard/ModalVerificacionPago.vu
 import VistaParticipacionTorneo from './partials/participacion/VistaParticipacionTorneo.vue'
 import type { Torneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
-import { obtenerTorneosDB, obtenerInscripcionesDB, guardarInscripcionDB } from '@/services/torneoDatabaseService'
+import {
+  obtenerTorneosDB,
+  obtenerInscripcionesDB,
+  guardarInscripcionDB,
+  obtenerEstadisticasJugadorDB,
+  type EstadisticasJugador,
+} from '@/services/torneoDatabaseService'
 
 const authStore = useAuthStore()
 
@@ -225,6 +234,43 @@ const torneoSeleccionado = ref<Torneo | null>(null)
 
 const misTorneos = ref<Torneo[]>([])
 const torneosDisponibles = ref<Torneo[]>([])
+
+const estadisticasJugador = ref<EstadisticasJugador>({
+  torneosJugados: 0,
+  torneosEnCurso: 0,
+  partidosJugados: 0,
+  partidosGanados: 0,
+  partidosPerdidos: 0,
+  setsGanados: 0,
+  setsPerdidos: 0,
+  efectividad: 0,
+  puntosRanking: 1000,
+  podios: 0,
+  etiquetaElo: 'ELO Base',
+})
+
+const cargarEstadisticas = async () => {
+  const usuario = authStore.usuario
+  if (!usuario?.id) return
+  try {
+    const nombreCompleto = `${usuario.nombre} ${usuario.apellido || ''}`.trim()
+    const stats = await obtenerEstadisticasJugadorDB(
+      usuario.id,
+      nombreCompleto,
+      misTorneos.value,
+      (usuario as any).puntosRanking || (usuario as any).elo || 1000,
+    )
+    estadisticasJugador.value = stats
+  } catch (err) {
+    console.warn('Error al calcular estadísticas del jugador:', err)
+  }
+}
+
+watch(torneoParticipacion, (nuevo) => {
+  if (!nuevo) {
+    cargarEstadisticas()
+  }
+})
 
 const conteoEnVerificacion = computed(() => misTorneos.value.filter((t) => t.subestado === 'PENDIENTE').length)
 const conteoEnCurso = computed(() => misTorneos.value.filter((t) => t.subestado !== 'PENDIENTE' && t.estado === 'en curso').length)
@@ -257,6 +303,7 @@ onMounted(async () => {
 
     misTorneos.value = inscritos
     torneosDisponibles.value = disponibles
+    await cargarEstadisticas()
   } catch (err) {
     console.error('Error al cargar torneos desde la base de datos:', err)
   } finally {
