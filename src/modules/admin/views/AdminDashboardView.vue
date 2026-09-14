@@ -469,7 +469,8 @@ import {
   obtenerPartidosDB,
   calcularTablaDesdePartidos,
   guardarTablaPosicionesDB,
-} from '@/services/torneoDatabaseService'
+} from '@/services/torneoDatabaseService';
+import { calcularTablaDesdePartidos } from '@/services/torneoAlgoritmos'
 
 const busquedaTorneo = ref('')
 const filtroEstado = ref<'todos' | 'en curso' | 'por iniciar' | 'finalizado'>('todos')

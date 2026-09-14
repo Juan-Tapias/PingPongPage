@@ -83,6 +83,16 @@
       <!-- TAB 1: CONTROL DE FASES Y FIXTURE (BERGER) -->
       <!-- ============================================== -->
       <div v-if="tabActiva === 'fases'" class="flex flex-col gap-4">
+        
+        <!-- ALERTA DE FIN DE FASE DE GRUPOS -->
+        <div v-if="faseGruposConcluida" class="p-4 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 flex items-start gap-3">
+          <CheckCircle2 class="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <div class="flex-1">
+            <h4 class="text-sm font-bold text-emerald-800 dark:text-emerald-300">¡Fase de Grupos (Todos contra Todos) Finalizada!</h4>
+            <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Todos los partidos del Round Robin han concluido. Configura la cantidad de clasificados en la sección de Eliminatorias e inicia los Playoffs.</p>
+          </div>
+        </div>
+
         <!-- Barra de Estado y Cambio Rápido -->
         <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center gap-3">
@@ -826,9 +836,12 @@ import {
   actualizarClasificadosPlayoffsDB,
   obtenerTablaPosicionesDB,
   guardarTablaPosicionesDB,
-  calcularTablaDesdePartidos,
 } from '@/services/torneoDatabaseService'
-import { generarFixtureBerger, generarCodigoSeguridad } from '@/modules/dashboard/composables/useTorneoGrupo'
+import {
+  calcularTablaDesdePartidos,
+  generarFixtureBerger,
+  generarCodigoSeguridad
+} from '@/services/torneoAlgoritmos'
 import type { FilaPosicionOficial } from '@/types'
 
 const props = defineProps<{
@@ -860,6 +873,14 @@ const subfiltrosPartidos = [
 const jugadoresTorneo = ref<any[]>([])
 const partidosTorneo = ref<any[]>([])
 const tablaPosicionesRemota = ref<FilaPosicionOficial[]>([])
+
+// Computada para saber si la fase de grupos ya terminó
+const faseGruposConcluida = computed(() => {
+  if (!fixtureGenerado.value || partidosTorneo.value.length === 0) return false
+  const partidosFaseRegular = partidosTorneo.value.filter(p => p.ronda || typeof p.anilloOrbital === 'undefined')
+  if (partidosFaseRegular.length === 0) return false
+  return partidosFaseRegular.every(p => p.estado === 'jugado' || p.jugadorGanadorId)
+})
 
 // Observador para inicializar el estado del torneo seleccionado consultando la base de datos
 watch(
