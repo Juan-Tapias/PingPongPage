@@ -21,6 +21,7 @@ Plataforma web integral y moderna para la organización, administración y segui
 6. [Sistema de Diseño y Estilos](#-sistema-de-diseño-y-estilos)
 7. [Cosas a Tener en Cuenta (Consideraciones Técnicas)](#-cosas-a-tener-en-cuenta-consideraciones-técnicas)
 8. [Instalación y Puesta en Marcha](#-instalación-y-puesta-en-marcha)
+   - [Desarrollo Seguro con Firebase Local Emulators](#-desarrollo-seguro-con-firebase-local-emulators)
 9. [Despliegue](#-despliegue)
 
 ---
@@ -290,6 +291,8 @@ La base de datos utiliza principalmente las siguientes colecciones:
 ### Prerrequisitos
 - **Node.js**: Versión `22.18.0` o superior (se recomienda Node 22 LTS o 24).
 - **Gestor de Paquetes**: `npm` v10+ (incluido con Node.js).
+- **Java (JRE 11+)**: Requerido para el motor local de Firestore (`sudo pacman -S jre-openjdk` en Arch Linux o `sudo apt install default-jre` en Debian/Ubuntu).
+- **Firebase CLI**: Instalado en el sistema (`/usr/bin/firebase` o `npm install -g firebase-tools`).
 
 ### Pasos de Configuración
 
@@ -309,27 +312,47 @@ La base de datos utiliza principalmente las siguientes colecciones:
    ```bash
    cp .env.example .env
    ```
+   > 💡 Asegúrate de que `VITE_USE_FIREBASE_EMULATOR=true` esté activo para trabajar en modo local aislado sin riesgo de afectar la base de producción.
 
-4. **Ejecutar el servidor de desarrollo:**
-   ```bash
-   npm run dev
-   ```
-   El servidor estará disponible por defecto en `http://localhost:5173`.
-
-5. **Verificación de tipos en TypeScript:**
+4. **Verificación de tipos en TypeScript:**
    ```bash
    npm run type-check
    ```
 
-6. **Compilar para producción:**
+5. **Compilar para producción:**
    ```bash
    npm run build
    ```
 
-7. **Previsualizar la compilación de producción localmente:**
+6. **Previsualizar la compilación de producción localmente:**
    ```bash
    npm run preview
    ```
+
+---
+
+### 🔥 Desarrollo Seguro con Firebase Local Emulators
+
+Para evitar modificar, corromper o borrar datos reales durante el desarrollo diario, el proyecto cuenta con soporte integrado para **Firebase Local Emulator Suite**:
+
+1. **Iniciar los Emuladores Locales (Terminal 1):**
+   ```bash
+   npm run emulators
+   ```
+   Esto levantará los siguientes servicios locales en tu máquina:
+   - **Firestore Emulator:** `127.0.0.1:8080`
+   - **Authentication Emulator:** `127.0.0.1:9099`
+   - **Emulator UI (Consola Gráfica Local):** `http://localhost:4000` (panel idéntico a Firebase Console para consultar usuarios y colecciones locales).
+
+2. **Iniciar el Servidor Frontend de Vue (Terminal 2):**
+   ```bash
+   npm run dev
+   ```
+   La aplicación correrá en `http://localhost:5173` y se conectará automáticamente a los emuladores locales gracias a `VITE_USE_FIREBASE_EMULATOR=true`.
+
+3. **Alternar entre Entorno Local y Nube:**
+   - **Modo Local (Recomendado):** Mantener `VITE_USE_FIREBASE_EMULATOR=true` en `.env`.
+   - **Modo Nube Real:** Cambiar a `VITE_USE_FIREBASE_EMULATOR=false` en `.env` y reiniciar `npm run dev`.
 
 ---
 
