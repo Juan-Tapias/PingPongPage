@@ -151,7 +151,13 @@ const init3D = () => {
 }
 
 onMounted(() => {
-  init3D()
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => init3D(), { timeout: 1000 })
+  } else {
+    requestAnimationFrame(() => {
+      setTimeout(() => init3D(), 50)
+    })
+  }
 })
 
 onUnmounted(() => {

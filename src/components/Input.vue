@@ -12,6 +12,7 @@ interface Props {
   id?: string
   disabled?: boolean
   required?: boolean
+  autocomplete?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   id: '',
   disabled: false,
   required: false,
+  autocomplete: undefined,
 })
 
 const emit = defineEmits<{
@@ -59,6 +61,7 @@ const handleInput = (event: Event) => {
         :placeholder="placeholder"
         :disabled="disabled"
         :required="required"
+        :autocomplete="autocomplete"
         :class="[
           'w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2.5 text-sm transition-all duration-200 outline-none',
           'border',
@@ -74,8 +77,9 @@ const handleInput = (event: Event) => {
       <button
         v-if="type === 'password'"
         type="button"
-        tabindex="-1"
-        class="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer p-1"
+        :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+        :title="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+        class="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500/50"
         @click="showPassword = !showPassword"
       >
         <EyeOff v-if="showPassword" class="w-4 h-4" />

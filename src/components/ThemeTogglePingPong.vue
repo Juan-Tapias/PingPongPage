@@ -3,6 +3,7 @@
     type="button"
     role="switch"
     :aria-checked="isDark"
+    aria-label="Cambiar tema de la aplicación entre modo claro y modo oscuro"
     :title="isDark ? 'Cambiar a modo diurno' : 'Cambiar a modo nocturno de torneo'"
     class="relative inline-flex items-center select-none cursor-pointer outline-none group focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 rounded-full"
     @click="handleClick"

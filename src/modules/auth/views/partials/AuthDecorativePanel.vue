@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import PingPongTable3D from '@/components/PingPongTable3D.vue'
+import { defineAsyncComponent } from 'vue'
+
+const PingPongTable3D = defineAsyncComponent(() => import('@/components/PingPongTable3D.vue'))
 
 defineProps<{
   mode: 'login' | 'register'

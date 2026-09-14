@@ -186,6 +186,7 @@ const onRegisterSubmit = handleRegisterSubmit(async (values) => {
                 v-model="loginEmail"
                 label="Correo Electrónico"
                 type="email"
+                autocomplete="email"
                 placeholder="ejemplo@campuslands.com"
                 :error="loginErrors.email"
                 required
@@ -196,6 +197,7 @@ const onRegisterSubmit = handleRegisterSubmit(async (values) => {
                 v-model="loginPassword"
                 label="Contraseña"
                 type="password"
+                autocomplete="current-password"
                 placeholder="••••••••"
                 :error="loginErrors.password"
                 required
