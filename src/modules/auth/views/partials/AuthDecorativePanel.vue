@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
+import { ref, onMounted, defineAsyncComponent } from 'vue'
 
+const show3D = ref(false)
 const PingPongTable3D = defineAsyncComponent(() => import('@/components/PingPongTable3D.vue'))
 
 defineProps<{
   mode: 'login' | 'register'
 }>()
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    setTimeout(() => {
+      show3D.value = true
+    }, 300)
+  }
+})
 </script>
 
 <template>
@@ -68,7 +77,9 @@ defineProps<{
     <!-- Modelo 3D de la Mesa de Ping Pong (Google Poly) -->
     <div class="relative z-10 w-full flex-1 flex flex-col items-center justify-center my-2 lg:my-3">
       <div class="w-full h-[180px] sm:h-[220px] lg:h-[320px] relative">
-        <PingPongTable3D />
+        <Transition name="fade-slide">
+          <PingPongTable3D v-if="show3D" />
+        </Transition>
       </div>
 
       <!-- Subtítulo oficial bajo la mesa 3D -->
