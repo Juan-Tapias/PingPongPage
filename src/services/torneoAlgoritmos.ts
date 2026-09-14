@@ -9,8 +9,11 @@ export function sonMismoJugador(a?: string, b?: string): boolean {
   const cA = a.trim().toLowerCase()
   const cB = b.trim().toLowerCase()
   if (cA === cB) return true
-  if (cA.endsWith(cB) || cB.endsWith(cA)) return true
-  if (cA.includes(cB) || cB.includes(cA)) return true
+  
+  // Evitar falsos positivos como 'user_seed_10'.includes('user_seed_1')
+  // Solo aceptamos sufijos si están separados por guión bajo (prefijo de torneo)
+  if (cA.endsWith('_' + cB) || cB.endsWith('_' + cA)) return true
+  
   return false
 }
 
@@ -120,13 +123,13 @@ export const calcularTablaDesdePartidos = (
     partidosJugados.forEach((partido) => {
       const j1Id = partido.jugador1?.id || partido.jugador1Id
       const j2Id = partido.jugador2?.id || partido.jugador2Id
-      const esJ1 = j1Id === idJugador || j1Id?.endsWith(idJugador) || idJugador?.endsWith(j1Id)
-      const esJ2 = j2Id === idJugador || j2Id?.endsWith(idJugador) || idJugador?.endsWith(j2Id)
+      const esJ1 = sonMismoJugador(j1Id, idJugador)
+      const esJ2 = sonMismoJugador(j2Id, idJugador)
 
       if (esJ1 || esJ2) {
         pj++
         const ganadorId = partido.ganadorId || partido.jugadorGanadorId
-        const esGanador = ganadorId === idJugador || (ganadorId && (ganadorId.endsWith(idJugador) || idJugador.endsWith(ganadorId)))
+        const esGanador = sonMismoJugador(ganadorId, idJugador)
 
         if (esGanador) {
           pg++
@@ -138,7 +141,7 @@ export const calcularTablaDesdePartidos = (
         if (partido.sets && Array.isArray(partido.sets) && partido.sets.length > 0) {
           partido.sets.forEach((s: any) => {
             const setGanador = s.ganadorId
-            const ganoEsteSet = setGanador === idJugador || (setGanador && (setGanador.endsWith(idJugador) || idJugador.endsWith(setGanador)))
+            const ganoEsteSet = sonMismoJugador(setGanador, idJugador)
             if (ganoEsteSet) {
               sf++
             } else if (setGanador) {

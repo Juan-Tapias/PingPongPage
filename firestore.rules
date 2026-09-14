@@ -23,9 +23,15 @@ service cloud.firestore {
     match /usuarios/{userId} {
       // Cualquiera autenticado puede leer usuarios (necesario para ver rivales)
       allow read: if isAuthenticated();
-      // Solo el mismo usuario o un admin puede actualizar su perfil
-      allow create: if isOwner(userId);
-      allow update, delete: if isOwner(userId) || isAdmin();
+      // Solo el mismo usuario al registrarse (con rol 'jugador') o un admin pueden crear el perfil
+      allow create: if isAuthenticated() && (
+        isAdmin() || (isOwner(userId) && request.resource.data.rol == 'jugador')
+      );
+      // El usuario puede editar sus datos sin cambiar su propio rol; el admin tiene control total
+      allow update: if isAuthenticated() && (
+        isAdmin() || (isOwner(userId) && request.resource.data.rol == resource.data.rol)
+      );
+      allow delete: if isAdmin();
     }
 
     // Reglas para la colección 'torneos'
@@ -38,8 +44,13 @@ service cloud.firestore {
     // Reglas para la colección 'inscripciones'
     match /inscripciones/{inscripcionId} {
       allow read: if isAuthenticated();
-      // Un usuario puede inscribirse a sí mismo. Admin puede hacer lo que sea.
-      allow create: if isOwner(request.resource.data.jugadorId) || isAdmin();
+      // Un usuario puede inscribirse a sí mismo con pagoValidado=false. Admin puede inscribir o validar.
+      allow create: if isAuthenticated() && (
+        isAdmin() || (
+          isOwner(request.resource.data.jugadorId) && 
+          request.resource.data.pagoValidado == false
+        )
+      );
       allow update, delete: if isAdmin();
     }
 

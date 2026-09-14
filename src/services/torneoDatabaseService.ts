@@ -9,6 +9,8 @@ import {
   query,
   orderBy,
   where,
+  onSnapshot,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import type { Torneo, EstadoTorneo, Usuario, FilaPosicionOficial, TablaPosicionesTorneo } from '@/types'
@@ -141,6 +143,31 @@ export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
 }
 
 /**
+ * Escucha en tiempo real los cambios en los partidos de un torneo
+ */
+export const suscribirPartidosDB = (
+  torneoId: string,
+  onActualizar: (partidos: any[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  const q = query(collection(db, COLECCION_PARTIDOS), where('torneoId', '==', torneoId))
+  return onSnapshot(
+    q,
+    (snap) => {
+      const partidos: any[] = []
+      snap.forEach((documento) => {
+        partidos.push({ id: documento.id, ...documento.data() })
+      })
+      onActualizar(partidos)
+    },
+    (err) => {
+      console.warn('Error en listener en tiempo real de partidos:', err)
+      onError?.(err)
+    }
+  )
+}
+
+/**
  * Guarda los partidos generados en un torneo
  */
 export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
@@ -170,6 +197,28 @@ export const obtenerTablaPosicionesDB = async (torneoId: string): Promise<TablaP
     console.warn('Error al obtener tabla de posiciones desde Firestore:', error)
     return null
   }
+}
+
+export const suscribirTablaPosicionesDB = (
+  torneoId: string,
+  onActualizar: (tabla: TablaPosicionesTorneo | null) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  const docRef = doc(db, COLECCION_TABLAS_POSICIONES, torneoId)
+  return onSnapshot(
+    docRef,
+    (docSnap) => {
+      if (docSnap.exists()) {
+        onActualizar({ id: docSnap.id, ...docSnap.data() } as TablaPosicionesTorneo)
+      } else {
+        onActualizar(null)
+      }
+    },
+    (err) => {
+      console.warn('Error en listener en tiempo real de tabla de posiciones:', err)
+      onError?.(err)
+    }
+  )
 }
 
 /**

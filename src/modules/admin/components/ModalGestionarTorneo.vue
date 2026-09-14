@@ -806,7 +806,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import {
   Trophy,
   Crown,
@@ -830,11 +830,13 @@ import { useAuthStore } from '@/stores/auth'
 import {
   obtenerInscripcionesDB,
   obtenerPartidosDB,
+  suscribirPartidosDB,
   guardarPartidosDB,
   actualizarEstadoInscripcionDB,
   eliminarInscripcionDB,
   actualizarClasificadosPlayoffsDB,
   obtenerTablaPosicionesDB,
+  suscribirTablaPosicionesDB,
   guardarTablaPosicionesDB,
 } from '@/services/torneoDatabaseService'
 import {
@@ -882,11 +884,36 @@ const faseGruposConcluida = computed(() => {
   return partidosFaseRegular.every(p => p.estado === 'jugado' || p.jugadorGanadorId)
 })
 
-// Observador para inicializar el estado del torneo seleccionado consultando la base de datos
+let unsubscribeAdminPartidos: (() => void) | null = null
+let unsubscribeAdminTabla: (() => void) | null = null
+
+const limpiarAdminSuscripciones = () => {
+  if (unsubscribeAdminPartidos) {
+    unsubscribeAdminPartidos()
+    unsubscribeAdminPartidos = null
+  }
+  if (unsubscribeAdminTabla) {
+    unsubscribeAdminTabla()
+    unsubscribeAdminTabla = null
+  }
+}
+
+onUnmounted(() => {
+  limpiarAdminSuscripciones()
+})
+
+// Cargar datos reales y suscripciones en tiempo real del torneo desde Firestore
 watch(
   () => props.torneo,
   async (torneoActual) => {
-    if (!torneoActual) return
+    limpiarAdminSuscripciones()
+    if (!torneoActual?.id) {
+      jugadoresTorneo.value = []
+      partidosTorneo.value = []
+      tablaPosicionesRemota.value = []
+      fixtureGenerado.value = false
+      return
+    }
 
     tabActiva.value = 'fases'
     try {
@@ -894,42 +921,40 @@ watch(
       const inscritosDB = await obtenerInscripcionesDB(torneoActual.id)
       jugadoresTorneo.value = inscritosDB.length > 0 ? inscritosDB : []
 
-      // 2. Obtener partidos reales del torneo desde Firestore (colección 'partidos')
-      const partidosDB = await obtenerPartidosDB(torneoActual.id)
-      if (partidosDB.length > 0) {
-        partidosTorneo.value = partidosDB.map((p) => {
-          if (p.estado === 'en_curso' && !p.marcador && !p.enVivo) {
-            return { ...p, estado: 'pendiente' }
-          }
-          return p
-        })
-        fixtureGenerado.value = true
-      } else {
-        partidosTorneo.value = []
-        fixtureGenerado.value = torneoActual.estado === 'en curso' || torneoActual.estado === 'finalizado'
-      }
-
-      // 3. Obtener tabla de posiciones desde la colección dedicada 'tablas_posiciones'
-      const tablaDoc = await obtenerTablaPosicionesDB(torneoActual.id)
-      if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
-        tablaPosicionesRemota.value = tablaDoc.posiciones
-      } else {
-        // Si no existe aún en 'tablas_posiciones', calcularla y guardarla en la nueva colección
-        const aprobados = jugadoresTorneo.value.filter((j) => j.pagoValidado)
-        if (aprobados.length > 0) {
-          const calculada = calcularTablaDesdePartidos(
-            aprobados,
-            partidosTorneo.value,
-            clasificadosSeleccionados.value,
-          )
-          tablaPosicionesRemota.value = calculada
-          if (calculada.length > 0) {
-            await guardarTablaPosicionesDB(torneoActual.id, calculada)
-          }
+      // 2. Suscripción en tiempo real a partidos del torneo
+      unsubscribeAdminPartidos = suscribirPartidosDB(torneoActual.id, (partidosDB) => {
+        if (partidosDB.length > 0) {
+          partidosTorneo.value = partidosDB.map((p) => {
+            if (p.estado === 'en_curso' && !p.marcador && !p.enVivo) {
+              return { ...p, estado: 'pendiente' }
+            }
+            return p
+          })
+          fixtureGenerado.value = true
         } else {
-          tablaPosicionesRemota.value = []
+          partidosTorneo.value = []
+          fixtureGenerado.value = torneoActual.estado === 'en curso' || torneoActual.estado === 'finalizado'
         }
-      }
+      })
+
+      // 3. Suscripción en tiempo real a la tabla oficial de posiciones
+      unsubscribeAdminTabla = suscribirTablaPosicionesDB(torneoActual.id, (tablaDoc) => {
+        if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
+          tablaPosicionesRemota.value = tablaDoc.posiciones
+        } else {
+          const aprobados = jugadoresTorneo.value.filter((j) => j.pagoValidado)
+          if (aprobados.length > 0 && partidosTorneo.value.length > 0) {
+            const calculada = calcularTablaDesdePartidos(
+              aprobados,
+              partidosTorneo.value,
+              clasificadosSeleccionados.value,
+            )
+            tablaPosicionesRemota.value = calculada
+          } else {
+            tablaPosicionesRemota.value = []
+          }
+        }
+      })
     } catch (e) {
       console.warn('Error al recuperar datos del torneo desde Firestore:', e)
       jugadoresTorneo.value = []

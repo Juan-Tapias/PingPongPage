@@ -381,6 +381,7 @@
               No hay competencias activas que coincidan con "{{ busquedaTorneo }}" en el filtro seleccionado.
             </p>
           </div>
+          <!-- Botones de Acción -->
           <div class="flex items-center gap-3 pt-2">
             <button
               v-if="busquedaTorneo || filtroEstado !== 'todos'"
@@ -467,7 +468,6 @@ import {
   actualizarPartidoDB,
   obtenerInscripcionesDB,
   obtenerPartidosDB,
-  calcularTablaDesdePartidos,
   guardarTablaPosicionesDB,
 } from '@/services/torneoDatabaseService';
 import { calcularTablaDesdePartidos } from '@/services/torneoAlgoritmos'
@@ -491,13 +491,10 @@ const statsCircuito = computed(() => {
   const porIniciar = torneos.value.filter(t => t.estado === 'por iniciar').length
   const finalizados = torneos.value.filter(t => t.estado === 'finalizado').length
 
-  const bolsaTotal = torneos.value.reduce((acc, t) => {
-    const cupos = t.cuposTomados || (t.estado === 'en curso' ? 6 : (t.cuposTotales ? Math.floor(t.cuposTotales * 0.4) : 4))
-    return acc + (cupos * (t.costoInscripcion || 6000))
-  }, 0)
+  const bolsaTotal = torneos.value.reduce((acc, t) => acc + ((t.cuposTomados || 0) * (t.costoInscripcion || 6000)), 0)
 
   const cuposTotales = torneos.value.reduce((acc, t) => acc + (t.cuposTotales || 16), 0)
-  const cuposTomados = torneos.value.reduce((acc, t) => acc + (t.cuposTomados || (t.estado === 'en curso' ? 6 : 0)), 0)
+  const cuposTomados = torneos.value.reduce((acc, t) => acc + (t.cuposTomados || 0), 0)
 
   return {
     total,
@@ -511,14 +508,29 @@ const statsCircuito = computed(() => {
 })
 
 const calcularBolsaTorneo = (torneo: Torneo): number => {
-  const cupos = torneo.cuposTomados || (torneo.estado === 'en curso' ? 6 : 0)
+  const cupos = torneo.cuposTomados || 0
   return cupos * (torneo.costoInscripcion || 6000)
 }
 
 onMounted(async () => {
   cargandoTorneos.value = true
   try {
-    torneos.value = await obtenerTorneosDB()
+    const torneosObtenidos = await obtenerTorneosDB()
+    
+    // Obtener los cupos reales validados para cada torneo
+    const torneosConCuposReales = await Promise.all(
+      torneosObtenidos.map(async (t) => {
+        try {
+          const inscritos = await obtenerInscripcionesDB(t.id)
+          const validados = inscritos.filter((i: any) => i.pagoValidado).length
+          return { ...t, cuposTomados: validados }
+        } catch {
+          return t
+        }
+      })
+    )
+    
+    torneos.value = torneosConCuposReales
   } catch (error) {
     console.error('Error al cargar datos desde la base de datos:', error)
   } finally {
@@ -528,6 +540,7 @@ onMounted(async () => {
 
 // Solicitudes y disputas para modales de gestión
 const solicitudesPago = ref<any[]>([])
+
 const partidosConflicto = ref<any[]>([])
 
 const torneosFiltrados = computed(() => {

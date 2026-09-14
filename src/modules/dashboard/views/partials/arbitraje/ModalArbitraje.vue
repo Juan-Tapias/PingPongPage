@@ -7,11 +7,11 @@
         <div class="flex items-center gap-3">
           <div
             class="w-9 h-9 rounded-full bg-emerald-700 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-            {{ arbitro.iniciales }}
+            {{ arbitro?.iniciales || 'AR' }}
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xs font-black text-slate-800 dark:text-slate-100">{{ arbitro.nombre }}</span>
+              <span class="text-xs font-black text-slate-800 dark:text-slate-100">{{ arbitro?.nombre || 'Árbitro' }}</span>
               <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
                 Árbitro Habilitado
               </span>
@@ -193,7 +193,7 @@ import Button from '@/components/Button.vue'
 import type { PartidoArbitrable, JugadorTorneo } from '@/types'
 
 const props = defineProps<{
-  arbitro: JugadorTorneo
+  arbitro: JugadorTorneo | null
   partidosDisponibles: PartidoArbitrable[]
   jugadoresTorneo?: JugadorTorneo[]
 }>()

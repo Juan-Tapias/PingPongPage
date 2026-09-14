@@ -212,14 +212,14 @@
     >
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-          {{ jugadorEnCentro.iniciales }}
+          {{ jugadorEnCentro?.iniciales || '' }}
         </div>
         <div>
           <p class="text-xs font-semibold text-sky-700 dark:text-sky-400 uppercase tracking-wide">
             Vista Sincronizada de Rival
           </p>
           <h4 class="text-sm font-extrabold text-sky-950 dark:text-white">
-            Estás viendo la rueda de {{ jugadorEnCentro.nombre }}
+            Estás viendo la rueda de {{ jugadorEnCentro?.nombre || 'Jugador' }}
           </h4>
         </div>
       </div>
@@ -403,11 +403,11 @@ const handleAbrirMarcadorRival = (burbuja: BurbujaRival) => {
   modalMarcadorRef.value?.open()
 }
 
-const handleValidarCodigos = (
+const handleValidarCodigos = async (
   datos: { partidoId: string; codigo1: string; codigo2: string },
   callback: (res: { valido: boolean; mensaje: string }) => void,
 ) => {
-  const resultado = validarCodigosArbitraje(datos.partidoId, datos.codigo1, datos.codigo2)
+  const resultado = await validarCodigosArbitraje(datos.partidoId, datos.codigo1, datos.codigo2)
   callback(resultado)
 }
 

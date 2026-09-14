@@ -1,12 +1,11 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   obtenerInscripcionesDB,
-  obtenerPartidosDB,
+  suscribirPartidosDB,
   actualizarPartidoDB,
   actualizarTablaPosicionesDB,
-  obtenerTablaPosicionesDB,
-  guardarTablaPosicionesDB,
+  suscribirTablaPosicionesDB,
 } from '@/services/torneoDatabaseService'
 import type {
   JugadorTorneo,
@@ -14,7 +13,6 @@ import type {
   BurbujaRival,
   FilaPosicion,
   ResultadoPartido,
-  EstadoPartido,
   ColorBordeBurbuja,
   Torneo,
   SetPartido,
@@ -50,12 +48,37 @@ export function useTorneoGrupo(torneo: Torneo) {
     : null
 
   const jugadores = ref<JugadorTorneo[]>(usuarioActual ? [usuarioActual] : [])
-  const jugadorEnCentro = ref<JugadorTorneo | null>(usuarioActual)
+  const jugadorEnCentro = ref<JugadorTorneo>(usuarioActual || {
+    id: 'espectador',
+    nombre: 'Espectador',
+    iniciales: 'ES',
+    telefono: '',
+    tipo: 'camper'
+  })
   const partidos = ref<PartidoGrupo[]>([])
   const tablaPosicionesRemota = ref<FilaPosicion[]>([])
 
+  let unsubscribePartidos: (() => void) | null = null
+  let unsubscribeTabla: (() => void) | null = null
+
+  const limpiarSuscripciones = () => {
+    if (unsubscribePartidos) {
+      unsubscribePartidos()
+      unsubscribePartidos = null
+    }
+    if (unsubscribeTabla) {
+      unsubscribeTabla()
+      unsubscribeTabla = null
+    }
+  }
+
+  onUnmounted(() => {
+    limpiarSuscripciones()
+  })
+
   const cargarDatosTorneo = async () => {
     if (!torneo?.id) return
+    limpiarSuscripciones()
     try {
       const inscritos = await obtenerInscripcionesDB(torneo.id)
       if (inscritos.length > 0) {
@@ -79,65 +102,74 @@ export function useTorneoGrupo(torneo: Torneo) {
       }
 
       const yo = jugadores.value.find((j) => j.esUsuarioActual)
-      jugadorEnCentro.value = yo || jugadores.value[0] || usuarioActual
-
-      // Cargar tabla oficial desde la colección independiente 'tablas_posiciones'
-      const tablaDoc = await obtenerTablaPosicionesDB(torneo.id)
-      if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
-        tablaPosicionesRemota.value = tablaDoc.posiciones.map((pos) => ({
-          ...pos,
-          esUsuarioActual: usuarioActual ? sonMismoJugador(pos.jugadorId, usuarioActual.id) : false,
-        }))
+      jugadorEnCentro.value = yo || jugadores.value[0] || usuarioActual || {
+        id: 'espectador',
+        nombre: 'Espectador',
+        iniciales: 'ES',
+        telefono: '',
+        tipo: 'camper'
       }
 
-      const partidosDB = await obtenerPartidosDB(torneo.id)
-      if (partidosDB.length > 0) {
-        partidos.value = partidosDB.map((p: any) => {
-          const j1Id = p.jugador1?.id || p.jugador1Id
-          const j2Id = p.jugador2?.id || p.jugador2Id
-          const rondaOficial = p.ronda || p.jornada || 1
+      // Suscribir en tiempo real a la tabla oficial de posiciones
+      unsubscribeTabla = suscribirTablaPosicionesDB(torneo.id, (tablaDoc) => {
+        if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
+          tablaPosicionesRemota.value = tablaDoc.posiciones.map((pos) => ({
+            ...pos,
+            esUsuarioActual: usuarioActual ? sonMismoJugador(pos.jugadorId, usuarioActual.id) : false,
+          }))
+        }
+      })
 
-          return {
-            id: p.id,
-            jugador1Id: j1Id,
-            jugador2Id: j2Id,
-            jugador1: p.jugador1,
-            jugador2: p.jugador2,
-            jugadorGanadorId: p.ganadorId || p.jugadorGanadorId,
-            marcador: p.marcador,
-            marcadorDetallado: p.marcadorDetallado,
-            estado: p.estado || 'pendiente',
-            diasRestantes: p.diasRestantes ?? 2,
-            ronda: rondaOficial,
-            jornada: rondaOficial,
-            sets: p.sets,
-            arbitroId: p.arbitroId,
-            mesa: p.mesa,
-            codigoJugador1: p.codigoJugador1 || generarCodigoSeguridad(j1Id, j2Id),
-            codigoJugador2: p.codigoJugador2 || generarCodigoSeguridad(j2Id, j1Id),
-          }
-        })
-      } else {
-        const crucesBerger = generarFixtureBerger(jugadores.value)
-        const listaPartidos: PartidoGrupo[] = crucesBerger.map((cruce) => {
-          const idA = cruce.jugador1.id || 'J1'
-          const idB = cruce.jugador2.id || 'J2'
-          return {
-            id: `p-${idA}-${idB}`,
-            jugador1Id: idA,
-            jugador2Id: idB,
-            jugador1: cruce.jugador1,
-            jugador2: cruce.jugador2,
-            ronda: cruce.ronda,
-            jornada: cruce.ronda,
-            estado: 'pendiente',
-            diasRestantes: 2,
-            codigoJugador1: generarCodigoSeguridad(idA, idB),
-            codigoJugador2: generarCodigoSeguridad(idB, idA),
-          }
-        })
-        partidos.value = listaPartidos
-      }
+      // Suscribir en tiempo real a los partidos del torneo (reflejo instantáneo de marcadores y árbitro activo)
+      unsubscribePartidos = suscribirPartidosDB(torneo.id, (partidosDB) => {
+        if (partidosDB.length > 0) {
+          partidos.value = partidosDB.map((p: any) => {
+            const j1Id = p.jugador1?.id || p.jugador1Id
+            const j2Id = p.jugador2?.id || p.jugador2Id
+            const rondaOficial = p.ronda || p.jornada || 1
+
+            return {
+              id: p.id,
+              jugador1Id: j1Id,
+              jugador2Id: j2Id,
+              jugador1: p.jugador1,
+              jugador2: p.jugador2,
+              jugadorGanadorId: p.ganadorId || p.jugadorGanadorId,
+              marcador: p.marcador,
+              marcadorDetallado: p.marcadorDetallado,
+              estado: p.estado || 'pendiente',
+              diasRestantes: p.diasRestantes ?? 2,
+              ronda: rondaOficial,
+              jornada: rondaOficial,
+              sets: p.sets,
+              arbitroId: p.arbitroId,
+              arbitroActivoId: p.arbitroActivoId,
+              mesa: p.mesa,
+              codigoJugador1: p.codigoJugador1 || generarCodigoSeguridad(j1Id, j2Id),
+              codigoJugador2: p.codigoJugador2 || generarCodigoSeguridad(j2Id, j1Id),
+            }
+          })
+        } else {
+          const crucesBerger = generarFixtureBerger(jugadores.value)
+          partidos.value = crucesBerger.map((cruce) => {
+            const idA = cruce.jugador1.id || 'J1'
+            const idB = cruce.jugador2.id || 'J2'
+            return {
+              id: `p-${idA}-${idB}`,
+              jugador1Id: idA,
+              jugador2Id: idB,
+              jugador1: cruce.jugador1,
+              jugador2: cruce.jugador2,
+              ronda: cruce.ronda,
+              jornada: cruce.ronda,
+              estado: 'pendiente',
+              diasRestantes: 2,
+              codigoJugador1: generarCodigoSeguridad(idA, idB),
+              codigoJugador2: generarCodigoSeguridad(idB, idA),
+            }
+          })
+        }
+      })
     } catch (err) {
       console.warn('Error al cargar datos reales del torneo en useTorneoGrupo:', err)
     }
@@ -219,7 +251,9 @@ export function useTorneoGrupo(torneo: Torneo) {
   }
 
   const rivalesPerimetro = computed<BurbujaRival[]>(() => {
-    const centroId = jugadorEnCentro.value.id
+    const centroId = jugadorEnCentro.value?.id
+    if (!centroId) return []
+    
     const otrosJugadores = jugadores.value.filter((j) => !sonMismoJugador(j.id, centroId))
 
     const total = otrosJugadores.length
@@ -278,7 +312,7 @@ export function useTorneoGrupo(torneo: Torneo) {
       if (partido.estado === 'jugado' && partido.jugadorGanadorId) {
         if (sonMismoJugador(partido.jugadorGanadorId, centroId)) {
           resultadoParaCentro = 'ganado' // Verde
-          ganadorNombre = jugadorEnCentro.value.nombre
+          ganadorNombre = jugadorEnCentro.value?.nombre
         } else {
           resultadoParaCentro = 'perdido' // Rojo
           ganadorNombre = jugador.nombre
@@ -327,7 +361,13 @@ export function useTorneoGrupo(torneo: Torneo) {
   }
 
   const volverAMiVista = () => {
-    jugadorEnCentro.value = usuarioActual
+    jugadorEnCentro.value = usuarioActual || {
+      id: 'espectador',
+      nombre: 'Espectador',
+      iniciales: 'ES',
+      telefono: '',
+      tipo: 'camper'
+    }
   }
 
   const arbitroActual = ref<JugadorTorneo | null>(usuarioActual)
@@ -343,11 +383,13 @@ export function useTorneoGrupo(torneo: Torneo) {
     const rActiva = rondaActual.value
 
     // Filtrar estrictamente partidos de la ronda activa que están pendientes y donde el usuario autenticado NO participa
+    // También verificar que no esté bloqueado por otro árbitro activo
     const partidosValidos = partidos.value.filter((p) => {
       const esRondaActiva = (p.ronda === rActiva || !p.ronda)
       const noJugado = p.estado !== 'jugado' && !p.marcador
       const noParticipa = !sonMismoJugador(p.jugador1Id, aId) && !sonMismoJugador(p.jugador2Id, aId)
-      return esRondaActiva && noJugado && noParticipa
+      const sinArbitroUOtorgadoAMi = !p.arbitroActivoId || sonMismoJugador(p.arbitroActivoId, aId)
+      return esRondaActiva && noJugado && noParticipa && sinArbitroUOtorgadoAMi
     })
 
     return partidosValidos.map((p) => {
@@ -362,11 +404,11 @@ export function useTorneoGrupo(torneo: Torneo) {
   })
 
   // Validación de seguridad con códigos de 5 dígitos
-  const validarCodigosArbitraje = (
+  const validarCodigosArbitraje = async (
     partidoId: string,
     codigoJ1: string,
     codigoJ2: string,
-  ): { valido: boolean; mensaje: string } => {
+  ): Promise<{ valido: boolean; mensaje: string }> => {
     const partido = partidos.value.find((p) => p.id === partidoId)
     if (!partido) {
       return { valido: false, mensaje: 'El partido no existe en este torneo.' }
@@ -379,7 +421,29 @@ export function useTorneoGrupo(torneo: Torneo) {
     const coincideInverso = c1 === partido.codigoJugador2 && c2 === partido.codigoJugador1
 
     if (coincideDirecto || coincideInverso) {
-      return { valido: true, mensaje: 'Códigos confirmados correctamente. Accediendo al marcador virtual...' }
+      const nuevoPin1 = (Math.floor(Math.random() * 90000) + 10000).toString()
+      const nuevoPin2 = (Math.floor(Math.random() * 90000) + 10000).toString()
+      const aId = usuarioActual?.id || ''
+
+      try {
+        await actualizarPartidoDB(partidoId, {
+          estado: 'en_curso',
+          arbitroActivoId: aId,
+          codigoJugador1: nuevoPin1,
+          codigoJugador2: nuevoPin2
+        })
+        
+        // Actualizar localmente para la UI reactiva
+        partido.estado = 'en_curso'
+        partido.arbitroActivoId = aId
+        partido.codigoJugador1 = nuevoPin1
+        partido.codigoJugador2 = nuevoPin2
+
+        return { valido: true, mensaje: 'Códigos confirmados correctamente. Accediendo al marcador virtual...' }
+      } catch (error) {
+        console.error('Error al bloquear partido en DB:', error)
+        return { valido: false, mensaje: 'Error de red al asegurar el partido. Intenta de nuevo.' }
+      }
     }
 
     return {
@@ -406,13 +470,15 @@ export function useTorneoGrupo(torneo: Torneo) {
     const marcadorResumen = `${setsG1} - ${setsG2}`
     const marcadorDetallado = setsJugados.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
 
+    const arbitroIdSeguro = arbitroActual.value?.id ?? usuarioActual?.id ?? ''
+
     const partidoActualizado: PartidoGrupo = {
       ...partido,
       estado: 'jugado',
       jugadorGanadorId: ganadorId,
       marcador: marcadorResumen,
       marcadorDetallado,
-      arbitroId: arbitroActual.value.id,
+      arbitroId: arbitroIdSeguro,
       sets: setsJugados,
       diasRestantes: 0,
     }
@@ -426,7 +492,7 @@ export function useTorneoGrupo(torneo: Torneo) {
         jugadorGanadorId: ganadorId,
         marcador: marcadorResumen,
         marcadorDetallado,
-        arbitroId: arbitroActual.value.id,
+        arbitroId: arbitroIdSeguro,
         sets: setsJugados,
         diasRestantes: 0,
       })
