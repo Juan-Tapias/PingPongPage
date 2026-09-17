@@ -54,7 +54,7 @@
         <!-- ============================================== -->
         <!-- CUADRÍCULA DE MÉTRICAS KPI (EN TIEMPO REAL)     -->
         <!-- ============================================== -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 pt-8">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 pt-8">
           <!-- KPI 1: Torneos en Curso -->
           <div class="relative p-4 sm:p-5 rounded-2xl bg-white/5 dark:bg-slate-900/60 border border-white/10 dark:border-slate-800/80 backdrop-blur-md shadow-lg shadow-black/20 flex flex-col justify-between overflow-hidden group hover:border-emerald-500/40 hover:-translate-y-0.5 transition-all">
             <div class="flex items-center justify-between gap-2">
@@ -99,32 +99,7 @@
             </p>
           </div>
 
-          <!-- KPI 3: Capacidad y Convocatoria -->
-          <div class="relative p-4 sm:p-5 rounded-2xl bg-white/5 dark:bg-slate-900/60 border border-white/10 dark:border-slate-800/80 backdrop-blur-md shadow-lg shadow-black/20 flex flex-col justify-between overflow-hidden group hover:border-sky-500/40 hover:-translate-y-0.5 transition-all">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                Aspirantes & Cupos
-              </span>
-              <div class="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center border border-sky-500/30">
-                <Users class="w-4 h-4" />
-              </div>
-            </div>
-            <div class="mt-3 flex items-baseline gap-2">
-              <span class="text-2xl sm:text-3xl font-black font-mono text-white">
-                {{ statsCircuito.cuposTomados }}
-              </span>
-              <span class="text-xs text-slate-400">/ {{ statsCircuito.cuposTotales }} cupos</span>
-            </div>
-            <!-- Barra de Ocupación Visual -->
-            <div class="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
-              <div
-                class="bg-gradient-to-r from-sky-500 to-indigo-500 h-1.5 rounded-full transition-all duration-500"
-                :style="{ width: `${statsCircuito.cuposTotales > 0 ? Math.min(100, Math.round((statsCircuito.cuposTomados / statsCircuito.cuposTotales) * 100)) : 0}%` }"
-              />
-            </div>
-          </div>
-
-          <!-- KPI 4: Torneos Totales -->
+          <!-- KPI 3: Torneos Totales -->
           <div class="relative p-4 sm:p-5 rounded-2xl bg-white/5 dark:bg-slate-900/60 border border-white/10 dark:border-slate-800/80 backdrop-blur-md shadow-lg shadow-black/20 flex flex-col justify-between overflow-hidden group hover:border-orange-500/40 hover:-translate-y-0.5 transition-all">
             <div class="flex items-center justify-between gap-2">
               <span class="text-[11px] font-black uppercase tracking-wider text-slate-400">
@@ -445,7 +420,6 @@ import {
   Eye,
   Activity,
   Crown,
-  Users,
   Flame,
   Swords,
   ArrowRight,
@@ -493,17 +467,12 @@ const statsCircuito = computed(() => {
 
   const bolsaTotal = torneos.value.reduce((acc, t) => acc + ((t.cuposTomados || 0) * (t.costoInscripcion || 6000)), 0)
 
-  const cuposTotales = torneos.value.reduce((acc, t) => acc + (t.cuposTotales || 16), 0)
-  const cuposTomados = torneos.value.reduce((acc, t) => acc + (t.cuposTomados || 0), 0)
-
   return {
     total,
     enCurso,
     porIniciar,
     finalizados,
     bolsaTotal,
-    cuposTotales,
-    cuposTomados,
   }
 })
 

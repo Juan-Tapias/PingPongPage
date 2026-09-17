@@ -253,6 +253,18 @@
             </div>
           </Transition>
 
+          <!-- BANNER DE ADVERTENCIA REGLAMENTARIA -->
+          <Transition enter-active-class="transition duration-300 ease-out"
+            enter-from-class="opacity-0 -translate-y-2 scale-95" enter-to-class="opacity-100 translate-y-0 scale-100"
+            leave-active-class="transition duration-200 ease-in" leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95">
+            <div v-if="mensajeAlertaSet"
+              class="absolute top-12 sm:top-14 left-1/2 -translate-x-1/2 z-30 px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl bg-slate-900/95 text-amber-300 font-bold text-xs sm:text-sm shadow-2xl flex items-center gap-2 border border-amber-400/50 backdrop-blur-md pointer-events-none">
+              <AlertTriangle class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 shrink-0" />
+              <span>{{ mensajeAlertaSet }}</span>
+            </div>
+          </Transition>
+
         </div>
       </div>
     </Transition>
@@ -323,6 +335,27 @@
       </div>
     </div>
   </Modal>
+
+  <!-- MODAL DE CONFIRMACIÓN AL SALIR SI HAY PARTIDO EN CURSO -->
+  <Modal
+    ref="modalConfirmarSalidaRef"
+    title="¿Deseas salir del marcador virtual?"
+    sub-title="Hay un partido en curso con puntos registrados"
+    width="sm"
+    action="Sí, salir"
+    cancel="Continuar jugando"
+    btn-action-variant="danger"
+    @action="confirmarSalida"
+  >
+    <div class="space-y-3 py-1 text-xs text-slate-600 dark:text-slate-300">
+      <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300">
+        <AlertTriangle class="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <p class="leading-relaxed">
+          Actualmente hay sets o puntos en disputa. Si sales ahora, el partido quedará pendiente y el avance temporal no se guardará en la tabla oficial.
+        </p>
+      </div>
+    </div>
+  </Modal>
 </template>
 
 <script setup lang="ts">
@@ -337,6 +370,7 @@ import {
   Trophy,
   Flame,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
@@ -369,6 +403,10 @@ const mallasJ1 = ref(0)
 const mallasJ2 = ref(0)
 const easterEggMensaje = ref('')
 let timerEasterEgg: ReturnType<typeof setTimeout> | null = null
+
+const modalConfirmarSalidaRef = ref<InstanceType<typeof Modal> | null>(null)
+const mensajeAlertaSet = ref('')
+let timerAlertaSet: ReturnType<typeof setTimeout> | null = null
 
 const historialSets = ref<SetPartido[]>([])
 const numeroSetActual = computed(() => historialSets.value.length + 1)
@@ -450,9 +488,14 @@ const close = () => {
 
 const handleCerrarConConfirmacion = () => {
   if (historialSets.value.length > 0 && !partidoTerminado.value) {
-    const salir = window.confirm('Hay un partido en curso. ¿Deseas salir del marcador virtual?')
-    if (!salir) return
+    modalConfirmarSalidaRef.value?.open()
+    return
   }
+  close()
+}
+
+const confirmarSalida = () => {
+  modalConfirmarSalidaRef.value?.close()
   close()
 }
 
@@ -564,7 +607,11 @@ const handleTerminarSet = () => {
   if (!props.match) return
 
   if (puntosJ1.value === puntosJ2.value) {
-    window.alert('El set está empatado. Debe haber un jugador con mayor puntuación para definir el ganador del set.')
+    mensajeAlertaSet.value = 'El set está empatado. Debe haber un jugador con mayor puntuación para definir el ganador del set.'
+    if (timerAlertaSet) clearTimeout(timerAlertaSet)
+    timerAlertaSet = setTimeout(() => {
+      mensajeAlertaSet.value = ''
+    }, 3500)
     return
   }
 

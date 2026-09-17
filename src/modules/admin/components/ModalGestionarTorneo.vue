@@ -234,7 +234,7 @@
                 class="w-full sm:w-auto shrink-0 justify-center gap-1.5 font-bold cursor-pointer border-rose-300 dark:border-rose-800/80 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                 :disabled="limpiandoPartidos"
                 title="Eliminar los partidos generados y volver a dejar el torneo listo para generar"
-                @click="limpiarPartidosTorneo"
+                @click="solicitarLimpiezaPartidos"
               >
                 <RotateCcw class="w-4 h-4 text-rose-500" :class="limpiandoPartidos ? 'animate-spin' : ''" />
                 <span>Limpiar Partidos</span>
@@ -433,7 +433,7 @@
                 class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border border-rose-300 dark:border-rose-800/80 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
                 :disabled="limpiandoPartidos"
                 title="Eliminar los partidos actuales para volver a generar un fixture nuevo"
-                @click="limpiarPartidosTorneo"
+                @click="solicitarLimpiezaPartidos"
               >
                 <RotateCcw class="w-3.5 h-3.5 text-rose-500" :class="limpiandoPartidos ? 'animate-spin' : ''" />
                 <span>Limpiar Partidos</span>
@@ -882,6 +882,44 @@
     @aprobar="handleAprobarComprobante"
     @rechazar="handleRechazarComprobante"
   />
+
+  <!-- Modal de Confirmación Estilizado para Limpiar / Reiniciar Partidos -->
+  <Modal
+    ref="modalConfirmarLimpiarRef"
+    width="md"
+    title="¿Eliminar partidos y reiniciar fixture?"
+    sub-title="Acción oficial de control del torneo"
+    action="Sí, eliminar y reiniciar"
+    cancel="Cancelar"
+    btn-action-variant="danger"
+    :loading="limpiandoPartidos"
+    @action="confirmarYEliminarPartidos"
+  >
+    <div class="space-y-3.5 py-1">
+      <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-300">
+        <div class="w-9 h-9 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+          <AlertTriangle class="w-5 h-5 text-rose-600 dark:text-rose-400" />
+        </div>
+        <div class="text-xs space-y-1">
+          <strong class="font-bold text-slate-900 dark:text-white block text-sm">Esta acción es irreversible</strong>
+          <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+            Se eliminarán todos los enfrentamientos programados en la base de datos y la tabla de posiciones acumulada. El torneo volverá a estado <span class="font-bold text-sky-600 dark:text-sky-400">Por Iniciar</span> y quedará completamente limpio para volver a generarlo.
+          </p>
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 rounded-xl text-xs space-y-2 text-slate-600 dark:text-slate-300">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-slate-400">Torneo:</span>
+          <strong class="text-slate-900 dark:text-white truncate max-w-[240px]">{{ torneo?.nombre }}</strong>
+        </div>
+        <div class="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+          <span class="text-slate-500 dark:text-slate-400">Partidos a eliminar:</span>
+          <span class="font-mono font-bold text-rose-600 dark:text-rose-400">{{ partidosTorneo.length }} partidos</span>
+        </div>
+      </div>
+    </div>
+  </Modal>
 </template>
 
 <script setup lang="ts">
@@ -1279,14 +1317,15 @@ const handleRechazarComprobante = (id: string) => {
 }
 
 
-// Limpieza y Reinicio de Partidos Generados
-const limpiarPartidosTorneo = async () => {
+const modalConfirmarLimpiarRef = ref<InstanceType<typeof Modal> | null>(null)
+
+// Limpieza y Reinicio de Partidos Generados (Modal estilizado sin alertas nativas)
+const solicitarLimpiezaPartidos = () => {
+  modalConfirmarLimpiarRef.value?.open()
+}
+
+const confirmarYEliminarPartidos = async () => {
   if (!props.torneo?.id) return
-  const confirmar = window.confirm(
-    '¿Estás seguro de que deseas eliminar todos los partidos generados de este torneo? ' +
-    'Se borrará el fixture actual y la tabla de posiciones, el torneo volverá a estado "Por Iniciar" y quedará limpio para volver a generarlo.'
-  )
-  if (!confirmar) return
 
   limpiandoPartidos.value = true
   try {
@@ -1299,6 +1338,8 @@ const limpiarPartidosTorneo = async () => {
     tablaPosicionesRemota.value = []
     fixtureGenerado.value = false
     playoffsAbiertos.value = false
+
+    modalConfirmarLimpiarRef.value?.close()
 
     mensajeEstado.value = '¡Partidos eliminados correctamente! El torneo ha quedado limpio y listo para generar nuevo fixture.'
     setTimeout(() => {
