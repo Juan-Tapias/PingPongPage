@@ -107,6 +107,68 @@
           Pago e Inscripción del Jugador
         </h4>
 
+        <!-- Selector de Tipo de Cuenta -->
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200">
+            Modalidad de Pago / Cuenta <span class="text-red-500">*</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <label
+              :class="[
+                'flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all text-xs font-bold',
+                formulario.tipoCuenta === 'ahorros'
+                  ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 ring-2 ring-orange-500/20'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+              ]"
+            >
+              <input
+                type="radio"
+                name="tipoCuenta"
+                value="ahorros"
+                v-model="formulario.tipoCuenta"
+                class="text-orange-600 focus:ring-orange-500"
+              />
+              <span>Cuenta de Ahorros</span>
+            </label>
+
+            <label
+              :class="[
+                'flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all text-xs font-bold',
+                formulario.tipoCuenta === 'corriente'
+                  ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 ring-2 ring-orange-500/20'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+              ]"
+            >
+              <input
+                type="radio"
+                name="tipoCuenta"
+                value="corriente"
+                v-model="formulario.tipoCuenta"
+                class="text-orange-600 focus:ring-orange-500"
+              />
+              <span>Cuenta Corriente</span>
+            </label>
+
+            <label
+              :class="[
+                'flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all text-xs font-bold',
+                formulario.tipoCuenta === 'ninguna'
+                  ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 ring-2 ring-orange-500/20'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+              ]"
+            >
+              <input
+                type="radio"
+                name="tipoCuenta"
+                value="ninguna"
+                v-model="formulario.tipoCuenta"
+                class="text-orange-600 focus:ring-orange-500"
+              />
+              <span>Sin cuenta (Efectivo)</span>
+            </label>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
@@ -126,9 +188,9 @@
             </div>
           </div>
 
-          <div>
+          <div v-if="formulario.tipoCuenta !== 'ninguna'">
             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
-              Cuenta Bancolombia / Nequi <span class="text-red-500">*</span>
+              {{ formulario.tipoCuenta === 'corriente' ? 'Cuenta Corriente' : 'Cuenta de Ahorros' }} <span class="text-red-500">*</span>
             </label>
             <div class="relative">
               <CreditCard class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
@@ -136,15 +198,20 @@
                 v-model="formulario.numeroCuenta"
                 type="text"
                 required
-                placeholder="Ej: 310-9876543 (Nequi)"
+                :placeholder="formulario.tipoCuenta === 'corriente' ? 'Ej: 310-9876543 (Cta Corriente)' : 'Ej: 310-9876543 (Nequi / Ahorros)'"
                 class="w-full pl-9 pr-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
               />
             </div>
           </div>
 
+          <div v-else class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <Banknote class="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Pago en efectivo / En sede oficial (no requiere número de cuenta).</span>
+          </div>
+
           <div>
             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">
-              WhatsApp de Comprobantes <span class="text-red-500">*</span>
+              WhatsApp de Contacto <span class="text-red-500">*</span>
             </label>
             <div class="relative">
               <MessageSquare class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
@@ -191,7 +258,9 @@ import {
   User,
   CreditCard,
   MessageSquare,
+  Banknote,
 } from 'lucide-vue-next'
+import Modal from '@/components/Modal.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { Torneo } from '@/types'
 
@@ -208,6 +277,7 @@ interface FormularioTorneo {
   fechaInicio: string
   fechaLimiteInscripcion: string
   costoInscripcion?: number
+  tipoCuenta: 'ahorros' | 'corriente' | 'ninguna'
   numeroCuenta: string
   whatsappContacto: string
 }
@@ -218,6 +288,7 @@ const initialForm: FormularioTorneo = {
   fechaInicio: '',
   fechaLimiteInscripcion: '',
   costoInscripcion: 6000,
+  tipoCuenta: 'ahorros',
   numeroCuenta: '',
   whatsappContacto: '',
 }
@@ -248,7 +319,8 @@ const handleSubmit = () => {
     fechaInicio: formulario.fechaInicio,
     fechaLimiteInscripcion: formulario.fechaLimiteInscripcion,
     costoInscripcion: formulario.costoInscripcion ?? 0,
-    numeroCuenta: formulario.numeroCuenta.trim(),
+    tipoCuenta: formulario.tipoCuenta,
+    numeroCuenta: formulario.tipoCuenta === 'ninguna' ? '' : formulario.numeroCuenta.trim(),
     whatsappContacto: formulario.whatsappContacto.trim(),
     categoria: 'CATEGORÍA ABIERTA',
     modalidad: 'INDIVIDUAL MASCULINO',

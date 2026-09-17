@@ -39,10 +39,10 @@
           </div>
 
           <!-- Acciones Principales con Alto Impacto Visual -->
-          <div class="flex items-center gap-3 shrink-0">
+          <div class="flex items-center gap-3 shrink-0 w-full sm:w-auto">
             <button
               type="button"
-              class="flex items-center justify-center gap-2.5 px-5 py-2.5 text-xs sm:text-sm font-black text-white bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 hover:from-orange-500 hover:to-amber-400 rounded-2xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer ring-2 ring-orange-500/25"
+              class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-5 py-2.5 text-xs sm:text-sm font-black text-white bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 hover:from-orange-500 hover:to-amber-400 rounded-2xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer ring-2 ring-orange-500/25"
               @click="abrirModalCrearTorneo"
             >
               <Plus class="w-4 h-4" />
@@ -308,7 +308,7 @@
                 </div>
 
                 <!-- Fila 4: Caja de Bolsa y Finanzas (Elegante Prize Vault) -->
-                <div class="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-3 shadow-2xs">
+                <div class="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3 shadow-2xs">
                   <div class="flex items-center gap-2.5 min-w-0">
                     <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center font-bold text-sm shadow-md shadow-amber-500/20 shrink-0">
                       👑
@@ -328,7 +328,7 @@
                 </div>
 
                 <!-- Fila 5: Organizador y Fecha -->
-                <div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <div class="flex items-center gap-1.5 truncate">
                     <User class="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span class="truncate font-medium">{{ torneo.organizador || 'pipe Line' }}</span>

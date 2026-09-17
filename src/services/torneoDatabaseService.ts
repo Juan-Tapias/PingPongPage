@@ -183,6 +183,32 @@ export const actualizarPartidoDB = async (partidoId: string, datos: any): Promis
 }
 
 /**
+ * Elimina todos los partidos asociados a un torneo en Firestore
+ */
+export const eliminarPartidosTorneoDB = async (torneoId: string): Promise<void> => {
+  try {
+    const q = query(collection(db, COLECCION_PARTIDOS), where('torneoId', '==', torneoId))
+    const snap = await getDocs(q)
+    const promesas = snap.docs.map((docSnap) => deleteDoc(docSnap.ref))
+    await Promise.all(promesas)
+  } catch (error) {
+    console.warn(`Error al eliminar partidos del torneo ${torneoId}:`, error)
+  }
+}
+
+/**
+ * Elimina la tabla de posiciones oficial de un torneo en Firestore
+ */
+export const eliminarTablaPosicionesDB = async (torneoId: string): Promise<void> => {
+  try {
+    const tablaRef = doc(db, COLECCION_TABLAS_POSICIONES, torneoId)
+    await deleteDoc(tablaRef)
+  } catch (error) {
+    console.warn(`Error al eliminar tabla de posiciones del torneo ${torneoId}:`, error)
+  }
+}
+
+/**
  * Obtiene la tabla de posiciones oficial de un torneo desde la colección dedicada 'tablas_posiciones'
  */
 export const obtenerTablaPosicionesDB = async (torneoId: string): Promise<TablaPosicionesTorneo | null> => {

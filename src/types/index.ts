@@ -44,6 +44,7 @@ export interface Torneo {
   costoInscripcion: number
   fechaLimiteInscripcion: string
   numeroCuenta: string
+  tipoCuenta?: 'ahorros' | 'corriente' | 'ninguna'
   whatsappContacto: string
   estaInscrito?: boolean
 

@@ -7,9 +7,9 @@
     custom-class="w-full !max-w-[1280px] 2xl:!max-w-[1560px]"
   >
     <template #header>
-      <div v-if="torneo" class="flex flex-col md:flex-row md:items-center justify-between gap-4 w-full pr-1 sm:pr-4">
-        <div class="flex items-center gap-3 sm:gap-3.5 min-w-0">
-          <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-500/20 shrink-0 shadow-xs">
+      <div v-if="torneo" class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 w-full pr-8 sm:pr-4">
+        <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-500/20 shrink-0 shadow-xs">
             <Trophy class="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
           </div>
           <div class="min-w-0">
@@ -51,16 +51,16 @@
       </div>
     </template>
 
-    <div v-if="torneo" class="flex flex-col gap-5 pt-1">
-      <!-- Barra de Pestañas Widescreen (Grid de 4 Columnas) -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+    <div v-if="torneo" class="flex flex-col gap-4 sm:gap-5 pt-1">
+      <!-- Barra de Pestañas Widescreen con soporte scroll horizontal en móvil -->
+      <div class="flex sm:grid sm:grid-cols-4 gap-1.5 sm:gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-x-auto scrollbar-none">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           type="button"
           :disabled="tab.bloqueado"
           :class="[
-            'flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all select-none',
+            'flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all select-none shrink-0 sm:shrink min-w-[130px] sm:min-w-0 whitespace-nowrap',
             tab.bloqueado ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600' : 'cursor-pointer',
             tabActiva === tab.id
               ? 'bg-white dark:bg-[#0f172a] text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200/60 dark:ring-slate-700/60'
@@ -93,14 +93,14 @@
           </div>
         </div>
 
-        <!-- Barra de Estado y Cambio Rápido -->
-        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
+        <!-- Barra de Estado y Cambio Rápido con Flexwrap -->
+        <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Estado Actual:
             </span>
             <span
-              class="text-xs font-black uppercase px-3 py-1 rounded-lg tracking-wider"
+              class="text-xs font-black uppercase px-2.5 sm:px-3 py-1 rounded-lg tracking-wider"
               :class="obtenerBadgeEstado(torneo.estado)"
             >
               {{ torneo.estado }}
@@ -111,11 +111,11 @@
           </div>
 
           <!-- Botones de Cambio Rápido con validación estricta -->
-          <div class="flex items-center gap-2 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-700 self-start md:self-auto shadow-2xs">
+          <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-700 self-start sm:self-auto shadow-2xs">
             <button
               type="button"
               :class="[
-                'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
                 torneo.estado === 'por iniciar'
                   ? 'bg-sky-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -129,7 +129,7 @@
               :disabled="!fixtureGenerado"
               :title="!fixtureGenerado ? 'Debes hacer clic en Generar Partidos primero para iniciar la Fase 1' : 'Fase 1: En Curso'"
               :class="[
-                'px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
+                'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
                 !fixtureGenerado
                   ? 'opacity-40 cursor-not-allowed text-slate-400'
                   : torneo.estado === 'en curso'
@@ -143,7 +143,7 @@
             <button
               type="button"
               :class="[
-                'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer',
                 torneo.estado === 'finalizado'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -181,11 +181,11 @@
                 Algoritmo matemático de rotación circular <strong>N × (N - 1) / 2 = {{ totalPartidosEstimados }} partidos únicos</strong>. Al hacer clic en <strong>Generar Partidos</strong> se programa automáticamente el calendario oficial y el torneo pasa a <strong>Fase 1: En Curso</strong>.
               </p>
 
-              <!-- 4 Indicadores Clave -->
+              <!-- 4 Indicadores Clave (Solo jugadores con pago verificado) -->
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Jugadores</span>
-                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">{{ jugadoresTorneo.length }} Ofic.</span>
+                  <span class="font-mono font-black text-sm text-slate-900 dark:text-white">{{ jugadoresAprobados.length }} Ofic.</span>
                 </div>
                 <div class="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
                   <span class="text-[10px] text-slate-400 uppercase font-bold block">Partidos</span>
@@ -202,18 +202,17 @@
               </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row items-center gap-2 mt-2">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2">
               <Button
                 variant="primary"
                 size="md"
-                class="w-full justify-center gap-2 font-bold cursor-pointer"
-                :disabled="fixtureGenerado || jugadoresTorneo.length < 2"
+                class="flex-1 justify-center gap-2 font-bold cursor-pointer"
+                :disabled="fixtureGenerado || jugadoresAprobados.length < 2 || animandoGeneracion"
                 @click="generarPartidos"
               >
                 <RefreshCw class="w-4 h-4" :class="animandoGeneracion ? 'animate-spin' : ''" />
                 <span>{{ fixtureGenerado ? `Partidos Generados (${totalPartidosEstimados} programados)` : 'Generar Partidos' }}</span>
               </Button>
-
 
               <!-- Botón directo para ir a la pestaña si ya fueron generados -->
               <Button
@@ -225,6 +224,20 @@
               >
                 <Swords class="w-4 h-4 text-orange-500" />
                 <span>Ver Partidos</span>
+              </Button>
+
+              <!-- Botón para Limpiar / Reiniciar Partidos -->
+              <Button
+                v-if="fixtureGenerado"
+                variant="outline"
+                size="md"
+                class="w-full sm:w-auto shrink-0 justify-center gap-1.5 font-bold cursor-pointer border-rose-300 dark:border-rose-800/80 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                :disabled="limpiandoPartidos"
+                title="Eliminar los partidos generados y volver a dejar el torneo listo para generar"
+                @click="limpiarPartidosTorneo"
+              >
+                <RotateCcw class="w-4 h-4 text-rose-500" :class="limpiandoPartidos ? 'animate-spin' : ''" />
+                <span>Limpiar Partidos</span>
               </Button>
             </div>
           </div>
@@ -392,7 +405,7 @@
 
         <!-- Vista normal de partidos cuando ya fueron generados -->
         <template v-else>
-          <!-- Subfiltros de Partidos -->
+          <!-- Subfiltros de Partidos y Acción de Limpieza -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
             <div class="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-x-auto scrollbar-none w-full sm:w-auto">
               <button
@@ -411,9 +424,21 @@
               </button>
             </div>
 
-            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 text-right sm:text-left">
-              Plazo: 48h • Al 3er día: dictamen W.O.
-            </span>
+            <div class="flex items-center justify-between sm:justify-end gap-2.5">
+              <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Plazo: 48h • W.O.
+              </span>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg border border-rose-300 dark:border-rose-800/80 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer shrink-0"
+                :disabled="limpiandoPartidos"
+                title="Eliminar los partidos actuales para volver a generar un fixture nuevo"
+                @click="limpiarPartidosTorneo"
+              >
+                <RotateCcw class="w-3.5 h-3.5 text-rose-500" :class="limpiandoPartidos ? 'animate-spin' : ''" />
+                <span>Limpiar Partidos</span>
+              </button>
+            </div>
           </div>
 
           <!-- Lista de Partidos en Cuadrícula: 1 col móvil, 2 cols tablet, 3 cols laptop/24", 4 cols 27" -->
@@ -677,121 +702,175 @@
       <!-- TAB 4: PARTICIPANTES Y PAGOS ($6.000 COP) -->
       <!-- ============================================== -->
       <div v-if="tabActiva === 'jugadores'" class="flex flex-col gap-4">
-        <!-- Estado vacío si no hay inscritos -->
+        <!-- Estado vacío si no hay inscritos en absoluto -->
         <div v-if="jugadoresTorneo.length === 0" class="p-10 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col items-center justify-center text-center gap-3">
           <div class="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-500 flex items-center justify-center">
             <Users class="w-6 h-6" />
           </div>
           <div>
             <h4 class="text-sm font-bold text-slate-900 dark:text-white">
-              Aún no hay participantes inscritos
+              Aún no hay participantes registrados
             </h4>
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Las inscripciones y comprobantes de pago aparecerán aquí a medida que los jugadores se registren.
             </p>
-
           </div>
         </div>
 
         <template v-else>
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Directorio de Participantes Oficiales
-            </h4>
-            <p class="text-xs text-slate-500 dark:text-slate-400">
-              Validación de jugadores para admisión oficial al torneo.
-            </p>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Directorio de Participantes Oficiales
+              </h4>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Visualización de jugadores inscritos con validación de pago.
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto shadow-2xs">
+                {{ jugadoresAprobados.length }} Jugadores con Pago Verificado (${{ (torneo?.costoInscripcion || 6000).toLocaleString('es-CO') }} COP c/u)
+              </span>
+            </div>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
+          <!-- Sub-filtros para Inscritos & Pagos (Por defecto muestra los verificados) -->
+          <div class="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700">
+            <button
+              type="button"
+              :class="[
+                'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
+                filtroInscritos === 'aprobados'
+                  ? 'bg-white dark:bg-[#0f172a] text-emerald-700 dark:text-emerald-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ]"
+              @click="filtroInscritos = 'aprobados'"
+            >
+              <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
+              <span>Inscritos y Pagos Verificados ({{ jugadoresAprobados.length }})</span>
+            </button>
 
+            <button
+              type="button"
+              :class="[
+                'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
+                filtroInscritos === 'pendientes'
+                  ? 'bg-white dark:bg-[#0f172a] text-amber-700 dark:text-amber-300 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ]"
+              @click="filtroInscritos = 'pendientes'"
+            >
+              <Clock class="w-3.5 h-3.5 text-amber-500" />
+              <span>Pendientes por Verificar ({{ jugadoresPendientes.length }})</span>
+            </button>
 
-            <span class="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto shadow-2xs">
-              {{ jugadoresAprobados.length }} / {{ jugadoresTorneo.length }} Jugadores Aprobados (${{ (torneo?.costoInscripcion || 6000).toLocaleString('es-CO') }} COP c/u)
+            <button
+              type="button"
+              :class="[
+                'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5',
+                filtroInscritos === 'todos'
+                  ? 'bg-white dark:bg-[#0f172a] text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ]"
+              @click="filtroInscritos = 'todos'"
+            >
+              <span>Todos los Registros ({{ jugadoresTorneo.length }})</span>
+            </button>
+          </div>
+
+          <!-- Estado si no hay registros en la vista activa -->
+          <div v-if="jugadoresFiltrados.length === 0" class="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-center text-xs text-slate-500">
+            <span v-if="filtroInscritos === 'aprobados'">
+              Aún no hay jugadores con pago verificado en este torneo. Puedes cambiar al filtro <strong>"Pendientes por Verificar"</strong> para revisar comprobantes y admitir jugadores.
+            </span>
+            <span v-else-if="filtroInscritos === 'pendientes'">
+              ¡Al día! No hay comprobantes pendientes de validación.
+            </span>
+            <span v-else>
+              No se encontraron participantes.
             </span>
           </div>
-        </div>
 
-        <div class="border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
-          <div class="overflow-x-auto max-h-[420px]">
-            <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-              <thead class="bg-slate-50 dark:bg-slate-900/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-10">
-                <tr>
-                  <th class="py-3.5 px-4">Jugador</th>
-                  <th class="py-3.5 px-4">Tipo</th>
-                  <th class="py-3.5 px-4">Teléfono</th>
-                  <th class="py-3.5 px-4 text-center">Estado</th>
-                  <th class="py-3.5 px-4 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                <tr v-for="jugador in jugadoresTorneo" :key="jugador.id" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                  <td class="py-3.5 px-4">
-                    <div class="flex items-center gap-2.5">
-                      <div class="w-7 h-7 rounded-full bg-sky-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                        {{ jugador.iniciales }}
+          <div v-else class="border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+            <div class="overflow-x-auto max-h-[420px]">
+              <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300 min-w-[560px]">
+                <thead class="bg-slate-50 dark:bg-slate-900/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-10">
+                  <tr>
+                    <th class="py-3.5 px-4">Jugador</th>
+                    <th class="py-3.5 px-4">Tipo</th>
+                    <th class="py-3.5 px-4">Teléfono</th>
+                    <th class="py-3.5 px-4 text-center">Estado de Pago</th>
+                    <th class="py-3.5 px-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  <tr v-for="jugador in jugadoresFiltrados" :key="jugador.id" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                    <td class="py-3.5 px-4">
+                      <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-full bg-sky-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                          {{ jugador.iniciales }}
+                        </div>
+                        <span class="font-bold text-slate-900 dark:text-white">{{ jugador.nombre }}</span>
                       </div>
-                      <span class="font-bold text-slate-900 dark:text-white">{{ jugador.nombre }}</span>
-                    </div>
-                  </td>
-                  <td class="py-3.5 px-4">
-                    <span
-                      class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded"
-                      :class="jugador.tipo === 'camper' ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'"
-                    >
-                      {{ jugador.tipo }}
-                    </span>
-                  </td>
-                  <td class="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-300">
-                    {{ jugador.telefono || 'Sin teléfono' }}
-                  </td>
-                  <td class="py-3.5 px-4 text-center">
-                    <span
-                      class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full"
-                      :class="jugador.pagoValidado ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'"
-                    >
-                      {{ jugador.pagoValidado ? 'Aprobado' : 'Pendiente' }}
-                    </span>
-                  </td>
-                  <td class="py-3.5 px-4 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        class="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-600 text-blue-600 hover:text-white border border-blue-200 dark:border-blue-900 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
-                        title="Ver y auditar comprobante bancario"
-                        @click="verComprobanteJugador(jugador)"
+                    </td>
+                    <td class="py-3.5 px-4">
+                      <span
+                        class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded"
+                        :class="jugador.tipo === 'camper' ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'"
                       >
-                        <Receipt class="w-3.5 h-3.5" />
-                        <span>Comprobante</span>
-                      </button>
+                        {{ jugador.tipo }}
+                      </span>
+                    </td>
+                    <td class="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-300">
+                      {{ jugador.telefono || 'Sin teléfono' }}
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                      <span
+                        class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full"
+                        :class="jugador.pagoValidado ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300'"
+                      >
+                        {{ jugador.pagoValidado ? 'Pago Aprobado' : 'Pendiente' }}
+                      </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          class="px-2.5 py-1 text-xs font-bold rounded-lg bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-600 text-blue-600 hover:text-white border border-blue-200 dark:border-blue-900 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                          title="Ver y auditar comprobante bancario"
+                          @click="verComprobanteJugador(jugador)"
+                        >
+                          <Receipt class="w-3.5 h-3.5" />
+                          <span>Comprobante</span>
+                        </button>
 
-                      <button
-                        v-if="!jugador.pagoValidado"
-                        type="button"
-                        class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
-                        title="Aprobar jugador para el torneo"
-                        @click="aprobarJugador(jugador)"
-                      >
-                        <Check class="w-3.5 h-3.5" />
-                        <span>Aprobar</span>
-                      </button>
-                      <button
-                        type="button"
-                        class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 dark:border-rose-900 transition-colors cursor-pointer inline-flex items-center gap-1"
-                        :title="jugador.pagoValidado ? 'Excluir del torneo' : 'Rechazar inscripción'"
-                        @click="rechazarJugador(jugador)"
-                      >
-                        <X class="w-3.5 h-3.5" />
-                        <span>Rechazar</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                        <button
+                          v-if="!jugador.pagoValidado"
+                          type="button"
+                          class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                          title="Aprobar jugador para el torneo"
+                          @click="aprobarJugador(jugador)"
+                        >
+                          <Check class="w-3.5 h-3.5" />
+                          <span>Aprobar</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 dark:border-rose-900 transition-colors cursor-pointer inline-flex items-center gap-1"
+                          :title="jugador.pagoValidado ? 'Excluir del torneo' : 'Rechazar inscripción'"
+                          @click="rechazarJugador(jugador)"
+                        >
+                          <X class="w-3.5 h-3.5" />
+                          <span>Rechazar</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
         </template>
       </div>
     </div>
@@ -814,6 +893,8 @@ import {
   Users,
   Swords,
   RefreshCw,
+  RotateCcw,
+  Clock,
   CheckCircle2,
   AlertTriangle,
   Gavel,
@@ -832,12 +913,15 @@ import {
   obtenerPartidosDB,
   suscribirPartidosDB,
   guardarPartidosDB,
+  eliminarPartidosTorneoDB,
+  actualizarEstadoTorneoDB,
   actualizarEstadoInscripcionDB,
   eliminarInscripcionDB,
   actualizarClasificadosPlayoffsDB,
   obtenerTablaPosicionesDB,
   suscribirTablaPosicionesDB,
   guardarTablaPosicionesDB,
+  eliminarTablaPosicionesDB,
 } from '@/services/torneoDatabaseService'
 import {
   calcularTablaDesdePartidos,
@@ -966,7 +1050,7 @@ watch(
   { immediate: true }
 )
 
-// Pestañas dinámicas con bloqueo inteligente
+// Pestañas dinámicas con conteo de inscritos oficial
 const tabs = computed(() => [
   { id: 'fases' as const, nombre: 'Control de Fases', icono: Share2, bloqueado: false },
   {
@@ -987,13 +1071,22 @@ const tabs = computed(() => [
     id: 'jugadores' as const,
     nombre: 'Inscritos & Pagos',
     icono: Users,
-    badge: jugadoresTorneo.value.length > 0 ? `${jugadoresTorneo.value.length}` : undefined,
+    badge: jugadoresAprobados.value.length > 0 ? `${jugadoresAprobados.value.length}` : undefined,
     bloqueado: false,
   },
 ])
 
 // Cálculos y Participantes Aprobados
 const jugadoresAprobados = computed(() => jugadoresTorneo.value.filter(j => j.pagoValidado))
+const jugadoresPendientes = computed(() => jugadoresTorneo.value.filter(j => !j.pagoValidado))
+const filtroInscritos = ref<'aprobados' | 'pendientes' | 'todos'>('aprobados')
+const jugadoresFiltrados = computed(() => {
+  if (filtroInscritos.value === 'aprobados') return jugadoresAprobados.value
+  if (filtroInscritos.value === 'pendientes') return jugadoresPendientes.value
+  return jugadoresTorneo.value
+})
+
+const limpiandoPartidos = ref(false)
 
 const clasificadosSeleccionados = ref<number>(props.torneo?.clasificadosPlayoffs || 4)
 
@@ -1163,7 +1256,8 @@ const verComprobanteJugador = (jugador: any) => {
     torneoNombre: props.torneo?.nombre || 'Torneo Ping Pong',
     monto: props.torneo?.costoInscripcion || 6000,
     referencia: jugador.referencia || `TRX-${(jugador.id || '').substring(0, 8).toUpperCase()}`,
-    cuentaDestino: props.torneo?.numeroCuenta || '312-890-4421',
+    cuentaDestino: props.torneo?.numeroCuenta || '',
+    tipoCuenta: props.torneo?.tipoCuenta || 'ahorros',
     pagoValidado: jugador.pagoValidado,
     banco: jugador.banco || 'nequi',
     comprobanteUrl: jugador.comprobanteUrl || null,
@@ -1185,11 +1279,43 @@ const handleRechazarComprobante = (id: string) => {
 }
 
 
+// Limpieza y Reinicio de Partidos Generados
+const limpiarPartidosTorneo = async () => {
+  if (!props.torneo?.id) return
+  const confirmar = window.confirm(
+    '¿Estás seguro de que deseas eliminar todos los partidos generados de este torneo? ' +
+    'Se borrará el fixture actual y la tabla de posiciones, el torneo volverá a estado "Por Iniciar" y quedará limpio para volver a generarlo.'
+  )
+  if (!confirmar) return
+
+  limpiandoPartidos.value = true
+  try {
+    await eliminarPartidosTorneoDB(props.torneo.id)
+    await eliminarTablaPosicionesDB(props.torneo.id)
+    await actualizarEstadoTorneoDB(props.torneo.id, 'por iniciar')
+    emit('actualizar-estado', props.torneo.id, 'por iniciar')
+
+    partidosTorneo.value = []
+    tablaPosicionesRemota.value = []
+    fixtureGenerado.value = false
+    playoffsAbiertos.value = false
+
+    mensajeEstado.value = '¡Partidos eliminados correctamente! El torneo ha quedado limpio y listo para generar nuevo fixture.'
+    setTimeout(() => {
+      mensajeEstado.value = ''
+    }, 5000)
+  } catch (err) {
+    console.error('Error al limpiar partidos:', err)
+  } finally {
+    limpiandoPartidos.value = false
+  }
+}
+
 // Generación Oficial de Partidos (Transición obligatoria a Fase 1: En Curso)
 const generarPartidos = async () => {
-  const participantes = jugadoresAprobados.value
+  const participantes = jugadoresAprobados.value.filter(j => j.pagoValidado === true && j.subestado !== 'PENDIENTE')
   if (participantes.length < 2) {
-    mensajeEstado.value = 'Se requieren al menos 2 jugadores aprobados para generar los partidos.'
+    mensajeEstado.value = 'Se requieren al menos 2 jugadores con pago verificado para generar los partidos.'
     setTimeout(() => { mensajeEstado.value = '' }, 4000)
     return
   }

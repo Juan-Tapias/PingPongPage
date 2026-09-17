@@ -186,11 +186,11 @@
                   <CreditCard class="w-3 h-3 text-slate-400" />
                   Cuenta Destino
                 </span>
-                <span class="font-mono font-bold text-slate-900 dark:text-white block mt-0.5">
-                  {{ solicitud.cuentaDestino || '312-890-4421' }}
+                <span class="font-mono font-bold text-slate-900 dark:text-white block mt-0.5 truncate">
+                  {{ solicitud.cuentaDestino || 'Pago en Efectivo / Sede' }}
                 </span>
                 <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                  Ping Pong Circuit Oficial
+                  {{ solicitud.cuentaDestino ? (solicitud.tipoCuenta === 'corriente' ? 'Cuenta Corriente Oficial' : 'Cuenta de Ahorros Oficial') : 'Pago en Efectivo' }}
                 </span>
               </div>
 

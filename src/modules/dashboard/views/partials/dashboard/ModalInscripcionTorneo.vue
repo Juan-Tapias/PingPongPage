@@ -28,12 +28,44 @@
       </p>
 
       <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 text-xs text-slate-700 dark:text-slate-300">
-        <div class="flex items-start gap-2.5">
+        <!-- Caso 1: Sin cuenta bancaria (Efectivo / En sede) -->
+        <div v-if="torneo.tipoCuenta === 'ninguna' || !torneo.numeroCuenta" class="flex items-start gap-2.5">
+          <Banknote class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900 dark:text-white">Pago en Efectivo / En Sede</span>
+              <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300">
+                Presencial
+              </span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">
+              No se requiere transferencia bancaria. Puedes realizar el pago de inscripción en efectivo directamente con el comité organizador o en la mesa de control oficial antes del inicio.
+            </p>
+          </div>
+        </div>
+
+        <!-- Caso 2: Cuenta bancaria (Ahorros o Corriente) -->
+        <div v-else class="flex items-start gap-2.5">
           <CreditCard class="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
           <div class="flex-1">
-            <span>Para ingresar al torneo tiene que mandar el costo a este número de cuenta:</span>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900 dark:text-white">
+                {{ torneo.tipoCuenta === 'corriente' ? 'Cuenta Corriente' : 'Cuenta de Ahorros' }}
+              </span>
+              <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300">
+                {{ torneo.tipoCuenta === 'corriente' ? 'Cta. Corriente' : 'Cta. de Ahorros' }}
+              </span>
+            </div>
+            <span class="text-xs text-slate-600 dark:text-slate-300 block mt-0.5">
+              Para ingresar al torneo debes transferir el valor a esta <strong>{{ torneo.tipoCuenta === 'corriente' ? 'Cuenta Corriente' : 'Cuenta de Ahorros' }}</strong>:
+            </span>
             <div class="flex items-center justify-between mt-1.5 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white text-xs">
-              <span class="font-bold tracking-wider">{{ torneo.numeroCuenta }}</span>
+              <div class="flex flex-col">
+                <span class="text-[10px] text-slate-400 uppercase font-sans font-semibold">
+                  Tipo: {{ torneo.tipoCuenta === 'corriente' ? 'Cuenta Corriente' : 'Cuenta de Ahorros' }}
+                </span>
+                <span class="font-bold tracking-wider text-sm">{{ torneo.numeroCuenta }}</span>
+              </div>
               <button
                 type="button"
                 class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-sans font-semibold"
@@ -87,7 +119,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { CreditCard, MessageSquare, Clock, Copy, Check } from 'lucide-vue-next'
+import { CreditCard, MessageSquare, Clock, Copy, Check, Banknote } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import type { Torneo } from '@/types'
 
