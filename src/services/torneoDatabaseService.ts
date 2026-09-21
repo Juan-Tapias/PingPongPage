@@ -127,6 +127,31 @@ export const eliminarInscripcionDB = async (inscripcionId: string): Promise<void
 }
 
 
+/**
+ * Ordena los partidos de forma estrictamente numérica por:
+ * 1) Ronda / Jornada cronológica (1, 2, 3...)
+ * 2) Número de partido dentro de la jornada o torneo (1, 2, 3...)
+ */
+export const ordenarPartidosNumerico = (partidos: any[]): any[] => {
+  return [...partidos].sort((a, b) => {
+    const rondaA = Number(a.ronda ?? a.jornada ?? 1)
+    const rondaB = Number(b.ronda ?? b.jornada ?? 1)
+    if (rondaA !== rondaB) {
+      return rondaA - rondaB
+    }
+
+    const extraerNumero = (item: any): number => {
+      if (typeof item.numeroPartido === 'number') return item.numeroPartido
+      const match = String(item.id || '').match(/(\d+)$/)
+      return match && match[1] ? parseInt(match[1], 10) : 0
+    }
+
+    const numA = extraerNumero(a)
+    const numB = extraerNumero(b)
+    return numA - numB
+  })
+}
+
 export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
   try {
     const q = query(collection(db, COLECCION_PARTIDOS), where('torneoId', '==', torneoId))
@@ -135,7 +160,7 @@ export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
     snap.forEach((documento) => {
       partidos.push({ id: documento.id, ...documento.data() })
     })
-    return partidos
+    return ordenarPartidosNumerico(partidos)
   } catch (error) {
     console.warn('Error al obtener partidos:', error)
     return []
@@ -158,7 +183,7 @@ export const suscribirPartidosDB = (
       snap.forEach((documento) => {
         partidos.push({ id: documento.id, ...documento.data() })
       })
-      onActualizar(partidos)
+      onActualizar(ordenarPartidosNumerico(partidos))
     },
     (err) => {
       console.warn('Error en listener en tiempo real de partidos:', err)

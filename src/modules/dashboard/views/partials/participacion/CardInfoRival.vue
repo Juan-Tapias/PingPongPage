@@ -6,10 +6,15 @@
           {{ rival.jugador.iniciales }}
         </div>
         <div>
-          <span class="text-[10px] font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
-            {{ rival.esRivalDeTurno ? 'Rival de Turno (A las 12)' : 'Partido Pendiente' }}
-          </span>
-          <h4 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug mt-0.5">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+              {{ rival.esRivalDeTurno ? 'Rival de Turno (A las 12)' : 'Partido Pendiente' }}
+            </span>
+            <span v-if="rival.partido?.ronda" class="text-[10px] font-black text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+              Ronda {{ rival.partido.ronda }}
+            </span>
+          </div>
+          <h4 class="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug mt-1">
             {{ rival.jugador.nombre }}
           </h4>
         </div>

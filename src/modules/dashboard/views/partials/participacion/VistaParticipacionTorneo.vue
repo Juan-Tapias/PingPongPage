@@ -282,6 +282,7 @@
           :torneo="torneo"
           :partidos="partidos"
           :jugador-centro="jugadorEnCentro"
+          :ronda-actual="rondaActual"
         />
 
         <CardInfoRival
@@ -367,6 +368,7 @@ const {
   jugadorEnCentro,
   rivalesPerimetro,
   rivalDeTurno,
+  rondaActual,
   partidos,
   esVistaRival,
   verVistaRival,

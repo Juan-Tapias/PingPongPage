@@ -405,7 +405,7 @@
 
         <!-- Vista normal de partidos cuando ya fueron generados -->
         <template v-else>
-          <!-- Subfiltros de Partidos y Acción de Limpieza -->
+          <!-- Fila 1: Subfiltros de Estado y Acción de Limpieza -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
             <div class="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-x-auto scrollbar-none w-full sm:w-auto">
               <button
@@ -441,101 +441,301 @@
             </div>
           </div>
 
-          <!-- Lista de Partidos en Cuadrícula: 1 col móvil, 2 cols tablet, 3 cols laptop/24", 4 cols 27" -->
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 max-h-[480px] 2xl:max-h-[600px] overflow-y-auto pr-1">
-            <div
-              v-for="partido in partidosFiltrados"
-              :key="partido.id"
-              class="p-3.5 sm:p-4 rounded-2xl border bg-white dark:bg-[#0f172a] transition-all flex flex-col justify-between gap-3 shadow-xs"
-              :class="partido.estado === 'pendiente_admin' ? 'border-amber-400/90 dark:border-amber-700 bg-amber-50/20 dark:bg-amber-950/20 ring-1 ring-amber-400/30' : 'border-slate-200/80 dark:border-slate-800'"
-            >
-              <!-- Cabecera de Tarjeta: Ronda y Estado -->
-              <div class="flex items-center justify-between text-[11px] pb-2.5 border-b border-slate-100 dark:border-slate-800">
-                <span class="font-bold text-slate-500 uppercase tracking-wider truncate">
-                  Ronda {{ partido.ronda }}
+          <!-- Fila 2: Selector y Navegación de Rondas + Buscador de Participantes -->
+          <div class="p-3 rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col gap-2.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <!-- Navegación y Salto Directo a Ronda -->
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Calendar class="w-3.5 h-3.5 text-sky-500" />
+                  Rondas / Fechas:
                 </span>
 
-                <span
-                  v-if="partido.estado === 'en_curso'"
-                  class="inline-flex items-center gap-1 font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 shrink-0"
+                <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700">
+                  <button
+                    type="button"
+                    :disabled="rondaSeleccionada === 'todas' || rondaSeleccionada <= 1"
+                    class="p-1 rounded-md text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="Ronda anterior"
+                    @click="irARondaAnterior"
+                  >
+                    <ChevronLeft class="w-4 h-4" />
+                  </button>
+
+                  <span class="text-xs font-black px-2 text-slate-900 dark:text-white select-none whitespace-nowrap">
+                    {{ rondaSeleccionada === 'todas' ? 'Todas las Rondas' : `Ronda ${rondaSeleccionada} de ${rondasDisponibles.length}` }}
+                  </span>
+
+                  <button
+                    type="button"
+                    :disabled="rondaSeleccionada === 'todas' || rondaSeleccionada >= rondasDisponibles.length"
+                    class="p-1 rounded-md text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    title="Ronda siguiente"
+                    @click="irARondaSiguiente"
+                  >
+                    <ChevronRight class="w-4 h-4" />
+                  </button>
+                </div>
+
+                <!-- Botón Salto a Ronda Actual si difiere de la seleccionada -->
+                <button
+                  v-if="rondaSeleccionada !== rondaActual"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors cursor-pointer"
+                  title="Ir a la fecha que actualmente se está jugando"
+                  @click="irARondaActual"
                 >
                   <span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
-                  En vivo
-                </span>
-
-                <span
-                  v-else-if="partido.estado === 'pendiente_admin'"
-                  class="inline-flex items-center gap-1 font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800 shrink-0"
-                >
-                  <AlertTriangle class="w-3 h-3 text-amber-600" />
-                  >48h Expirado
-                </span>
-
-                <span
-                  v-else-if="partido.estado === 'jugado'"
-                  class="font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 shrink-0"
-                >
-                  Finalizado
-                </span>
-
-                <span v-else class="text-slate-500 dark:text-slate-400 font-medium shrink-0">
-                  {{ partido.diasRestantes }}d restantes
-                </span>
+                  <span>Ir a Ronda Actual (R{{ rondaActual }})</span>
+                </button>
               </div>
 
-              <!-- Jugador 1 vs Jugador 2 -->
-              <div class="flex items-center justify-between gap-1.5 sm:gap-2 py-1">
-                <!-- Jugador 1 -->
-                <div class="flex items-center gap-2 min-w-0 flex-1">
-                  <span class="w-7 h-7 rounded-full bg-slate-900 dark:bg-slate-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    {{ partido.jugador1.iniciales }}
+              <!-- Buscador de Participante -->
+              <div class="relative w-full sm:w-64">
+                <Search class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  v-model="busquedaJugador"
+                  type="text"
+                  placeholder="Buscar jugador..."
+                  class="w-full text-xs pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                />
+                <button
+                  v-if="busquedaJugador"
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+                  @click="busquedaJugador = ''"
+                >
+                  <X class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Scrollable Pills de Rondas -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-0.5">
+              <button
+                type="button"
+                :class="[
+                  'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 border',
+                  rondaSeleccionada === 'todas'
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                    : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
+                ]"
+                @click="rondaSeleccionada = 'todas'"
+              >
+                <span>Todas</span>
+                <span class="text-[10px] font-mono opacity-80">({{ partidosTorneo.length }})</span>
+              </button>
+
+              <button
+                v-for="r in rondasDisponibles"
+                :key="r"
+                type="button"
+                :class="[
+                  'px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 border',
+                  rondaSeleccionada === r
+                    ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
+                    : r === rondaActual
+                      ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-800 hover:border-sky-400'
+                      : estadoRonda(r) === 'completada'
+                        ? 'bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border-slate-200/80 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white'
+                ]"
+                @click="rondaSeleccionada = r"
+              >
+                <span>Ronda {{ r }}</span>
+                <span
+                  v-if="r === rondaActual"
+                  class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"
+                  title="Ronda en curso"
+                ></span>
+                <span
+                  v-else-if="estadoRonda(r) === 'completada'"
+                  class="text-[10px] text-emerald-600 dark:text-emerald-400"
+                >✓</span>
+                <span class="text-[10px] font-mono opacity-70">({{ contarPartidosPorRonda(r) }})</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Contenedor con Scroll de Partidos Agrupados por Ronda -->
+          <div class="flex flex-col gap-5 max-h-[500px] 2xl:max-h-[620px] overflow-y-auto pr-1">
+            <!-- Si no hay partidos con los filtros aplicados -->
+            <div
+              v-if="partidosAgrupadosPorRonda.length === 0"
+              class="p-8 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col items-center justify-center text-center gap-2"
+            >
+              <Search class="w-8 h-8 text-slate-400" />
+              <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">
+                No se encontraron partidos con los filtros seleccionados
+              </h4>
+              <p class="text-xs text-slate-400">
+                Prueba cambiando el estado, la ronda seleccionada o limpiando el buscador.
+              </p>
+              <button
+                type="button"
+                class="mt-2 text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                @click="filtroPartidos = 'todos'; rondaSeleccionada = 'todas'; busquedaJugador = ''"
+              >
+                Restablecer todos los filtros
+              </button>
+            </div>
+
+            <!-- Secciones de Ronda -->
+            <div
+              v-for="grupo in partidosAgrupadosPorRonda"
+              :key="grupo.ronda"
+              class="flex flex-col gap-3"
+            >
+              <!-- Encabezado de la Ronda -->
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <span class="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-black text-xs border border-sky-500/20">
+                    {{ grupo.ronda }}
                   </span>
-                  <span class="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {{ partido.jugador1.nombre }}
+                  <div>
+                    <h4 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Ronda {{ grupo.ronda }} • Fecha Oficial
+                    </h4>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                      {{ grupo.partidos.length }} enfrentamiento{{ grupo.partidos.length === 1 ? '' : 's' }} programado{{ grupo.partidos.length === 1 ? '' : 's' }}
+                    </span>
+                  </div>
+
+                  <span
+                    v-if="grupo.ronda === rondaActual"
+                    class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-sky-100/80 dark:bg-sky-950/70 px-2 py-0.5 rounded border border-sky-300 dark:border-sky-800"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
+                    En Juego (Fecha Activa)
+                  </span>
+
+                  <span
+                    v-else-if="grupo.totalPendientes === 0 && grupo.partidos.length > 0"
+                    class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800"
+                  >
+                    ✓ Fecha Completada
                   </span>
                 </div>
 
-                <!-- VS o Marcador -->
-                <div class="flex flex-col items-center shrink-0 px-1 sm:px-2">
-                  <span v-if="partido.marcador" class="font-mono text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
-                    {{ partido.marcador }}
+                <!-- Resumen de Métricas de la Ronda -->
+                <div class="flex items-center gap-2 text-[11px] font-bold self-end sm:self-auto">
+                  <span class="text-slate-500 dark:text-slate-400">
+                    <strong class="text-emerald-700 dark:text-emerald-400 font-mono">{{ grupo.totalJugados }}</strong>/{{ grupo.partidos.length }} jugados
                   </span>
-                  <span v-else class="text-[10px] font-black font-mono text-slate-400 px-1.5 sm:px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">
-                    VS
+                  <span class="text-slate-300 dark:text-slate-700">•</span>
+                  <span class="text-slate-500 dark:text-slate-400">
+                    <strong class="text-slate-800 dark:text-slate-200 font-mono">{{ grupo.totalPendientes }}</strong> pendientes
                   </span>
-                </div>
-
-                <!-- Jugador 2 -->
-                <div class="flex items-center justify-end gap-2 min-w-0 flex-1 text-right">
-                  <span class="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {{ partido.jugador2.nombre }}
-                  </span>
-                  <span class="w-7 h-7 rounded-full bg-sky-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    {{ partido.jugador2.iniciales }}
+                  <span v-if="grupo.totalEnVivo > 0" class="text-slate-300 dark:text-slate-700">•</span>
+                  <span v-if="grupo.totalEnVivo > 0" class="text-sky-700 dark:text-sky-400 font-bold">
+                    {{ grupo.totalEnVivo }} en vivo
                   </span>
                 </div>
               </div>
 
-              <!-- Pie de Tarjeta con Marcador Detallado o Botón W.O. -->
-              <div class="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800 gap-2">
-                <span v-if="partido.marcadorDetallado" class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">
-                  Sets: {{ partido.marcadorDetallado }}
-                </span>
-                <span v-else class="text-[11px] text-slate-400 truncate">
-                  {{ partido.estado === 'pendiente_admin' ? 'Conflicto de plazo' : 'Sin iniciar' }}
-                </span>
-
-                <!-- Botón Resolver por W.O. si está en conflicto -->
-                <Button
-                  v-if="partido.estado === 'pendiente_admin'"
-                  variant="outline"
-                  size="sm"
-                  class="gap-1.5 text-xs border-amber-400 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/40 cursor-pointer font-bold ml-auto shadow-2xs shrink-0"
-                  @click="resolverPartido(partido)"
+              <!-- Cuadrícula de Partidos de esta Ronda -->
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                <div
+                  v-for="(partido, idxPart) in grupo.partidos"
+                  :key="partido.id"
+                  class="p-3.5 sm:p-4 rounded-2xl border bg-white dark:bg-[#0f172a] transition-all flex flex-col justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-700"
+                  :class="partido.estado === 'pendiente_admin' ? 'border-amber-400/90 dark:border-amber-700 bg-amber-50/20 dark:bg-amber-950/20 ring-1 ring-amber-400/30' : 'border-slate-200/80 dark:border-slate-800'"
                 >
-                  <Gavel class="w-3.5 h-3.5 text-amber-600" />
-                  <span>Dictaminar W.O.</span>
-                </Button>
+                  <!-- Cabecera de Tarjeta: Ronda, Índice y Estado -->
+                  <div class="flex items-center justify-between text-[11px] pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                    <span class="font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider truncate">
+                      Ronda {{ partido.ronda }} • Partido {{ idxPart + 1 }} de {{ grupo.partidos.length }}
+                    </span>
+
+                    <span
+                      v-if="partido.estado === 'en_curso'"
+                      class="inline-flex items-center gap-1 font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 shrink-0"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
+                      En vivo
+                    </span>
+
+                    <span
+                      v-else-if="partido.estado === 'pendiente_admin'"
+                      class="inline-flex items-center gap-1 font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800 shrink-0"
+                    >
+                      <AlertTriangle class="w-3 h-3 text-amber-600" />
+                      >48h Expirado
+                    </span>
+
+                    <span
+                      v-else-if="partido.estado === 'jugado'"
+                      class="font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 shrink-0"
+                    >
+                      Finalizado
+                    </span>
+
+                    <span v-else class="text-slate-500 dark:text-slate-400 font-medium shrink-0">
+                      {{ partido.diasRestantes }}d restantes
+                    </span>
+                  </div>
+
+                  <!-- Jugador 1 vs Jugador 2 -->
+                  <div class="flex items-center justify-between gap-1.5 sm:gap-2 py-1">
+                    <!-- Jugador 1 -->
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                      <span class="w-7 h-7 rounded-full bg-slate-900 dark:bg-slate-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                        {{ partido.jugador1?.iniciales || 'J1' }}
+                      </span>
+                      <span
+                        class="text-xs font-bold truncate"
+                        :class="busquedaJugador && partido.jugador1?.nombre?.toLowerCase().includes(busquedaJugador.toLowerCase()) ? 'text-sky-700 dark:text-sky-300 underline font-black' : 'text-slate-900 dark:text-white'"
+                      >
+                        {{ partido.jugador1?.nombre || 'Jugador 1' }}
+                      </span>
+                    </div>
+
+                    <!-- VS o Marcador -->
+                    <div class="flex flex-col items-center shrink-0 px-1 sm:px-2">
+                      <span v-if="partido.marcador" class="font-mono text-xs sm:text-sm font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
+                        {{ partido.marcador }}
+                      </span>
+                      <span v-else class="text-[10px] font-black font-mono text-slate-400 px-1.5 sm:px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">
+                        VS
+                      </span>
+                    </div>
+
+                    <!-- Jugador 2 -->
+                    <div class="flex items-center justify-end gap-2 min-w-0 flex-1 text-right">
+                      <span
+                        class="text-xs font-bold truncate"
+                        :class="busquedaJugador && partido.jugador2?.nombre?.toLowerCase().includes(busquedaJugador.toLowerCase()) ? 'text-sky-700 dark:text-sky-300 underline font-black' : 'text-slate-900 dark:text-white'"
+                      >
+                        {{ partido.jugador2?.nombre || 'Jugador 2' }}
+                      </span>
+                      <span class="w-7 h-7 rounded-full bg-sky-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                        {{ partido.jugador2?.iniciales || 'J2' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Pie de Tarjeta con Marcador Detallado o Botón W.O. -->
+                  <div class="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800 gap-2">
+                    <span v-if="partido.marcadorDetallado" class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">
+                      Sets: {{ partido.marcadorDetallado }}
+                    </span>
+                    <span v-else class="text-[11px] text-slate-400 truncate">
+                      {{ partido.estado === 'pendiente_admin' ? 'Conflicto de plazo' : 'Sin iniciar' }}
+                    </span>
+
+                    <!-- Botón Resolver por W.O. si está en conflicto -->
+                    <Button
+                      v-if="partido.estado === 'pendiente_admin'"
+                      variant="outline"
+                      size="sm"
+                      class="gap-1.5 text-xs border-amber-400 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/40 cursor-pointer font-bold ml-auto shadow-2xs shrink-0"
+                      @click="resolverPartido(partido)"
+                    >
+                      <Gavel class="w-3.5 h-3.5 text-amber-600" />
+                      <span>Dictaminar W.O.</span>
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -940,6 +1140,10 @@ import {
   Check,
   X,
   Receipt,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
@@ -960,6 +1164,7 @@ import {
   suscribirTablaPosicionesDB,
   guardarTablaPosicionesDB,
   eliminarTablaPosicionesDB,
+  ordenarPartidosNumerico,
 } from '@/services/torneoDatabaseService'
 import {
   calcularTablaDesdePartidos,
@@ -980,6 +1185,8 @@ const emit = defineEmits<{
 const modalRef = ref<InstanceType<typeof Modal> | null>(null)
 const tabActiva = ref<'fases' | 'partidos' | 'posiciones' | 'jugadores'>('fases')
 const filtroPartidos = ref<'todos' | 'en_curso' | 'pendientes' | 'conflictos' | 'jugados'>('todos')
+const rondaSeleccionada = ref<'todas' | number>(1)
+const busquedaJugador = ref('')
 const fixtureGenerado = ref(false)
 const playoffsAbiertos = ref(false)
 const animandoGeneracion = ref(false)
@@ -1046,13 +1253,17 @@ watch(
       // 2. Suscripción en tiempo real a partidos del torneo
       unsubscribeAdminPartidos = suscribirPartidosDB(torneoActual.id, (partidosDB) => {
         if (partidosDB.length > 0) {
-          partidosTorneo.value = partidosDB.map((p) => {
+          const mapeados = partidosDB.map((p) => {
             if (p.estado === 'en_curso' && !p.marcador && !p.enVivo) {
               return { ...p, estado: 'pendiente' }
             }
             return p
           })
+          partidosTorneo.value = ordenarPartidosNumerico(mapeados)
           fixtureGenerado.value = true
+          if (rondaSeleccionada.value === 'todas' || rondaSeleccionada.value === 1) {
+            rondaSeleccionada.value = rondaActual.value || 1
+          }
         } else {
           partidosTorneo.value = []
           fixtureGenerado.value = torneoActual.estado === 'en curso' || torneoActual.estado === 'finalizado'
@@ -1203,13 +1414,146 @@ const faseActualTexto = computed(() => {
   return 'Torneo Clausurado • 100% de la Bolsa entregada al Campeón'
 })
 
+// Rondas disponibles calculadas numéricamente
+const rondasDisponibles = computed<number[]>(() => {
+  if (partidosTorneo.value.length === 0) {
+    const n = totalRondasEstimadas.value
+    return n > 0 ? Array.from({ length: n }, (_, i) => i + 1) : [1]
+  }
+  const setRondas = new Set<number>()
+  partidosTorneo.value.forEach((p) => {
+    const r = Number(p.ronda || p.jornada)
+    if (r && !isNaN(r)) setRondas.add(r)
+  })
+  const arr = Array.from(setRondas).sort((a, b) => a - b)
+  return arr.length > 0 ? arr : [1]
+})
+
+// Ronda activa/en curso (la primera con partidos pendientes o en vivo)
+const rondaActual = computed<number>(() => {
+  if (partidosTorneo.value.length === 0) return 1
+  for (const r of rondasDisponibles.value) {
+    const partidosDeRonda = partidosTorneo.value.filter(
+      (p) => Number(p.ronda || p.jornada) === r
+    )
+    const tienePendientes = partidosDeRonda.some(
+      (p) => p.estado !== 'jugado' && !p.marcador
+    )
+    if (tienePendientes) return r
+  }
+  return rondasDisponibles.value[rondasDisponibles.value.length - 1] || 1
+})
+
+// Acciones de navegación de rondas
+const irARondaAnterior = () => {
+  if (rondaSeleccionada.value === 'todas') {
+    rondaSeleccionada.value = 1
+    return
+  }
+  const idx = rondasDisponibles.value.indexOf(rondaSeleccionada.value)
+  if (idx > 0) {
+    const previa = rondasDisponibles.value[idx - 1]
+    if (typeof previa === 'number') {
+      rondaSeleccionada.value = previa
+    }
+  }
+}
+
+const irARondaSiguiente = () => {
+  if (rondaSeleccionada.value === 'todas') {
+    rondaSeleccionada.value = 1
+    return
+  }
+  const idx = rondasDisponibles.value.indexOf(rondaSeleccionada.value)
+  if (idx >= 0 && idx < rondasDisponibles.value.length - 1) {
+    const siguiente = rondasDisponibles.value[idx + 1]
+    if (typeof siguiente === 'number') {
+      rondaSeleccionada.value = siguiente
+    }
+  }
+}
+
+const irARondaActual = () => {
+  rondaSeleccionada.value = rondaActual.value
+}
+
+const contarPartidosPorRonda = (ronda: number) => {
+  return partidosTorneo.value.filter((p) => Number(p.ronda || p.jornada) === ronda).length
+}
+
+const estadoRonda = (ronda: number): 'completada' | 'en_curso' | 'pendiente' => {
+  const pts = partidosTorneo.value.filter((p) => Number(p.ronda || p.jornada) === ronda)
+  if (pts.length === 0) return 'pendiente'
+  const todosJugados = pts.every((p) => p.estado === 'jugado')
+  if (todosJugados) return 'completada'
+  const algunoIniciado = pts.some((p) => p.estado === 'en_curso' || p.estado === 'jugado')
+  if (algunoIniciado || ronda === rondaActual.value) return 'en_curso'
+  return 'pendiente'
+}
+
 const partidosFiltrados = computed(() => {
-  if (filtroPartidos.value === 'todos') return partidosTorneo.value
-  if (filtroPartidos.value === 'en_curso') return partidosTorneo.value.filter(p => p.estado === 'en_curso' && (p.marcador || p.enVivo))
-  if (filtroPartidos.value === 'pendientes') return partidosTorneo.value.filter(p => p.estado === 'pendiente' || (p.estado === 'en_curso' && !p.marcador && !p.enVivo))
-  if (filtroPartidos.value === 'conflictos') return partidosTorneo.value.filter(p => p.estado === 'pendiente_admin')
-  if (filtroPartidos.value === 'jugados') return partidosTorneo.value.filter(p => p.estado === 'jugado')
-  return partidosTorneo.value
+  let lista = [...partidosTorneo.value]
+
+  // 1. Filtro por estado
+  if (filtroPartidos.value === 'en_curso') {
+    lista = lista.filter((p) => p.estado === 'en_curso' && (p.marcador || p.enVivo))
+  } else if (filtroPartidos.value === 'pendientes') {
+    lista = lista.filter((p) => p.estado === 'pendiente' || (p.estado === 'en_curso' && !p.marcador && !p.enVivo))
+  } else if (filtroPartidos.value === 'conflictos') {
+    lista = lista.filter((p) => p.estado === 'pendiente_admin')
+  } else if (filtroPartidos.value === 'jugados') {
+    lista = lista.filter((p) => p.estado === 'jugado')
+  }
+
+  // 2. Filtro por ronda (si no es 'todas')
+  if (rondaSeleccionada.value !== 'todas') {
+    lista = lista.filter((p) => Number(p.ronda || p.jornada) === rondaSeleccionada.value)
+  }
+
+  // 3. Filtro de búsqueda por participante
+  if (busquedaJugador.value.trim()) {
+    const q = busquedaJugador.value.trim().toLowerCase()
+    lista = lista.filter((p) => {
+      const n1 = (p.jugador1?.nombre || '').toLowerCase()
+      const n2 = (p.jugador2?.nombre || '').toLowerCase()
+      return n1.includes(q) || n2.includes(q)
+    })
+  }
+
+  return ordenarPartidosNumerico(lista)
+})
+
+interface GrupoRonda {
+  ronda: number
+  partidos: any[]
+  totalJugados: number
+  totalPendientes: number
+  totalEnVivo: number
+}
+
+const partidosAgrupadosPorRonda = computed<GrupoRonda[]>(() => {
+  const mapa = new Map<number, any[]>()
+  for (const p of partidosFiltrados.value) {
+    const r = Number(p.ronda || p.jornada || 1)
+    if (!mapa.has(r)) mapa.set(r, [])
+    mapa.get(r)!.push(p)
+  }
+
+  const grupos: GrupoRonda[] = []
+  const rondasOrdenadas = Array.from(mapa.keys()).sort((a, b) => a - b)
+  for (const r of rondasOrdenadas) {
+    const pts = mapa.get(r) || []
+    grupos.push({
+      ronda: r,
+      partidos: pts,
+      totalJugados: pts.filter((p) => p.estado === 'jugado').length,
+      totalPendientes: pts.filter(
+        (p) => p.estado === 'pendiente' || (p.estado === 'en_curso' && !p.marcador && !p.enVivo)
+      ).length,
+      totalEnVivo: pts.filter((p) => p.estado === 'en_curso' && (p.marcador || p.enVivo)).length,
+    })
+  }
+  return grupos
 })
 
 const contarPartidosPorTipo = (tipo: string) => {
@@ -1369,10 +1713,13 @@ const generarPartidos = async () => {
     // Generar fixture de enfrentamientos con Algoritmo Berger (rondas y partidos simultáneos)
     const fixtureBerger = generarFixtureBerger(participantes)
     const listaPartidosGenerados = fixtureBerger.map((item, idx) => {
+      const numPartido = idx + 1
+      const numPadded = String(numPartido).padStart(4, '0')
       const j1Id = item.jugador1.jugadorId || item.jugador1.id || `J1-${idx}`
       const j2Id = item.jugador2.jugadorId || item.jugador2.id || `J2-${idx}`
       return {
-        id: `p-${props.torneo?.id || 'torneo'}-${idx + 1}`,
+        id: `p-${props.torneo?.id || 'torneo'}-${numPadded}`,
+        numeroPartido: numPartido,
         torneoId: props.torneo?.id,
         ronda: item.ronda,
         jornada: item.ronda,
@@ -1399,7 +1746,8 @@ const generarPartidos = async () => {
       }
     })
 
-    partidosTorneo.value = listaPartidosGenerados
+    partidosTorneo.value = ordenarPartidosNumerico(listaPartidosGenerados)
+    rondaSeleccionada.value = 1
 
     // Generar tabla inicial en la nueva colección independiente 'tablas_posiciones'
     const tablaInicial = calcularTablaDesdePartidos(

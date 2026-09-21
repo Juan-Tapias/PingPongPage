@@ -6,6 +6,7 @@ import {
   actualizarPartidoDB,
   actualizarTablaPosicionesDB,
   suscribirTablaPosicionesDB,
+  ordenarPartidosNumerico,
 } from '@/services/torneoDatabaseService'
 import type {
   JugadorTorneo,
@@ -123,13 +124,14 @@ export function useTorneoGrupo(torneo: Torneo) {
       // Suscribir en tiempo real a los partidos del torneo (reflejo instantáneo de marcadores y árbitro activo)
       unsubscribePartidos = suscribirPartidosDB(torneo.id, (partidosDB) => {
         if (partidosDB.length > 0) {
-          partidos.value = partidosDB.map((p: any) => {
+          const mapeados = partidosDB.map((p: any) => {
             const j1Id = p.jugador1?.id || p.jugador1Id
             const j2Id = p.jugador2?.id || p.jugador2Id
-            const rondaOficial = p.ronda || p.jornada || 1
+            const rondaOficial = Number(p.ronda || p.jornada || 1)
 
             return {
               id: p.id,
+              numeroPartido: p.numeroPartido,
               jugador1Id: j1Id,
               jugador2Id: j2Id,
               jugador1: p.jugador1,
@@ -149,13 +151,15 @@ export function useTorneoGrupo(torneo: Torneo) {
               codigoJugador2: p.codigoJugador2 || generarCodigoSeguridad(j2Id, j1Id),
             }
           })
+          partidos.value = ordenarPartidosNumerico(mapeados)
         } else {
           const crucesBerger = generarFixtureBerger(jugadores.value)
-          partidos.value = crucesBerger.map((cruce) => {
+          const mapeados = crucesBerger.map((cruce, idx) => {
             const idA = cruce.jugador1.id || 'J1'
             const idB = cruce.jugador2.id || 'J2'
             return {
               id: `p-${idA}-${idB}`,
+              numeroPartido: idx + 1,
               jugador1Id: idA,
               jugador2Id: idB,
               jugador1: cruce.jugador1,
@@ -168,6 +172,7 @@ export function useTorneoGrupo(torneo: Torneo) {
               codigoJugador2: generarCodigoSeguridad(idB, idA),
             }
           })
+          partidos.value = ordenarPartidosNumerico(mapeados)
         }
       })
     } catch (err) {
@@ -672,6 +677,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     partidos,
     rivalesPerimetro,
     rivalDeTurno,
+    rondaActual,
     esVistaRival,
     verVistaRival,
     volverAMiVista,

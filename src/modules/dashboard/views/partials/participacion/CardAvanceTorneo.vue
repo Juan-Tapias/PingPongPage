@@ -6,9 +6,14 @@
           <Trophy class="w-4 h-4" />
         </div>
         <div>
-          <h3 class="text-sm font-extrabold text-slate-900 dark:text-white font-heading">
-            Avance del Torneo
-          </h3>
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-extrabold text-slate-900 dark:text-white font-heading">
+              Avance del Torneo
+            </h3>
+            <span v-if="rondaActual" class="text-[10px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+              Ronda {{ rondaActual }} Activa
+            </span>
+          </div>
           <p class="text-[11px] text-slate-400 dark:text-slate-500">
             Seguimiento de rondas y progreso general
           </p>
@@ -61,6 +66,7 @@ const props = defineProps<{
   torneo: Torneo
   partidos: PartidoGrupo[]
   jugadorCentro?: JugadorTorneo
+  rondaActual?: number
 }>()
 
 function sonMismoJugador(a?: string, b?: string): boolean {

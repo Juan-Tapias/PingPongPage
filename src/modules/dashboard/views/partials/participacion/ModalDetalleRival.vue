@@ -29,6 +29,13 @@
 
       <div class="space-y-3 bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 p-4 divide-y divide-slate-100 dark:divide-slate-700">
         <div class="flex items-center justify-between py-1.5">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Jornada / Fecha:</span>
+          <span class="text-xs font-bold font-mono text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+            Ronda {{ burbuja.partido?.ronda || 1 }}
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between py-1.5">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Nombre completo:</span>
           <span class="text-xs font-bold text-slate-800 dark:text-slate-200 text-right">{{ burbuja.jugador.nombre }}</span>
         </div>
