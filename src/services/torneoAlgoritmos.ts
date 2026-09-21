@@ -193,19 +193,25 @@ export const calcularTablaDesdePartidos = (
   // Asignar posición y destino según clasificadosPlayoffs
   return filas.map((fila, idx) => {
     const pos = idx + 1
-    let destino = 'Eliminado'
+    let destino = 'Fase Regular'
     if (clasificadosPlayoffs === 2) {
       destino = pos <= 2 ? 'Gran Final' : 'Fase Regular'
     } else if (clasificadosPlayoffs === 4) {
-      destino = pos <= 4 ? 'Cuartos (BYE)' : 'Play-In'
+      destino = pos <= 4 ? 'Semifinales' : 'Fase Regular'
     } else if (clasificadosPlayoffs === 6) {
       if (pos <= 2) destino = 'Semis (BYE)'
       else if (pos <= 6) destino = 'Cuartos'
-      else destino = 'Play-In'
+      else destino = 'Fase Regular'
     } else if (clasificadosPlayoffs === 8) {
       destino = pos <= 8 ? 'Cuartos de Final' : 'Fase Regular'
+    } else if (clasificadosPlayoffs === 12) {
+      if (pos <= 4) destino = 'Cuartos (BYE)'
+      else if (pos <= 12) destino = 'Play-In'
+      else destino = 'Fase Regular'
     } else {
-      destino = pos <= 4 ? 'Cuartos (BYE)' : 'Play-In'
+      if (pos <= 4) destino = 'Cuartos (BYE)'
+      else if (pos <= 12) destino = 'Play-In'
+      else destino = 'Fase Regular'
     }
 
     return {

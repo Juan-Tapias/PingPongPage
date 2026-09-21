@@ -151,7 +151,7 @@
               Ganador del Torneo
             </h4>
             <p class="text-xs text-slate-600 dark:text-slate-300 font-bold">
-              Bolsa acumulada: $90.000 COP
+              Bolsa acumulada: ${{ bolsaTotalCalculada.toLocaleString('es-CO') }} COP
             </p>
           </div>
         </div>
@@ -302,6 +302,7 @@
       <EliminatoriasConcentric
         :filas-posiciones="tablaPosiciones"
         :cantidad-clasificados="props.torneo?.clasificadosPlayoffs || 4"
+        :torneo="props.torneo"
       />
     </div>
 
@@ -337,7 +338,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import RuedaBurbujas from './RuedaBurbujas.vue'
@@ -381,6 +382,16 @@ const {
   registrarResultadoPartido,
   jugadorMasMallero,
 } = useTorneoGrupo(props.torneo)
+
+const bolsaTotalCalculada = computed(() => {
+  const costo = Number(props.torneo?.costoInscripcion) || 6000
+  const total = Math.max(
+    jugadores.value.length,
+    tablaPosiciones.value.length,
+    Number(props.torneo?.cuposTomados) || 0
+  )
+  return Math.max(0, total * costo)
+})
 
 const modalDetalleRef = ref<InstanceType<typeof ModalDetalleRival> | null>(null)
 const modalMarcadorRef = ref<InstanceType<typeof ModalMarcadorRival> | null>(null)

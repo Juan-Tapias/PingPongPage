@@ -16,7 +16,7 @@
             </span>
           </div>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Top 4 clasificados directos a Cuartos • Puestos 5° al 12° disputan el Play-In
+            {{ textoSubtituloPlayoffs }}
           </p>
         </div>
       </div>
@@ -631,20 +631,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Crown, Trophy, Compass, Sparkles, ChevronRight, Activity, Clock } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import { usePlayoffs } from '@/modules/dashboard/composables/usePlayoffs'
-import type { FilaPosicion, PartidoPlayoff, RondaPlayoff, EstadoPartido } from '@/types'
+import type { FilaPosicion, PartidoPlayoff, RondaPlayoff, EstadoPartido, Torneo } from '@/types'
 
 const props = withDefaults(
   defineProps<{
     filasPosiciones: FilaPosicion[]
     cantidadClasificados?: number
+    torneo?: Torneo | null
   }>(),
   {
     cantidadClasificados: 4,
+    torneo: null,
   }
 )
 
@@ -653,7 +655,20 @@ const rondaMovilActiva = ref<'todas' | 'play_in' | 'cuartos' | 'semifinal' | 'fi
 const modalPlayoffRef = ref<InstanceType<typeof Modal> | null>(null)
 const partidoSeleccionado = ref<PartidoPlayoff | null>(null)
 
-const playoffs = usePlayoffs(props.filasPosiciones, props.cantidadClasificados)
+const playoffs = usePlayoffs(
+  () => props.filasPosiciones,
+  () => props.cantidadClasificados,
+  () => props.torneo
+)
+
+const textoSubtituloPlayoffs = computed(() => {
+  const c = props.cantidadClasificados
+  if (c === 2) return 'Top 2 disputan la Gran Final directa por la Corona'
+  if (c === 6) return 'Top 1° y 2° avanzan directo a Semis (BYE) • Puestos 3° al 6° disputan Cuartos'
+  if (c === 8) return 'Top 8 clasificados de la fase regular disputan Cuartos de Final'
+  if (c >= 10) return 'Top 4 clasificados directos a Cuartos • Puestos 5° al 12° disputan el Play-In'
+  return 'Top 4 clasificados de la fase regular disputan Semifinales y Gran Final'
+})
 
 const rondasNavegacion = [
   { id: 'todas' as const, nombre: 'Todas', cantidad: 11 },

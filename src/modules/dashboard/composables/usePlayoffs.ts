@@ -1,9 +1,10 @@
-import { computed } from 'vue'
+import { computed, isRef, type Ref } from 'vue'
 import type {
   FilaPosicion,
   JugadorTorneo,
   PartidoPlayoff,
   CuadroPlayoffs,
+  Torneo,
 } from '@/types'
 
 const crearPlaceholder = (id: string, nombre: string, iniciales: string): JugadorTorneo => ({
@@ -15,10 +16,37 @@ const crearPlaceholder = (id: string, nombre: string, iniciales: string): Jugado
   esUsuarioActual: false,
 })
 
-export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificados: number = 4) {
-  // Bolsa acumulada dinámica según participantes reales de la fase regular
+export function usePlayoffs(
+  filasPosiciones: FilaPosicion[] | Ref<FilaPosicion[]> | (() => FilaPosicion[]),
+  cantidadClasificados: number | Ref<number> | (() => number) = 4,
+  torneo?: Torneo | null | Ref<Torneo | null | undefined> | (() => Torneo | null | undefined)
+) {
+  const getFilas = (): FilaPosicion[] => {
+    if (typeof filasPosiciones === 'function') return filasPosiciones()
+    return isRef(filasPosiciones) ? filasPosiciones.value : filasPosiciones || []
+  }
+
+  const getCantidad = (): number => {
+    if (typeof cantidadClasificados === 'function') return cantidadClasificados()
+    return isRef(cantidadClasificados) ? cantidadClasificados.value : (cantidadClasificados ?? 4)
+  }
+
+  const getTorneo = (): Torneo | null | undefined => {
+    if (!torneo) return null
+    if (typeof torneo === 'function') return torneo()
+    return isRef(torneo) ? torneo.value : torneo
+  }
+
+  // Bolsa acumulada dinámica según participantes reales y costo de inscripción del torneo
   const bolsaPremio = computed<number>(() => {
-    return Math.max(0, filasPosiciones.length * 6000)
+    const t = getTorneo()
+    const filas = getFilas()
+    const costo = Number(t?.costoInscripcion) || 6000
+    const totalParticipantes = Math.max(
+      filas.length,
+      Number(t?.cuposTomados) || 0
+    )
+    return Math.max(0, totalParticipantes * costo)
   })
 
   const bolsaPremioFormateada = computed<string>(() => {
@@ -27,7 +55,7 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
 
   // Verificar si la fase regular ya comenzó con partidos disputados
   const hayPartidosJugados = computed(() => {
-    return filasPosiciones.some((f) => f.pj > 0 || f.pg > 0 || f.pp > 0)
+    return getFilas().some((f) => f.pj > 0 || f.pg > 0 || f.pp > 0)
   })
 
   // Mapear los jugadores clasificados desde las posiciones reales de la tabla
@@ -35,7 +63,7 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
     if (!hayPartidosJugados.value) {
       return []
     }
-    return filasPosiciones.map((f) => ({
+    return getFilas().map((f) => ({
       id: f.jugadorId,
       nombre: f.nombre,
       iniciales: f.nombre
@@ -52,7 +80,7 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
 
   // Partidos del Play-in: Solo aplica si el admin eligió formato de 12 clasificados
   const partidosPlayIn = computed<PartidoPlayoff[]>(() => {
-    if (cantidadClasificados < 10) return []
+    if (getCantidad() < 10) return []
     const list = clasificados.value
 
     const matches: PartidoPlayoff[] = []
@@ -78,21 +106,21 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
 
   // Partidos de Cuartos de Final: Aplica para 6 u 8 clasificados
   const partidosCuartos = computed<PartidoPlayoff[]>(() => {
-    if (cantidadClasificados < 5) return []
+    if (getCantidad() < 5) return []
     const list = clasificados.value
 
     // Formato Top 6:
     // Cuartos 1: Puesto 3° vs Puesto 6°
     // Cuartos 2: Puesto 4° vs Puesto 5°
     // (Puestos 1° y 2° esperan en Semis con BYE)
-    if (cantidadClasificados <= 6) {
+    if (getCantidad() <= 6) {
       return [
         {
           id: 'cuartos-1',
           ronda: 'cuartos',
           numeroLlave: 1,
           jugador1: list[2] || crearPlaceholder('p3', 'Puesto 3°', '#3'),
-          jugador2: list[5] || crearPlaceholder('p6', cantidadClasificados === 5 ? 'Pase Directo' : 'Puesto 6°', '#6'),
+          jugador2: list[5] || crearPlaceholder('p6', getCantidad() === 5 ? 'Pase Directo' : 'Puesto 6°', '#6'),
           estado: 'pendiente',
           anilloOrbital: 2,
           siguientePartidoId: 'semi-1',
@@ -157,11 +185,11 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
 
   // Semifinales: Solo si clasifican 4 o más
   const partidosSemis = computed<PartidoPlayoff[]>(() => {
-    if (cantidadClasificados < 4) return []
+    if (getCantidad() < 4) return []
     const list = clasificados.value
 
     // Si hubo Cuartos previos (6 u 8):
-    if (cantidadClasificados === 6) {
+    if (getCantidad() === 6) {
       return [
         {
           id: 'semi-1',
@@ -186,7 +214,7 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
       ]
     }
 
-    if (cantidadClasificados >= 8) {
+    if (getCantidad() >= 8) {
       return [
         {
           id: 'semi-1',
@@ -240,7 +268,7 @@ export function usePlayoffs(filasPosiciones: FilaPosicion[], cantidadClasificado
   const granFinal = computed<PartidoPlayoff>(() => {
     const list = clasificados.value
     // Si solo clasifican 2: Final directa entre los dos mejores
-    if (cantidadClasificados === 2) {
+    if (getCantidad() === 2) {
       return {
         id: 'final-1',
         ronda: 'final',

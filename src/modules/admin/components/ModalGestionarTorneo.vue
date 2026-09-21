@@ -254,7 +254,7 @@
                     <h4 class="text-sm sm:text-base font-black text-slate-900 dark:text-white">
                       Fase 2: Playoffs Concéntricos
                     </h4>
-                    <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">Play-In + Cuartos de Final</span>
+                    <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">{{ subtituloFase2 }}</span>
                   </div>
                 </div>
                 <span class="text-[10px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
@@ -272,7 +272,7 @@
                   <span>¿Cuántos jugadores clasifican a Eliminatorias?</span>
                   <span class="text-[10px] text-amber-700 dark:text-amber-400 font-extrabold uppercase tracking-wider">Elegido por Admin</span>
                 </label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   <button
                     v-for="opc in opcionesClasificados"
                     :key="opc.valor"
@@ -872,22 +872,10 @@
                     <!-- Destino -->
                     <td class="py-3 px-4 text-right">
                       <span
-                        v-if="index < 4"
-                        class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                        class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md inline-block"
+                        :class="obtenerClaseDestino(pos.destino, index)"
                       >
-                        Cuartos (BYE)
-                      </span>
-                      <span
-                        v-else-if="index < 12"
-                        class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800"
-                      >
-                        Play-In
-                      </span>
-                      <span
-                        v-else
-                        class="text-[10px] font-bold text-slate-400 dark:text-slate-500"
-                      >
-                        Fase Regular
+                        {{ pos.destino || obtenerDestinoPorIndice(index) }}
                       </span>
                     </td>
                   </tr>
@@ -1349,12 +1337,50 @@ watch(
 const opcionesClasificados = computed(() => {
   const n = jugadoresAprobados.value.length
   return [
-    { valor: 2, label: 'Top 2', descripcion: 'Gran Final directa', deshabilitado: n < 2 },
-    { valor: 4, label: 'Top 4', descripcion: 'Semis + Gran Final', deshabilitado: n < 4 },
-    { valor: 6, label: 'Top 6', descripcion: 'Cuartos (BYE) + Semis', deshabilitado: n < 6 },
+    { valor: 12, label: 'Top 12', descripcion: 'Play-In + Cuartos', deshabilitado: n < 12 },
     { valor: 8, label: 'Top 8', descripcion: 'Cuartos completos', deshabilitado: n < 8 },
+    { valor: 6, label: 'Top 6', descripcion: 'Cuartos (BYE) + Semis', deshabilitado: n < 6 },
+    { valor: 4, label: 'Top 4', descripcion: 'Semis + Gran Final', deshabilitado: n < 4 },
+    { valor: 2, label: 'Top 2', descripcion: 'Gran Final directa', deshabilitado: n < 2 },
   ]
 })
+
+const subtituloFase2 = computed(() => {
+  const c = clasificadosSeleccionados.value
+  if (c === 12) return 'Play-In + Cuartos de Final'
+  if (c === 8) return 'Cuartos de Final Completos'
+  if (c === 6) return 'Cuartos (BYE) + Semifinales'
+  if (c === 4) return 'Semifinales + Gran Final'
+  if (c === 2) return 'Gran Final Directa'
+  return 'Play-In + Cuartos de Final'
+})
+
+const obtenerDestinoPorIndice = (idx: number): string => {
+  const c = clasificadosSeleccionados.value
+  const pos = idx + 1
+  if (c === 2) return pos <= 2 ? 'Gran Final' : 'Fase Regular'
+  if (c === 4) return pos <= 4 ? 'Semifinales' : 'Fase Regular'
+  if (c === 6) {
+    if (pos <= 2) return 'Semis (BYE)'
+    if (pos <= 6) return 'Cuartos'
+    return 'Fase Regular'
+  }
+  if (c === 8) return pos <= 8 ? 'Cuartos de Final' : 'Fase Regular'
+  if (pos <= 4) return 'Cuartos (BYE)'
+  if (pos <= 12) return 'Play-In'
+  return 'Fase Regular'
+}
+
+const obtenerClaseDestino = (destino?: string, idx: number = 0): string => {
+  const d = destino || obtenerDestinoPorIndice(idx)
+  if (d.includes('BYE') || d === 'Gran Final') {
+    return 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-black'
+  }
+  if (d === 'Play-In' || d.includes('Cuartos') || d.includes('Semifinales')) {
+    return 'bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-black'
+  }
+  return 'text-slate-400 dark:text-slate-500 font-bold border-transparent'
+}
 
 const cambiarClasificadosPlayoffs = async (valor: number) => {
   clasificadosSeleccionados.value = valor
@@ -1389,7 +1415,8 @@ const crucesPlayInTexto = computed(() => {
   if (c === 4) return 'Semis (2 llaves)'
   if (c === 6) return 'Cuartos (2 llaves)'
   if (c === 8) return 'Cuartos (4 llaves)'
-  return 'Play-In'
+  if (c === 12) return 'Play-In (4 llaves)'
+  return 'Play-In (4 llaves)'
 })
 
 const bolsaTotalCalculada = computed(() => {
