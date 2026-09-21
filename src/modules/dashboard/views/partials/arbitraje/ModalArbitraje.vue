@@ -147,21 +147,6 @@
         <span>{{ mensajeError }}</span>
       </div>
 
-      <details
-        class="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700 cursor-pointer">
-        <summary class="font-bold text-slate-600 dark:text-slate-300">Ver códigos de prueba generados por el sistema</summary>
-        <div class="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-1 font-mono">
-          <p><span class="text-slate-400">PIN J1 ({{ partidoSeleccionado.jugador1.nombre }}):</span> <strong
-              class="text-emerald-700 dark:text-emerald-400">{{ partidoSeleccionado.partido.codigoJugador1 }}</strong></p>
-          <p><span class="text-slate-400">PIN J2 ({{ partidoSeleccionado.jugador2.nombre }}):</span> <strong
-              class="text-emerald-700 dark:text-emerald-400">{{ partidoSeleccionado.partido.codigoJugador2 }}</strong></p>
-          <button type="button"
-            class="mt-1.5 text-xs text-sky-700 dark:text-sky-400 underline font-sans font-bold hover:text-sky-900 dark:hover:text-sky-300 cursor-pointer text-left"
-            @click="autocompletarCodigos">
-            Autocompletar códigos correctos
-          </button>
-        </div>
-      </details>
 
       <div class="flex items-center justify-end gap-2.5 pt-2">
         <Button variant="ghost" size="sm" @click="paso = 'seleccion'">
@@ -258,13 +243,6 @@ const limpiarError = () => {
   mensajeError.value = ''
 }
 
-const autocompletarCodigos = () => {
-  if (partidoSeleccionado.value) {
-    codigoJ1.value = partidoSeleccionado.value.partido.codigoJugador1 || ''
-    codigoJ2.value = partidoSeleccionado.value.partido.codigoJugador2 || ''
-    mensajeError.value = ''
-  }
-}
 
 const handleConfirmarInicio = () => {
   if (!partidoSeleccionado.value) return

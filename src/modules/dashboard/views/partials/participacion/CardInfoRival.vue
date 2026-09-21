@@ -35,7 +35,7 @@
         </span>
       </div>
 
-      <div v-if="rival.codigoSeguridadPropio" class="flex items-center justify-between py-1 border-t border-slate-100 dark:border-slate-800">
+      <div v-if="!esVistaRival && rival.codigoSeguridadPropio" class="flex items-center justify-between py-1 border-t border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-1.5">
           <KeyRound class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
           <span class="font-semibold text-slate-500 dark:text-slate-400">Tu PIN para árbitro:</span>
@@ -75,6 +75,7 @@ const props = defineProps<{
   rival: BurbujaRival | null | undefined
   tablaPosiciones?: FilaPosicion[]
   jugadorCentro?: JugadorTorneo
+  esVistaRival?: boolean
 }>()
 
 function sonMismoJugador(a?: string, b?: string): boolean {

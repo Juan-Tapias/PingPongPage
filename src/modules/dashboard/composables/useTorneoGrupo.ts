@@ -337,7 +337,17 @@ export function useTorneoGrupo(torneo: Torneo) {
 
       const esRivalDeTurno = index === 0
       const diasRestantes = esRivalDeTurno ? (partido.diasRestantes ?? 2) : 2
-      const codigoSeguridadPropio = generarCodigoSeguridad(centroId, jugador.id)
+      // El PIN de seguridad para el árbitro es estrictamente privado y personal:
+      // ÚNICAMENTE se genera si el usuario autenticado está viendo su propia rueda y compite en el partido.
+      // Si está viendo la rueda de un rival (esVistaRival) o no participa, debe ser estrictamente undefined.
+      let codigoSeguridadPropio: string | undefined = undefined
+      if (usuarioActual && sonMismoJugador(centroId, usuarioActual.id) && partido.estado !== 'jugado') {
+        if (sonMismoJugador(partido.jugador1Id, usuarioActual.id)) {
+          codigoSeguridadPropio = partido.codigoJugador1 || generarCodigoSeguridad(usuarioActual.id, jugador.id)
+        } else if (sonMismoJugador(partido.jugador2Id, usuarioActual.id)) {
+          codigoSeguridadPropio = partido.codigoJugador2 || generarCodigoSeguridad(usuarioActual.id, jugador.id)
+        }
+      }
 
       return {
         jugador,

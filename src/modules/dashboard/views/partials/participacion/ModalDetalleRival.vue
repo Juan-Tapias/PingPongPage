@@ -65,7 +65,7 @@
           </div>
         </div>
 
-        <div v-if="burbuja.partido.estado === 'pendiente' && burbuja.codigoSeguridadPropio" class="flex items-center justify-between py-2">
+        <div v-if="!props.esVistaRival && burbuja.partido.estado === 'pendiente' && burbuja.codigoSeguridadPropio" class="flex items-center justify-between py-2">
           <div class="flex items-center gap-1.5">
             <KeyRound class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
             <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Tu PIN para árbitro:</span>
@@ -115,6 +115,7 @@ import type { BurbujaRival, JugadorTorneo } from '@/types'
 
 const props = defineProps<{
   burbuja: BurbujaRival | null
+  esVistaRival?: boolean
 }>()
 
 const emit = defineEmits<{

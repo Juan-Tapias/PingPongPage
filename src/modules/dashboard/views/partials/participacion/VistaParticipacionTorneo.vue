@@ -289,6 +289,7 @@
           :rival="rivalDeTurno"
           :tabla-posiciones="tablaPosiciones"
           :jugador-centro="jugadorEnCentro"
+          :es-vista-rival="esVistaRival"
         />
       </div>
     </div>
@@ -309,6 +310,7 @@
     <ModalDetalleRival
       ref="modalDetalleRef"
       :burbuja="burbujaSeleccionada"
+      :es-vista-rival="esVistaRival"
       @ver-rival="verVistaRival"
     />
 
