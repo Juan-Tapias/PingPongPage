@@ -9,11 +9,11 @@ export function sonMismoJugador(a?: string, b?: string): boolean {
   const cA = a.trim().toLowerCase()
   const cB = b.trim().toLowerCase()
   if (cA === cB) return true
-  
+
   // Evitar falsos positivos como 'user_seed_10'.includes('user_seed_1')
   // Solo aceptamos sufijos si están separados por guión bajo (prefijo de torneo)
   if (cA.endsWith('_' + cB) || cB.endsWith('_' + cA)) return true
-  
+
   return false
 }
 
@@ -109,7 +109,10 @@ export const calcularTablaDesdePartidos = (
 ): FilaPosicionOficial[] => {
   if (!jugadores || jugadores.length === 0) return []
 
-  const partidosJugados = (partidos || []).filter((p) => p.estado === 'jugado')
+  // Considerar partidos marcados como 'jugado' o aquellos que ya cuenten con marcador final registrado
+  const partidosJugados = (partidos || []).filter(
+    (p) => p.estado === 'jugado' || (!!p.marcador && String(p.marcador).includes('-') && p.estado !== 'pendiente'),
+  )
 
   const filas: FilaPosicionOficial[] = jugadores.map((jugador) => {
     let pj = 0
@@ -121,48 +124,74 @@ export const calcularTablaDesdePartidos = (
     const idJugador = jugador.id || jugador.jugadorId
 
     partidosJugados.forEach((partido) => {
-      const j1Id = partido.jugador1?.id || partido.jugador1Id
-      const j2Id = partido.jugador2?.id || partido.jugador2Id
-      const esJ1 = sonMismoJugador(j1Id, idJugador)
-      const esJ2 = sonMismoJugador(j2Id, idJugador)
+      const esJ1 = coincideJugador(jugador, partido.jugador1Id, partido.jugador1)
+      const esJ2 = coincideJugador(jugador, partido.jugador2Id, partido.jugador2)
 
       if (esJ1 || esJ2) {
         pj++
-        const ganadorId = partido.ganadorId || partido.jugadorGanadorId
-        const esGanador = sonMismoJugador(ganadorId, idJugador)
 
-        if (esGanador) {
-          pg++
-        } else if (ganadorId) {
-          pp++
-        }
+        let sfPartido = 0
+        let scPartido = 0
 
-        // Sets
+        // 1. Contabilización de sets detallados
         if (partido.sets && Array.isArray(partido.sets) && partido.sets.length > 0) {
           partido.sets.forEach((s: any) => {
-            const setGanador = s.ganadorId
-            const ganoEsteSet = sonMismoJugador(setGanador, idJugador)
+            let ganoEsteSet = false
+            if (s.ganadorId) {
+              ganoEsteSet = coincideJugador(jugador, s.ganadorId)
+            } else if (typeof s.puntosJugador1 === 'number' && typeof s.puntosJugador2 === 'number') {
+              ganoEsteSet = esJ1 ? s.puntosJugador1 > s.puntosJugador2 : s.puntosJugador2 > s.puntosJugador1
+            }
+
             if (ganoEsteSet) {
-              sf++
-            } else if (setGanador) {
-              sc++
+              sfPartido++
+            } else {
+              scPartido++
             }
           })
         } else if (partido.marcador && typeof partido.marcador === 'string') {
-          const partes = partido.marcador.split('-').map((str: string) => parseInt(str.trim()))
-          if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
+          // 2. Extracción de sets a partir del marcador resumen (ej: "0 - 2", "2-1")
+          const partes = partido.marcador.split('-').map((str: string) => parseInt(str.trim(), 10))
+          if (partes.length === 2 && !isNaN(partes[0]!) && !isNaN(partes[1]!)) {
             if (esJ1) {
-              sf += partes[0]
-              sc += partes[1]
+              sfPartido = partes[0]!
+              scPartido = partes[1]!
             } else {
-              sf += partes[1]
-              sc += partes[0]
+              sfPartido = partes[1]!
+              scPartido = partes[0]!
             }
           }
+        }
+
+        const ganadorId = partido.ganadorId || partido.jugadorGanadorId
+        const ganoPorId = ganadorId ? coincideJugador(jugador, ganadorId) : false
+
+        // 3. Fallback de sets si no hay conteo pero sí hay ganador explícito
+        if (sfPartido === 0 && scPartido === 0) {
+          if (ganoPorId) {
+            sfPartido = 2
+            scPartido = 0
+          } else {
+            sfPartido = 0
+            scPartido = 2
+          }
+        }
+
+        sf += sfPartido
+        sc += scPartido
+
+        // 4. Determinación del resultado del partido (Victoria o Derrota)
+        const esGanador = ganoPorId || sfPartido > scPartido
+
+        if (esGanador) {
+          pg++
+        } else {
+          pp++
         }
       }
     })
 
+    // Sistema Round Robin oficial: 2 pts por victoria, 1 pt por derrota
     const puntos = pg * 2 + pp * 1
 
     return {
@@ -181,13 +210,18 @@ export const calcularTablaDesdePartidos = (
     }
   })
 
-  // Ordenar por: 1) Puntos, 2) Diferencia de Sets (SF - SC), 3) Sets a Favor (SF)
+  // Criterios oficiales de desempate:
+  // 1) Puntos totales
+  // 2) Diferencia de Sets (SF - SC)
+  // 3) Sets a Favor (SF)
+  // 4) Menor cantidad de Sets en Contra (SC)
   filas.sort((a, b) => {
     if (b.puntos !== a.puntos) return b.puntos - a.puntos
     const difB = b.sf - b.sc
     const difA = a.sf - a.sc
     if (difB !== difA) return difB - difA
-    return b.sf - a.sf
+    if (b.sf !== a.sf) return b.sf - a.sf
+    return a.sc - b.sc
   })
 
   // Asignar posición y destino según clasificadosPlayoffs

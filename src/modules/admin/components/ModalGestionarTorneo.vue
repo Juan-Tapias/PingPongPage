@@ -1592,18 +1592,19 @@ const contarPartidosPorTipo = (tipo: string) => {
   return 0
 }
 
-// Tabla de posiciones oficial consumida desde la colección 'tablas_posiciones' (o calculada reactivamente)
+// Tabla de posiciones oficial calculada reactivamente desde los partidos reales disputados
 const posicionesTorneo = computed<FilaPosicionOficial[]>(() => {
+  if (jugadoresAprobados.value.length > 0 && partidosTorneo.value.length > 0) {
+    return calcularTablaDesdePartidos(
+      jugadoresAprobados.value,
+      partidosTorneo.value,
+      clasificadosSeleccionados.value,
+    )
+  }
   if (tablaPosicionesRemota.value && tablaPosicionesRemota.value.length > 0) {
     return tablaPosicionesRemota.value
   }
-  if (!fixtureGenerado.value || jugadoresAprobados.value.length === 0) return []
-
-  return calcularTablaDesdePartidos(
-    jugadoresAprobados.value,
-    partidosTorneo.value,
-    clasificadosSeleccionados.value,
-  )
+  return []
 })
 
 const obtenerBadgeEstado = (estado: EstadoTorneo) => {

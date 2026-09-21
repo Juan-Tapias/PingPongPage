@@ -24,7 +24,8 @@ import {
   sonMismoJugador,
   coincideJugador,
   generarCodigoSeguridad,
-  generarFixtureBerger
+  generarFixtureBerger,
+  calcularTablaDesdePartidos,
 } from '@/services/torneoAlgoritmos'
 
 export interface MalleroTorneo {
@@ -502,134 +503,76 @@ export function useTorneoGrupo(torneo: Torneo) {
         diasRestantes: 0,
       })
 
-      await actualizarTablaPosicionesDB(torneo.id, tablaPosiciones.value)
+      // Calcular y persistir inmediatamente la tabla oficial de posiciones actualizada en Firestore
+      const tablaNueva = calcularTablaDesdePartidos(
+        jugadores.value,
+        partidos.value,
+        torneo?.clasificadosPlayoffs || 4,
+      )
+      await actualizarTablaPosicionesDB(torneo.id, tablaNueva)
     } catch (err) {
       console.warn('Error al persistir resultado en base de datos:', err)
     }
   }
 
+  // Tabla de posiciones oficial en tiempo real calculada directamente sobre los partidos reales disputados
   const tablaPosiciones = computed<FilaPosicion[]>(() => {
-    if (tablaPosicionesRemota.value.length > 0) {
-      return tablaPosicionesRemota.value.map((f) => ({
-        ...f,
-        esUsuarioActual: usuarioActual ? sonMismoJugador(f.jugadorId, usuarioActual.id) : false,
+    // Si los jugadores ya fueron cargados, calculamos reactivamente la tabla de posiciones con los partidos actuales
+    if (jugadores.value.length > 0) {
+      const calculada = calcularTablaDesdePartidos(
+        jugadores.value,
+        partidos.value,
+        torneo?.clasificadosPlayoffs || 4,
+      )
+      return calculada.map((fila) => ({
+        ...fila,
+        esUsuarioActual: usuarioActual ? coincideJugador(usuarioActual, fila.jugadorId) : false,
       }))
     }
 
-    const statsMap = new Map<
-      string,
-      { pj: number; pg: number; pp: number; sf: number; sc: number; puntos: number }
-    >()
+    // Fallback de contingencia mientras cargan los jugadores si la tabla remota ya se encuentra disponible
+    if (tablaPosicionesRemota.value.length > 0) {
+      return tablaPosicionesRemota.value.map((f) => ({
+        ...f,
+        esUsuarioActual: usuarioActual ? coincideJugador(usuarioActual, f.jugadorId) : false,
+      }))
+    }
 
-    jugadores.value.forEach((j) => {
-      statsMap.set(j.id, { pj: 0, pg: 0, pp: 0, sf: 0, sc: 0, puntos: 0 })
-    })
+    return []
+  })
 
-    partidos.value.forEach((p) => {
-      const estaJugado = p.estado === 'jugado' || (!!p.marcador && p.marcador !== 'Reprogramar' && p.estado !== 'pendiente')
-      const ganadorId = p.jugadorGanadorId || (p as any).ganadorId
+  // Auto-sincronización de auto-curación: Si hay partidos jugados en el torneo pero la colección
+  // 'tablas_posiciones' en Firestore está vacía o quedó desactualizada con ceros, persistir la tabla real.
+  watch(
+    () => [partidos.value, jugadores.value],
+    async () => {
+      if (!torneo?.id || jugadores.value.length === 0) return
 
-      if (estaJugado && (ganadorId || p.marcador)) {
-        const j1 = jugadores.value.find((j) => coincideJugador(j, p.jugador1Id, p.jugador1))
-        const j2 = jugadores.value.find((j) => coincideJugador(j, p.jugador2Id, p.jugador2))
+      const hayPartidosJugados = partidos.value.some(
+        (p) => p.estado === 'jugado' || (!!p.marcador && String(p.marcador).includes('-') && p.estado !== 'pendiente'),
+      )
 
-        const stats1 = j1 ? statsMap.get(j1.id) : undefined
-        const stats2 = j2 ? statsMap.get(j2.id) : undefined
+      if (hayPartidosJugados) {
+        const remotaTieneCeros =
+          tablaPosicionesRemota.value.length > 0 &&
+          tablaPosicionesRemota.value.every((f) => f.pj === 0 && f.puntos === 0)
 
-        if (stats1 && stats2 && j1 && j2) {
-          stats1.pj += 1
-          stats2.pj += 1
-
-          let sf1 = 0
-          let sc1 = 0
-          let sf2 = 0
-          let sc2 = 0
-
-          if (p.sets && p.sets.length > 0) {
-            p.sets.forEach((s) => {
-              if (coincideJugador(j1, s.ganadorId)) {
-                sf1 += 1
-                sc2 += 1
-              } else if (coincideJugador(j2, s.ganadorId)) {
-                sf2 += 1
-                sc1 += 1
-              }
-            })
-          } else if (p.marcador && typeof p.marcador === 'string') {
-            const partes = p.marcador.split('-').map((s) => parseInt(s.trim(), 10))
-            if (partes.length === 2 && !isNaN(partes[0]!) && !isNaN(partes[1]!)) {
-              sf1 = partes[0]!
-              sc1 = partes[1]!
-              sf2 = partes[1]!
-              sc2 = partes[0]!
-            }
-          }
-
-          if (sf1 === 0 && sc1 === 0 && sf2 === 0 && sc2 === 0) {
-            if (ganadorId && coincideJugador(j1, ganadorId)) {
-              sf1 = 2; sc1 = 0; sf2 = 0; sc2 = 2
-            } else {
-              sf1 = 0; sc1 = 2; sf2 = 2; sc2 = 0
-            }
-          }
-
-          stats1.sf += sf1
-          stats1.sc += sc1
-          stats2.sf += sf2
-          stats2.sc += sc2
-
-          const esGanadorJ1 = (ganadorId && coincideJugador(j1, ganadorId)) || sf1 > sf2
-
-          if (esGanadorJ1) {
-            stats1.pg += 1
-            stats1.puntos += 2
-            stats2.pp += 1
-            stats2.puntos += 1
-          } else {
-            stats2.pg += 1
-            stats2.puntos += 2
-            stats1.pp += 1
-            stats1.puntos += 1
+        if (remotaTieneCeros || tablaPosicionesRemota.value.length === 0) {
+          const tablaCalculada = calcularTablaDesdePartidos(
+            jugadores.value,
+            partidos.value,
+            torneo?.clasificadosPlayoffs || 4,
+          )
+          try {
+            await actualizarTablaPosicionesDB(torneo.id, tablaCalculada)
+          } catch (e) {
+            console.warn('Auto-sincronización de tabla oficial en Firestore omitida:', e)
           }
         }
       }
-    })
-
-    const filas: FilaPosicion[] = jugadores.value.map((j) => {
-      const stats = statsMap.get(j.id) || {
-        pj: 0,
-        pg: 0,
-        pp: 0,
-        sf: 0,
-        sc: 0,
-        puntos: 0,
-      }
-      return {
-        posicion: 0,
-        jugadorId: j.id,
-        nombre: j.nombre,
-        pj: stats.pj,
-        pg: stats.pg,
-        pp: stats.pp,
-        sf: stats.sf,
-        sc: stats.sc,
-        puntos: stats.puntos,
-        esUsuarioActual: j.id === usuarioActual?.id,
-      }
-    })
-
-    filas.sort((a, b) => {
-      if (b.puntos !== a.puntos) return b.puntos - a.puntos
-      const diffB = b.sf - b.sc
-      const diffA = a.sf - a.sc
-      return diffB - diffA
-    })
-
-    return filas.map((fila, index) => ({
-      ...fila,
-      posicion: index + 1,
-    }))
-  })
+    },
+    { immediate: true, deep: true },
+  )
 
   const mallasPorJugador = computed<Map<string, number>>(() => {
     const mapa = new Map<string, number>()
