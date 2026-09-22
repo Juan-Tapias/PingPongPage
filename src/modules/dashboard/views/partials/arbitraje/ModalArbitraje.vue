@@ -26,39 +26,52 @@
       <!-- Lista de partidos disponibles -->
       <div v-if="partidosDisponibles.length > 0" class="space-y-2.5">
         <h4 class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-400">
-          Partidos pendientes por jugar ({{ partidosDisponibles.length }})
+          Partidos listos para jugar ({{ partidosDisponibles.length }})
         </h4>
 
         <div v-for="item in partidosDisponibles" :key="item.partido.id"
           class="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3.5 bg-white dark:bg-slate-800/80 shadow-xs">
-          <!-- Grid equilibrado de los dos jugadores -->
-          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3 flex-1 min-w-0 pr-1 md:pr-4">
-            <!-- Jugador 1 -->
-            <div class="flex items-center gap-2 min-w-0">
-              <span
-                class="w-8 h-8 rounded-full bg-slate-900 text-white text-xs font-black flex items-center justify-center shrink-0 shadow-xs">
-                {{ item.jugador1.iniciales }}
+          <!-- Información del partido y jugadores -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0 pr-1 md:pr-4">
+            <!-- Badge de Ronda y Estado -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
+                Ronda {{ item.partido.ronda || item.partido.jornada || 1 }}
               </span>
-              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" :title="item.jugador1.nombre">
-                {{ item.jugador1.nombre }}
+              <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
+                Libres
               </span>
             </div>
 
-            <!-- Divisor VS -->
-            <span
-              class="text-[10px] font-black font-mono text-slate-400 dark:text-slate-400 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-md shrink-0 select-none">
-              VS
-            </span>
+            <!-- Grid equilibrado de los dos jugadores -->
+            <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <!-- Jugador 1 -->
+              <div class="flex items-center gap-2 min-w-0">
+                <span
+                  class="w-8 h-8 rounded-full bg-slate-900 text-white text-xs font-black flex items-center justify-center shrink-0 shadow-xs">
+                  {{ item.jugador1.iniciales }}
+                </span>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" :title="item.jugador1.nombre">
+                  {{ item.jugador1.nombre }}
+                </span>
+              </div>
 
-            <!-- Jugador 2 -->
-            <div class="flex items-center gap-2 min-w-0">
+              <!-- Divisor VS -->
               <span
-                class="w-8 h-8 rounded-full bg-sky-700 text-white text-xs font-black flex items-center justify-center shrink-0 shadow-xs">
-                {{ item.jugador2.iniciales }}
+                class="text-[10px] font-black font-mono text-slate-400 dark:text-slate-400 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded-md shrink-0 select-none">
+                VS
               </span>
-              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" :title="item.jugador2.nombre">
-                {{ item.jugador2.nombre }}
-              </span>
+
+              <!-- Jugador 2 -->
+              <div class="flex items-center gap-2 min-w-0">
+                <span
+                  class="w-8 h-8 rounded-full bg-sky-700 text-white text-xs font-black flex items-center justify-center shrink-0 shadow-xs">
+                  {{ item.jugador2.iniciales }}
+                </span>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" :title="item.jugador2.nombre">
+                  {{ item.jugador2.nombre }}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -77,7 +90,7 @@
         <AlertCircle class="w-8 h-8 text-slate-400" />
         <p class="text-sm font-bold text-slate-700 dark:text-slate-200">No hay partidos disponibles para arbitrar</p>
         <p class="text-xs text-slate-400 max-w-sm">
-          Todos los partidos restantes ya fueron jugados o involucran tu participación en esta ronda.
+          No hay enfrentamientos pendientes donde ambos contrincantes estén libres en este momento o involucran tu propia participación.
         </p>
       </div>
 
@@ -96,15 +109,20 @@
         <span>Elegir otro partido</span>
       </button>
 
-      <div class="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-around text-center border border-slate-800">
-        <div>
+      <div class="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between text-center border border-slate-800 px-4">
+        <div class="text-left">
           <p class="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">Jugador 1</p>
           <p class="text-xs font-black">{{ partidoSeleccionado.jugador1.nombre }}</p>
         </div>
-        <span class="text-xs font-black font-mono text-emerald-400 px-2 py-0.5 bg-slate-800 rounded">
-          VS
-        </span>
-        <div>
+        <div class="flex flex-col items-center gap-1">
+          <span class="text-[9px] font-black uppercase tracking-wider text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded border border-sky-800">
+            Ronda {{ partidoSeleccionado.partido.ronda || partidoSeleccionado.partido.jornada || 1 }}
+          </span>
+          <span class="text-xs font-black font-mono text-emerald-400 px-2 py-0.5 bg-slate-800 rounded">
+            VS
+          </span>
+        </div>
+        <div class="text-right">
           <p class="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">Jugador 2</p>
           <p class="text-xs font-black">{{ partidoSeleccionado.jugador2.nombre }}</p>
         </div>

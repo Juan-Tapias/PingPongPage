@@ -87,6 +87,7 @@ export interface SetPartido {
 
 export interface PartidoGrupo {
   id: string
+  numeroPartido?: number
   jugador1Id: string
   jugador2Id: string
   jugador1?: any

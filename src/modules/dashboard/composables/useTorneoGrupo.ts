@@ -26,6 +26,7 @@ import {
   generarCodigoSeguridad,
   generarFixtureBerger,
   calcularTablaDesdePartidos,
+  estanJugadoresLibresParaPartido,
 } from '@/services/torneoAlgoritmos'
 
 export interface MalleroTorneo {
@@ -396,16 +397,29 @@ export function useTorneoGrupo(torneo: Torneo) {
     // El árbitro siempre debe ser el usuario autenticado (jugador en sesión)
     const aId = usuarioActual?.id
     if (!aId) return []
-    const rActiva = rondaActual.value
 
-    // Filtrar estrictamente partidos de la ronda activa que están pendientes y donde el usuario autenticado NO participa
-    // También verificar que no esté bloqueado por otro árbitro activo
+    // Filtrar partidos que están listos para jugarse:
+    // 1) Pendientes (no jugados ni finalizados)
+    // 2) El usuario autenticado (árbitro) NO participa como jugador
+    // 3) No esté bloqueado por otro árbitro activo
+    // 4) Ambos jugadores están libres para jugar (sin importar que la ronda previa global no haya terminado)
     const partidosValidos = partidos.value.filter((p) => {
-      const esRondaActiva = (p.ronda === rActiva || !p.ronda)
       const noJugado = p.estado !== 'jugado' && !p.marcador
       const noParticipa = !sonMismoJugador(p.jugador1Id, aId) && !sonMismoJugador(p.jugador2Id, aId)
       const sinArbitroUOtorgadoAMi = !p.arbitroActivoId || sonMismoJugador(p.arbitroActivoId, aId)
-      return esRondaActiva && noJugado && noParticipa && sinArbitroUOtorgadoAMi
+      if (!noJugado || !noParticipa || !sinArbitroUOtorgadoAMi) return false
+
+      return estanJugadoresLibresParaPartido(p, partidos.value)
+    })
+
+    // Ordenar de forma natural por ronda ascendente y luego por número de partido
+    partidosValidos.sort((a, b) => {
+      const rA = Number(a.ronda || a.jornada || 1)
+      const rB = Number(b.ronda || b.jornada || 1)
+      if (rA !== rB) return rA - rB
+      const nA = typeof a.numeroPartido === 'number' ? a.numeroPartido : 0
+      const nB = typeof b.numeroPartido === 'number' ? b.numeroPartido : 0
+      return nA - nB
     })
 
     return partidosValidos.map((p) => {

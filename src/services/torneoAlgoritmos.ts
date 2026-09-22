@@ -255,3 +255,80 @@ export const calcularTablaDesdePartidos = (
     }
   })
 }
+
+// ==========================================
+// DISPONIBILIDAD DINÁMICA DE PARTIDOS
+// ==========================================
+
+/**
+ * Determina si dos jugadores están habilitados y libres para disputar un partido programado,
+ * sin necesidad de que la ronda global anterior haya culminado por completo.
+ *
+ * Criterios:
+ * 1. El partido evaluado no debe estar ya finalizado ni tener marcador registrado.
+ * 2. Ninguno de los dos jugadores debe estar disputando actualmente otro partido en curso (estado === 'en_curso').
+ * 3. El Jugador 1 no debe tener partidos pendientes en rondas estrictamente anteriores a la de este partido.
+ * 4. El Jugador 2 no debe tener partidos pendientes en rondas estrictamente anteriores a la de este partido.
+ * 5. Si dentro de la misma ronda un jugador tiene asignado más de un partido, se prioriza el de menor número de partido.
+ */
+export function estanJugadoresLibresParaPartido(
+  partido: any,
+  todosLosPartidos: any[],
+): boolean {
+  if (!partido) return false
+
+  // 1. Si el partido ya fue jugado o tiene marcador final registrado, no está pendiente para arbitrar
+  const yaJugado =
+    partido.estado === 'jugado' ||
+    (!!partido.marcador && String(partido.marcador).includes('-') && partido.estado !== 'pendiente')
+  if (yaJugado) return false
+
+  const j1Id = partido.jugador1Id || partido.jugador1?.id
+  const j2Id = partido.jugador2Id || partido.jugador2?.id
+  if (!j1Id || !j2Id) return false
+
+  const rondaPartido = Number(partido.ronda || partido.jornada || 1)
+  const numPartido = typeof partido.numeroPartido === 'number' ? partido.numeroPartido : null
+
+  const jugadorLibre = (jugadorId: string): boolean => {
+    for (const p of todosLosPartidos) {
+      if (p.id === partido.id) continue
+
+      const jA = p.jugador1Id || p.jugador1?.id
+      const jB = p.jugador2Id || p.jugador2?.id
+      const participa = sonMismoJugador(jA, jugadorId) || sonMismoJugador(jB, jugadorId)
+      if (!participa) continue
+
+      // a) Si el jugador está jugando activamente otro partido en curso
+      if (p.estado === 'en_curso') {
+        return false
+      }
+
+      const pJugado =
+        p.estado === 'jugado' ||
+        (!!p.marcador && String(p.marcador).includes('-') && p.estado !== 'pendiente')
+      if (pJugado) continue
+
+      // b) Si el partido está pendiente y pertenece a una ronda estrictamente anterior
+      const rP = Number(p.ronda || p.jornada || 1)
+      if (rP < rondaPartido) {
+        return false
+      }
+
+      // c) Si pertenece a la misma ronda pero tiene un número de partido anterior prioritario
+      if (
+        rP === rondaPartido &&
+        numPartido !== null &&
+        typeof p.numeroPartido === 'number' &&
+        p.numeroPartido < numPartido
+      ) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  return jugadorLibre(j1Id) && jugadorLibre(j2Id)
+}
+
