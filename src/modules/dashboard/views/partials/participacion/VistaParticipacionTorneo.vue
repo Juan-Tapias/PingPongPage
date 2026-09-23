@@ -330,6 +330,7 @@
       @validar-codigos="handleValidarCodigos"
       @iniciar-partido="handleIniciarPartidoArbitrado"
       @declarar-walkover="handleDeclararWalkover"
+      @prorrogar-partido="handleProrrogarPartido"
     />
 
     <!-- MODAL MARCADOR VIRTUAL TEMÁTICO DE MESA DE PING PONG -->
@@ -386,6 +387,7 @@ const {
   validarCodigosArbitraje,
   registrarResultadoPartido,
   registrarVictoriaPorWO,
+  prorrogarPlazoPartido,
   jugadorMasMallero,
 } = useTorneoGrupo(props.torneo)
 
@@ -442,6 +444,13 @@ const handleDeclararWalkover = (datos: {
   motivo: string
 }) => {
   registrarVictoriaPorWO(datos.partidoId, datos.ganadorId, datos.perdedorId, datos.motivo)
+}
+
+const handleProrrogarPartido = async (datos: {
+  partidoId: string
+  horasExtra: number
+}) => {
+  await prorrogarPlazoPartido(datos.partidoId, datos.horasExtra)
 }
 
 const handlePartidoFinalizado = (datos: {

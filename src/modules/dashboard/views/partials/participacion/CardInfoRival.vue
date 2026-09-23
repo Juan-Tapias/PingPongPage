@@ -29,9 +29,13 @@
 
       <div class="flex items-center justify-between py-1">
         <span class="font-semibold text-slate-500 dark:text-slate-400">Plazo para jugar:</span>
-        <span class="inline-flex items-center gap-1 font-extrabold text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-          <Clock class="w-3 h-3 text-amber-700 dark:text-amber-400 shrink-0" />
-          {{ rival.partido?.esWalkover ? 'Resuelto por W.O.' : (rival.partido?.horasRestantes !== undefined && rival.partido.horasRestantes > 0 && rival.partido.horasRestantes <= 24 ? `${rival.partido.horasRestantes}h restantes` : (rival.diasRestantes >= 2 ? '2 días' : rival.diasRestantes === 1 ? '1 día' : 'Plazo 48h vencido')) }}
+        <span
+          class="inline-flex items-center gap-1 font-extrabold px-2 py-0.5 rounded border"
+          :class="estiloPlazoParaJugar"
+        >
+          <Hourglass v-if="rival.rivalTienePartidosPendientes" class="w-3 h-3 text-slate-500 shrink-0" />
+          <Clock v-else class="w-3 h-3 text-amber-700 dark:text-amber-400 shrink-0" />
+          {{ textoPlazoParaJugar }}
         </span>
       </div>
 
@@ -68,7 +72,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Clock, KeyRound } from 'lucide-vue-next'
+import { Clock, KeyRound, Hourglass } from 'lucide-vue-next'
 import type { BurbujaRival, FilaPosicion, JugadorTorneo } from '@/types'
 
 const props = defineProps<{
@@ -82,6 +86,26 @@ function sonMismoJugador(a?: string, b?: string): boolean {
   if (!a || !b) return false
   return a === b || a.endsWith(b) || b.endsWith(a)
 }
+
+const textoPlazoParaJugar = computed(() => {
+  if (!props.rival) return ''
+  if (props.rival.partido?.esWalkover) return 'Resuelto por W.O.'
+  if (props.rival.rivalTienePartidosPendientes) return 'En espera (rival disputa ronda previa)'
+  const horas = props.rival.partido?.horasRestantes
+  if (horas !== undefined && horas > 0 && horas <= 24) {
+    return `${horas}h restantes`
+  }
+  if (props.rival.diasRestantes >= 2) return '2 días'
+  if (props.rival.diasRestantes === 1) return '1 día'
+  return 'Plazo 48h vencido'
+})
+
+const estiloPlazoParaJugar = computed(() => {
+  if (props.rival?.rivalTienePartidosPendientes) {
+    return 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+  }
+  return 'text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800'
+})
 
 const probabilidadCalculada = computed(() => {
   if (!props.rival) {

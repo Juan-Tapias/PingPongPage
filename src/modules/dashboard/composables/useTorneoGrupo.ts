@@ -123,14 +123,56 @@ export function useTorneoGrupo(torneo: Torneo) {
         }
       })
 
-    const procesarPlazosPartido = (p: any) => {
+    const procesarPlazosPartido = (p: any, todosLosPartidos?: any[]) => {
+      const j1Id = p.jugador1?.id || p.jugador1Id
+      const j2Id = p.jugador2?.id || p.jugador2Id
+      const rondaOficial = Number(p.ronda || p.jornada || 1)
+
+      if (p.estado === 'jugado') {
+        return {
+          diasRestantes: 0,
+          horasRestantes: 0,
+          estado: 'jugado',
+          fechaCreacion: p.fechaCreacion || Date.now(),
+          fechaLimite: p.fechaLimite || Date.now(),
+        }
+      }
+
+      // Comprobar si alguno de los dos jugadores tiene partidos pendientes en rondas estrictamente anteriores
+      let tienePendientesPrevios = false
+      if (todosLosPartidos && todosLosPartidos.length > 0) {
+        tienePendientesPrevios = todosLosPartidos.some((otro: any) => {
+          if (otro.id === p.id) return false
+          const jA = otro.jugador1?.id || otro.jugador1Id
+          const jB = otro.jugador2?.id || otro.jugador2Id
+          const participa = sonMismoJugador(jA, j1Id) || sonMismoJugador(jB, j1Id) ||
+                            sonMismoJugador(jA, j2Id) || sonMismoJugador(jB, j2Id)
+          if (!participa) return false
+          const yaJugado = otro.estado === 'jugado' || (!!otro.marcador && String(otro.marcador).includes('-') && otro.estado !== 'pendiente')
+          if (yaJugado) return false
+          const rOtro = Number(otro.ronda || otro.jornada || 1)
+          return rOtro < rondaOficial
+        })
+      }
+
+      // Si alguno tiene partidos pendientes de rondas previas, el plazo reglamentario de 48h NO corre (queda en espera)
+      if (tienePendientesPrevios) {
+        return {
+          diasRestantes: 2,
+          horasRestantes: 48,
+          estado: p.estado === 'en_curso' ? 'en_curso' : 'pendiente',
+          fechaCreacion: p.fechaCreacion || Date.now(),
+          fechaLimite: p.fechaLimite || null,
+        }
+      }
+
       const ahora = Date.now()
-      const fechaCreacion = typeof p.fechaCreacion === 'number'
-        ? p.fechaCreacion
-        : (p.fechaCreacion ? new Date(p.fechaCreacion).getTime() : ahora)
+      const fechaHabilitacion = typeof p.fechaHabilitacion === 'number'
+        ? p.fechaHabilitacion
+        : (p.fechaHabilitacion ? new Date(p.fechaHabilitacion).getTime() : (typeof p.fechaCreacion === 'number' ? p.fechaCreacion : ahora))
       const fechaLimite = typeof p.fechaLimite === 'number'
         ? p.fechaLimite
-        : (p.fechaLimite ? new Date(p.fechaLimite).getTime() : fechaCreacion + 48 * 3600 * 1000)
+        : (p.fechaLimite ? new Date(p.fechaLimite).getTime() : fechaHabilitacion + 48 * 3600 * 1000)
 
       const msRestantes = fechaLimite - ahora
       const horasRestantes = Math.max(0, Math.floor(msRestantes / (1000 * 3600)))
@@ -145,7 +187,7 @@ export function useTorneoGrupo(torneo: Torneo) {
         diasRestantes: p.estado === 'jugado' ? 0 : diasRestantes,
         horasRestantes: p.estado === 'jugado' ? 0 : horasRestantes,
         estado,
-        fechaCreacion,
+        fechaCreacion: p.fechaCreacion || fechaHabilitacion,
         fechaLimite,
       }
     }
@@ -157,7 +199,7 @@ export function useTorneoGrupo(torneo: Torneo) {
             const j1Id = p.jugador1?.id || p.jugador1Id
             const j2Id = p.jugador2?.id || p.jugador2Id
             const rondaOficial = Number(p.ronda || p.jornada || 1)
-            const plazos = procesarPlazosPartido(p)
+            const plazos = procesarPlazosPartido(p, partidosDB)
 
             return {
               id: p.id,
@@ -174,6 +216,8 @@ export function useTorneoGrupo(torneo: Torneo) {
               horasRestantes: plazos.horasRestantes,
               fechaCreacion: plazos.fechaCreacion,
               fechaLimite: plazos.fechaLimite,
+              fechaHabilitacion: p.fechaHabilitacion || null,
+              prorrogaOtorgada: p.prorrogaOtorgada || false,
               ronda: rondaOficial,
               jornada: rondaOficial,
               sets: p.sets,
@@ -365,18 +409,47 @@ export function useTorneoGrupo(torneo: Torneo) {
         }
       }
 
+      // Verificar si este rival tiene partidos pendientes en rondas anteriores a la de este partido
+      const rondaPartido = Number(partido.ronda || partido.jornada || 1)
+      const rivalId = jugador.id
+      const rivalTienePartidosPendientes = partidos.value.some((p) => {
+        if (p.id === partido.id) return false
+        const jA = p.jugador1?.id || p.jugador1Id
+        const jB = p.jugador2?.id || p.jugador2Id
+        if (!sonMismoJugador(jA, rivalId) && !sonMismoJugador(jB, rivalId)) return false
+        const yaJugado = p.estado === 'jugado' || (!!p.marcador && String(p.marcador).includes('-') && p.estado !== 'pendiente')
+        if (yaJugado) return false
+        const rOtro = Number(p.ronda || p.jornada || 1)
+        return rOtro < rondaPartido
+      })
+
+      const centroTienePartidosPendientes = partidos.value.some((p) => {
+        if (p.id === partido.id) return false
+        const jA = p.jugador1?.id || p.jugador1Id
+        const jB = p.jugador2?.id || p.jugador2Id
+        if (!sonMismoJugador(jA, centroId) && !sonMismoJugador(jB, centroId)) return false
+        const yaJugado = p.estado === 'jugado' || (!!p.marcador && String(p.marcador).includes('-') && p.estado !== 'pendiente')
+        if (yaJugado) return false
+        const rOtro = Number(p.ronda || p.jornada || 1)
+        return rOtro < rondaPartido
+      })
+
+      const estaHabilitadoParaJugar = !rivalTienePartidosPendientes && !centroTienePartidosPendientes && partido.estado !== 'jugado'
+
       // Color del borde de la burbuja orbital:
       let colorBorde: ColorBordeBurbuja = 'gris'
       if (partido.estado === 'jugado') {
         colorBorde = resultadoParaCentro === 'ganado' ? 'verde' : 'rojo'
-      } else if (partido.estado === 'pendiente_admin') {
+      } else if (partido.estado === 'pendiente_admin' && !rivalTienePartidosPendientes) {
         colorBorde = 'naranja'
       } else {
         colorBorde = 'gris'
       }
 
       const esRivalDeTurno = index === 0
-      const diasRestantes = esRivalDeTurno ? (partido.diasRestantes ?? 2) : 2
+      const diasRestantes = rivalTienePartidosPendientes
+        ? 2
+        : (esRivalDeTurno ? (partido.diasRestantes ?? 2) : 2)
       // El PIN de seguridad para el árbitro es estrictamente privado y personal:
       // ÚNICAMENTE se genera si el usuario autenticado está viendo su propia rueda y compite en el partido.
       // Si está viendo la rueda de un rival (esVistaRival) o no participa, debe ser estrictamente undefined.
@@ -400,6 +473,8 @@ export function useTorneoGrupo(torneo: Torneo) {
         marcador: partido.marcador,
         ganadorNombre,
         codigoSeguridadPropio,
+        rivalTienePartidosPendientes,
+        estaHabilitadoParaJugar,
       }
     })
   })
@@ -637,6 +712,36 @@ export function useTorneoGrupo(torneo: Torneo) {
     })
   }
 
+  // Conceder plazo adicional (por defecto 24 horas / 1 día) a un partido
+  const prorrogarPlazoPartido = async (partidoId: string, horas: number = 24) => {
+    const pIndex = partidos.value.findIndex((p) => p.id === partidoId)
+    if (pIndex === -1) return
+
+    const ahora = Date.now()
+    const nuevaFechaLimite = ahora + horas * 3600 * 1000
+
+    const partidoActual = partidos.value[pIndex]
+    if (partidoActual) {
+      partidoActual.fechaLimite = nuevaFechaLimite
+      partidoActual.diasRestantes = 1
+      partidoActual.horasRestantes = horas
+      partidoActual.estado = 'pendiente'
+      partidoActual.prorrogaOtorgada = true
+    }
+
+    try {
+      await actualizarPartidoDB(partidoId, {
+        fechaLimite: nuevaFechaLimite,
+        diasRestantes: 1,
+        horasRestantes: horas,
+        estado: 'pendiente',
+        prorrogaOtorgada: true,
+      })
+    } catch (err) {
+      console.warn('Error al prorrogar plazo de partido en DB:', err)
+    }
+  }
+
   // Tabla de posiciones oficial en tiempo real calculada directamente sobre los partidos reales disputados
   const tablaPosiciones = computed<FilaPosicion[]>(() => {
     // Si los jugadores ya fueron cargados, calculamos reactivamente la tabla de posiciones con los partidos actuales
@@ -753,6 +858,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     validarCodigosArbitraje,
     registrarResultadoPartido,
     registrarVictoriaPorWO,
+    prorrogarPlazoPartido,
     mallasPorJugador,
     jugadorMasMallero,
   }

@@ -100,7 +100,9 @@ export interface PartidoGrupo {
   diasRestantes: number      // 2: "2 días", 1: "1 día", <= 0: "pendiente_admin"
   horasRestantes?: number    // Horas exactas restantes antes de vencer el plazo de 48h
   fechaCreacion?: number | string // Timestamp creación del partido
-  fechaLimite?: number | string   // Timestamp límite (48h después de creación)
+  fechaLimite?: number | string   // Timestamp límite (48h después de creación o prórroga)
+  fechaHabilitacion?: number | string // Timestamp en el que ambos jugadores quedaron habilitados
+  prorrogaOtorgada?: boolean      // Indica si se otorgó plazo extra de 24h
   ronda?: number
   jornada?: number           // Ronda del fixture (Algoritmo Berger)
   esBye?: boolean            // Fecha libre por ser número impar de jugadores
@@ -130,6 +132,8 @@ export interface BurbujaRival {
   marcador?: string
   ganadorNombre?: string
   codigoSeguridadPropio?: string       // Código de 5 dígitos que este jugador debe dictarle al árbitro
+  rivalTienePartidosPendientes?: boolean // Si el rival aún debe partidos de rondas previas
+  estaHabilitadoParaJugar?: boolean     // Si ambos jugadores están listos para disputar el partido
 }
 
 export interface PartidoArbitrable {
