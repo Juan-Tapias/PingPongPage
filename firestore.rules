@@ -16,6 +16,7 @@ service cloud.firestore {
     // Función: ¿Tiene el usuario rol de 'admin'?
     function isAdmin() {
       return isAuthenticated() && 
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
     }
 
@@ -25,7 +26,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // Solo el mismo usuario al registrarse (con rol 'jugador') o un admin pueden crear el perfil
       allow create: if isAuthenticated() && (
-        isAdmin() || (isOwner(userId) && request.resource.data.rol == 'jugador')
+        (isOwner(userId) && request.resource.data.rol == 'jugador') || isAdmin()
       );
       // El usuario puede editar sus datos sin cambiar su propio rol; el admin tiene control total
       allow update: if isAuthenticated() && (

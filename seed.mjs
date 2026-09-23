@@ -15,7 +15,8 @@ const firebaseConfig = {
 }
 
 const app = initializeApp(firebaseConfig)
-const db = getFirestore(app)
+const dbId = envConfig.VITE_FIREBASE_DATABASE_ID || 'default'
+const db = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app)
 
 const TORNEO_ID = 'hoashjlskjlskljsjkls'
 

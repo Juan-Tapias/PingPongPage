@@ -15,7 +15,7 @@ export const app: FirebaseApp = initializeApp(firebaseConfig)
 
 const dbId = import.meta.env.VITE_FIREBASE_DATABASE_ID
 export const db: Firestore =
-  dbId && dbId !== 'default' && dbId !== '(default)'
+  dbId && dbId !== '(default)'
     ? getFirestore(app, dbId)
     : getFirestore(app)
 export const auth: Auth = getAuth(app)
