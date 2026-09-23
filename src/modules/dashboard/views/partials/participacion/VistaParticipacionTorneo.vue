@@ -311,12 +311,14 @@
       ref="modalDetalleRef"
       :burbuja="burbujaSeleccionada"
       :es-vista-rival="esVistaRival"
+      :jugador-centro="jugadorEnCentro"
       @ver-rival="verVistaRival"
     />
 
     <ModalMarcadorRival
       ref="modalMarcadorRef"
       :burbuja="burbujaMarcadorSeleccionada"
+      :jugador-centro="jugadorEnCentro"
     />
 
     <!-- MODAL PARA QUE UN JUGADOR REGISTRADO ARBITRE (EXCLUYE SU PARTIDO) -->
