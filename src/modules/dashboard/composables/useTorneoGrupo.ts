@@ -123,6 +123,33 @@ export function useTorneoGrupo(torneo: Torneo) {
         }
       })
 
+    const procesarPlazosPartido = (p: any) => {
+      const ahora = Date.now()
+      const fechaCreacion = typeof p.fechaCreacion === 'number'
+        ? p.fechaCreacion
+        : (p.fechaCreacion ? new Date(p.fechaCreacion).getTime() : ahora)
+      const fechaLimite = typeof p.fechaLimite === 'number'
+        ? p.fechaLimite
+        : (p.fechaLimite ? new Date(p.fechaLimite).getTime() : fechaCreacion + 48 * 3600 * 1000)
+
+      const msRestantes = fechaLimite - ahora
+      const horasRestantes = Math.max(0, Math.floor(msRestantes / (1000 * 3600)))
+      const diasRestantes = Math.max(0, Math.ceil(msRestantes / (1000 * 3600 * 24)))
+
+      let estado = p.estado || 'pendiente'
+      if (p.estado === 'pendiente' && msRestantes <= 0) {
+        estado = 'pendiente_admin' // Vencido más de 48h
+      }
+
+      return {
+        diasRestantes: p.estado === 'jugado' ? 0 : diasRestantes,
+        horasRestantes: p.estado === 'jugado' ? 0 : horasRestantes,
+        estado,
+        fechaCreacion,
+        fechaLimite,
+      }
+    }
+
       // Suscribir en tiempo real a los partidos del torneo (reflejo instantáneo de marcadores y árbitro activo)
       unsubscribePartidos = suscribirPartidosDB(torneo.id, (partidosDB) => {
         if (partidosDB.length > 0) {
@@ -130,6 +157,7 @@ export function useTorneoGrupo(torneo: Torneo) {
             const j1Id = p.jugador1?.id || p.jugador1Id
             const j2Id = p.jugador2?.id || p.jugador2Id
             const rondaOficial = Number(p.ronda || p.jornada || 1)
+            const plazos = procesarPlazosPartido(p)
 
             return {
               id: p.id,
@@ -141,8 +169,11 @@ export function useTorneoGrupo(torneo: Torneo) {
               jugadorGanadorId: p.ganadorId || p.jugadorGanadorId,
               marcador: p.marcador,
               marcadorDetallado: p.marcadorDetallado,
-              estado: p.estado || 'pendiente',
-              diasRestantes: p.diasRestantes ?? 2,
+              estado: plazos.estado,
+              diasRestantes: plazos.diasRestantes,
+              horasRestantes: plazos.horasRestantes,
+              fechaCreacion: plazos.fechaCreacion,
+              fechaLimite: plazos.fechaLimite,
               ronda: rondaOficial,
               jornada: rondaOficial,
               sets: p.sets,
@@ -151,6 +182,10 @@ export function useTorneoGrupo(torneo: Torneo) {
               mesa: p.mesa,
               codigoJugador1: p.codigoJugador1 || generarCodigoSeguridad(j1Id, j2Id),
               codigoJugador2: p.codigoJugador2 || generarCodigoSeguridad(j2Id, j1Id),
+              ganadorBolaId: p.ganadorBolaId,
+              esWalkover: p.esWalkover,
+              perdedorPorWId: p.perdedorPorWId,
+              motivoWO: p.motivoWO,
             }
           })
           partidos.value = ordenarPartidosNumerico(mapeados)
@@ -159,6 +194,7 @@ export function useTorneoGrupo(torneo: Torneo) {
           const mapeados = crucesBerger.map((cruce, idx) => {
             const idA = cruce.jugador1.id || 'J1'
             const idB = cruce.jugador2.id || 'J2'
+            const ahora = Date.now()
             return {
               id: `p-${idA}-${idB}`,
               numeroPartido: idx + 1,
@@ -170,6 +206,9 @@ export function useTorneoGrupo(torneo: Torneo) {
               jornada: cruce.ronda,
               estado: 'pendiente',
               diasRestantes: 2,
+              horasRestantes: 48,
+              fechaCreacion: ahora,
+              fechaLimite: ahora + 48 * 3600 * 1000,
               codigoJugador1: generarCodigoSeguridad(idA, idB),
               codigoJugador2: generarCodigoSeguridad(idB, idA),
             }
@@ -487,6 +526,14 @@ export function useTorneoGrupo(torneo: Torneo) {
     partidoId: string,
     setsJugados: SetPartido[],
     ganadorId: string,
+    datosExtra?: {
+      esWalkover?: boolean
+      marcador?: string
+      marcadorDetallado?: string
+      perdedorPorWId?: string
+      ganadorBolaId?: string
+      motivoWO?: string
+    },
   ) => {
     const pIndex = partidos.value.findIndex((p) => p.id === partidoId)
     if (pIndex === -1) return
@@ -497,8 +544,9 @@ export function useTorneoGrupo(torneo: Torneo) {
     const setsG1 = setsJugados.filter((s) => sonMismoJugador(s.ganadorId, partido.jugador1Id)).length
     const setsG2 = setsJugados.filter((s) => sonMismoJugador(s.ganadorId, partido.jugador2Id)).length
 
-    const marcadorResumen = `${setsG1} - ${setsG2}`
-    const marcadorDetallado = setsJugados.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
+    const marcadorResumen = datosExtra?.marcador || `${setsG1} - ${setsG2}`
+    const marcadorDetallado =
+      datosExtra?.marcadorDetallado || setsJugados.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
 
     const arbitroIdSeguro = arbitroActual.value?.id ?? usuarioActual?.id ?? ''
 
@@ -511,6 +559,11 @@ export function useTorneoGrupo(torneo: Torneo) {
       arbitroId: arbitroIdSeguro,
       sets: setsJugados,
       diasRestantes: 0,
+      horasRestantes: 0,
+      esWalkover: datosExtra?.esWalkover || false,
+      perdedorPorWId: datosExtra?.perdedorPorWId,
+      ganadorBolaId: datosExtra?.ganadorBolaId,
+      motivoWO: datosExtra?.motivoWO,
     }
 
     partidos.value[pIndex] = partidoActualizado
@@ -525,6 +578,11 @@ export function useTorneoGrupo(torneo: Torneo) {
         arbitroId: arbitroIdSeguro,
         sets: setsJugados,
         diasRestantes: 0,
+        horasRestantes: 0,
+        esWalkover: datosExtra?.esWalkover || false,
+        perdedorPorWId: datosExtra?.perdedorPorWId || null,
+        ganadorBolaId: datosExtra?.ganadorBolaId || null,
+        motivoWO: datosExtra?.motivoWO || null,
       })
 
       // Calcular y persistir inmediatamente la tabla oficial de posiciones actualizada en Firestore
@@ -537,6 +595,46 @@ export function useTorneoGrupo(torneo: Torneo) {
     } catch (err) {
       console.warn('Error al persistir resultado en base de datos:', err)
     }
+  }
+
+  // Dictaminar victoria por W (Walkover) reglamentaria con sets 11-6 y 11-6
+  const registrarVictoriaPorWO = async (
+    partidoId: string,
+    ganadorId: string,
+    perdedorId: string,
+    motivo: string = 'inasistencia',
+  ) => {
+    const pIndex = partidos.value.findIndex((p) => p.id === partidoId)
+    if (pIndex === -1) return
+    const partido = partidos.value[pIndex]
+    if (!partido) return
+
+    const setsWO: SetPartido[] = [
+      {
+        setNumero: 1,
+        puntosJugador1: ganadorId === partido.jugador1Id ? 11 : 6,
+        puntosJugador2: ganadorId === partido.jugador1Id ? 6 : 11,
+        mallasJugador1: 0,
+        mallasJugador2: 0,
+        ganadorId,
+      },
+      {
+        setNumero: 2,
+        puntosJugador1: ganadorId === partido.jugador1Id ? 11 : 6,
+        puntosJugador2: ganadorId === partido.jugador1Id ? 6 : 11,
+        mallasJugador1: 0,
+        mallasJugador2: 0,
+        ganadorId,
+      },
+    ]
+
+    await registrarResultadoPartido(partidoId, setsWO, ganadorId, {
+      esWalkover: true,
+      marcador: '2 - 0 (W.O.)',
+      marcadorDetallado: '11-6, 11-6',
+      perdedorPorWId: perdedorId,
+      motivoWO: motivo,
+    })
   }
 
   // Tabla de posiciones oficial en tiempo real calculada directamente sobre los partidos reales disputados
@@ -654,6 +752,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     partidosDisponiblesParaArbitrar,
     validarCodigosArbitraje,
     registrarResultadoPartido,
+    registrarVictoriaPorWO,
     mallasPorJugador,
     jugadorMasMallero,
   }

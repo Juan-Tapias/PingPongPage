@@ -83,6 +83,7 @@ export interface SetPartido {
   mallasJugador1: number
   mallasJugador2: number
   ganadorId?: string
+  ganadorBolaId?: string
 }
 
 export interface PartidoGrupo {
@@ -93,10 +94,13 @@ export interface PartidoGrupo {
   jugador1?: any
   jugador2?: any
   jugadorGanadorId?: string
-  marcador?: string          // ej: "2 - 1"
-  marcadorDetallado?: string // ej: "11-8, 9-11, 11-7"
+  marcador?: string          // ej: "2 - 1" o "2 - 0 (W.O.)"
+  marcadorDetallado?: string // ej: "11-8, 9-11, 11-7" o "11-6, 11-6"
   estado: EstadoPartido      // 'pendiente' | 'en_curso' | 'pendiente_admin' | 'jugado'
   diasRestantes: number      // 2: "2 días", 1: "1 día", <= 0: "pendiente_admin"
+  horasRestantes?: number    // Horas exactas restantes antes de vencer el plazo de 48h
+  fechaCreacion?: number | string // Timestamp creación del partido
+  fechaLimite?: number | string   // Timestamp límite (48h después de creación)
   ronda?: number
   jornada?: number           // Ronda del fixture (Algoritmo Berger)
   esBye?: boolean            // Fecha libre por ser número impar de jugadores
@@ -108,6 +112,11 @@ export interface PartidoGrupo {
   codigoJugador2?: string    // PIN de 5 dígitos dinámico por rival
   arbitroId?: string         // Id del jugador que oficia como árbitro
   sets?: SetPartido[]        // Historial de sets jugados (mejor de 3)
+  // Campos reglamentarios de Bola y Walkover (W)
+  ganadorBolaId?: string     // Jugador que ganó el punto de bola preliminar
+  esWalkover?: boolean       // Si finalizó por inasistencia / W.O.
+  perdedorPorWId?: string    // Jugador sancionado por inasistencia (0 pts)
+  motivoWO?: string          // Justificación o motivo del W.O.
 }
 
 export interface BurbujaRival {
@@ -143,6 +152,7 @@ export interface FilaPosicion {
   puntos: number
   destino?: string
   esUsuarioActual?: boolean
+  mallas?: number
 }
 
 export type FilaPosicionOficial = FilaPosicion

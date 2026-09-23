@@ -31,7 +31,7 @@
         <span class="font-semibold text-slate-500 dark:text-slate-400">Plazo para jugar:</span>
         <span class="inline-flex items-center gap-1 font-extrabold text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
           <Clock class="w-3 h-3 text-amber-700 dark:text-amber-400 shrink-0" />
-          {{ rival.diasRestantes >= 2 ? '2 días' : rival.diasRestantes === 1 ? '1 día' : 'Partido perdido' }}
+          {{ rival.partido?.esWalkover ? 'Resuelto por W.O.' : (rival.partido?.horasRestantes !== undefined && rival.partido.horasRestantes > 0 && rival.partido.horasRestantes <= 24 ? `${rival.partido.horasRestantes}h restantes` : (rival.diasRestantes >= 2 ? '2 días' : rival.diasRestantes === 1 ? '1 día' : 'Plazo 48h vencido')) }}
         </span>
       </div>
 

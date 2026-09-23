@@ -589,14 +589,44 @@ const abrirResolverPartido = (partido: any) => {
 }
 
 const handleResolverPartido = async (payload: any) => {
+  const partidoEnConflicto = partidosConflicto.value.find(p => p.id === payload.partidoId)
   partidosConflicto.value = partidosConflicto.value.filter(p => p.id !== payload.partidoId)
   try {
+    const esWO = String(payload.marcador || '').includes('W.O.')
+    const perdedorId = partidoEnConflicto
+      ? (payload.ganadorId === partidoEnConflicto.jugador1Id ? partidoEnConflicto.jugador2Id : partidoEnConflicto.jugador1Id)
+      : undefined
+
+    const setsWO = esWO ? [
+      {
+        setNumero: 1,
+        puntosJugador1: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 11 : 6,
+        puntosJugador2: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 6 : 11,
+        mallasJugador1: 0,
+        mallasJugador2: 0,
+        ganadorId: payload.ganadorId,
+      },
+      {
+        setNumero: 2,
+        puntosJugador1: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 11 : 6,
+        puntosJugador2: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 6 : 11,
+        mallasJugador1: 0,
+        mallasJugador2: 0,
+        ganadorId: payload.ganadorId,
+      },
+    ] : undefined
+
     await actualizarPartidoDB(payload.partidoId, {
       estado: 'jugado',
       jugadorGanadorId: payload.ganadorId,
       marcador: payload.marcador,
+      marcadorDetallado: esWO ? '11-6, 11-6' : undefined,
+      sets: setsWO,
+      esWalkover: esWO,
+      perdedorPorWId: perdedorId,
       observaciones: payload.observaciones,
       diasRestantes: 0,
+      horasRestantes: 0,
     })
     if (torneoSeleccionado.value?.id) {
       const inscritos = await obtenerInscripcionesDB(torneoSeleccionado.value.id)

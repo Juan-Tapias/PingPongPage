@@ -7,15 +7,37 @@
         class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md">
         <!-- CONTENEDOR PRINCIPAL ESTILO TABLET / MESA DE PING PONG -->
         <div
-          class="w-full max-w-5xl bg-[#0096c7] p-2 sm:p-3.5 rounded-3xl sm:rounded-[36px] shadow-[0_0_50px_rgba(0,150,199,0.3)] border-4 sm:border-6 border-[#0077b6] flex flex-col gap-2 relative animate-in zoom-in-95 duration-200 select-none">
+          class="w-full max-w-5xl bg-[#0096c7] p-2 sm:p-3.5 rounded-3xl sm:rounded-[36px] shadow-[0_0_50px_rgba(0,150,199,0.3)] border-4 sm:border-6 border-[#0077b6] flex flex-col gap-2 relative animate-in zoom-in-95 duration-200 select-none overflow-hidden">
 
           <!-- BARRA SUPERIOR DE INFORMACIÓN -->
-          <div class="flex items-center justify-between px-3 py-1 text-white font-heading">
-            <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center justify-between px-3 py-1 text-white font-heading gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <span class="text-xs sm:text-sm font-black tracking-wide uppercase">
                 Marcador Virtual Oficial • Set {{ numeroSetActual }} (Mejor de 3)
               </span>
+
+              <!-- RECORDATORIO DE BOLA GANADA -->
+              <div v-if="ganadorBola"
+                class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/50 border border-emerald-400/60 text-[10px] sm:text-[11px] font-bold text-emerald-300 shadow-xs">
+                <span>🏓 Bola: <strong class="text-white">{{ ganadorBola.nombre }}</strong></span>
+                <button type="button" @click="mostrarDisputaBola = true"
+                  class="text-[10px] text-sky-300 hover:text-white transition-colors cursor-pointer ml-0.5"
+                  title="Modificar quién ganó la bola">
+                  ✏️
+                </button>
+              </div>
+              <button v-else type="button" @click="mostrarDisputaBola = true"
+                class="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/30 border border-amber-400 text-[10px] sm:text-[11px] font-black text-amber-200 hover:bg-amber-500/50 transition-all cursor-pointer animate-pulse shadow-xs">
+                <span>🏓 Disputa de Bola</span>
+              </button>
+            </div>
+
+            <!-- ALERTA DE DEUCE SI AMBOS ESTÁN EN 10+ -->
+            <div v-if="esDeuce"
+              class="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/30 border border-amber-400 text-amber-200 text-[10px] sm:text-xs font-black animate-pulse shadow-md">
+              <Flame class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>DEUCE (10-10) • 1 Saque por Jugador • Diferencia +2</span>
             </div>
 
             <div class="flex items-center gap-2">
@@ -32,11 +54,14 @@
 
           <!-- MESA / CUADRÍCULA DE 3 COLUMNAS RESPONSIVE -->
           <div
-            class="grid grid-cols-[1fr_88px_1fr] xs:grid-cols-[1fr_105px_1fr] sm:grid-cols-[1fr_160px_1fr] md:grid-cols-[1fr_200px_1fr] gap-1.5 sm:gap-3 items-stretch min-h-80 sm:min-h-110">
+            class="grid grid-cols-[1fr_95px_1fr] xs:grid-cols-[1fr_115px_1fr] sm:grid-cols-[1fr_170px_1fr] md:grid-cols-[1fr_210px_1fr] gap-1.5 sm:gap-3 items-stretch min-h-80 sm:min-h-110">
 
+            <!-- LADO A DE LA MESA -->
             <div
-              class="bg-black rounded-xl sm:rounded-3xl border border-white/10 p-2 sm:p-4 md:p-5 flex flex-col justify-between items-center relative overflow-hidden shadow-2xl">
+              class="bg-black rounded-xl sm:rounded-3xl border p-2 sm:p-4 md:p-5 flex flex-col justify-between items-center relative overflow-hidden shadow-2xl transition-all"
+              :class="ladoAEstaSacando ? 'border-emerald-400/80 ring-2 ring-emerald-400/40 shadow-[0_0_30px_rgba(52,211,153,0.25)]' : 'border-white/10'">
 
+              <!-- CABECERA JUGADOR LADO A -->
               <div
                 class="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 border-b border-white/10 pb-1.5 sm:pb-2">
                 <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -67,9 +92,33 @@
                 </button>
               </div>
 
+              <!-- INDICADOR DINÁMICO DE SAQUE LADO A -->
+              <div class="w-full pt-1 flex items-center justify-center sm:justify-start">
+                <div v-if="ladoAEstaSacando"
+                  class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-[10px] sm:text-xs font-black animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.3)]">
+                  <span>🏓</span>
+                  <span>AL SAQUE</span>
+                  <span class="text-[9px] sm:text-[10px] font-mono opacity-90">
+                    {{ esDeuce ? '(1 de 1)' : `(${numeroSaqueTurno} de 2)` }}
+                  </span>
+                  <!-- Indicadores de puntos de saque -->
+                  <span v-if="!esDeuce" class="flex items-center gap-1 ml-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full transition-all"
+                      :class="numeroSaqueTurno >= 1 ? 'bg-emerald-400 shadow-[0_0_4px_#34d399]' : 'bg-white/20'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full transition-all"
+                      :class="numeroSaqueTurno >= 2 ? 'bg-emerald-400 shadow-[0_0_4px_#34d399]' : 'bg-white/20'"></span>
+                  </span>
+                </div>
+                <div v-else
+                  class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 text-[9px] sm:text-[10px] font-semibold">
+                  <span>Al Resto</span>
+                </div>
+              </div>
+
+              <!-- NÚMERO DE PUNTOS GRANDE CLICABLE -->
               <div class="flex-1 flex items-center justify-center select-none py-1 sm:py-2 transition-all"
                 :class="puedeSumarPunto(ladoA.esJugador1 ? 1 : 2) ? 'cursor-pointer active:scale-95' : 'cursor-not-allowed opacity-80'"
-                :title="puedeSumarPunto(ladoA.esJugador1 ? 1 : 2) ? 'Toca para sumar punto' : 'Diferencia de 2 alcanzada • Finaliza el set o descuenta puntos'"
+                :title="puedeSumarPunto(ladoA.esJugador1 ? 1 : 2) ? 'Toca para sumar punto' : 'Set definido • Diferencia de 2 puntos alcanzada'"
                 @click="sumarPunto(ladoA.esJugador1 ? 1 : 2)">
                 <span
                   class="text-5xl xs:text-6xl sm:text-8xl md:text-9xl font-black font-mono tracking-tighter text-white drop-shadow-[0_8px_24px_rgba(255,255,255,0.15)] leading-none transition-transform select-none">
@@ -77,6 +126,7 @@
                 </span>
               </div>
 
+              <!-- BOTONES RESTAR Y SUMAR PUNTOS -->
               <div class="w-full flex items-center justify-between px-0.5 sm:px-3 pt-1">
                 <button type="button" :disabled="(ladoA.esJugador1 ? puntosJ1 : puntosJ2) <= 0"
                   class="w-8 h-8 xs:w-9 xs:h-9 sm:w-12 sm:h-12 rounded-full border border-white/40 hover:border-white text-white flex items-center justify-center text-lg sm:text-2xl font-black hover:bg-white/10 active:scale-90 disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer"
@@ -97,8 +147,10 @@
             </div>
 
 
+            <!-- COLUMNA CENTRAL (MARCADOR DE SETS Y CONTROLES) -->
             <div class="flex flex-col justify-between gap-1.5 sm:gap-2">
 
+              <!-- MARCADOR DE SETS GANADOS -->
               <div class="grid grid-cols-2 gap-1 sm:gap-2 flex-1 max-h-27.5 sm:max-h-40">
                 <div
                   class="bg-black rounded-lg sm:rounded-2xl border border-white/10 p-1 sm:p-2.5 flex flex-col items-center justify-between">
@@ -135,21 +187,44 @@
                 </div>
               </div>
 
+              <!-- BOTÓN ALTERNAR SAQUE MANUAL (CORREGIR SAQUE) -->
               <button type="button"
-                class="w-full py-2 sm:py-3.5 bg-black hover:bg-slate-900 active:scale-95 border border-white/15 rounded-lg sm:rounded-2xl text-white flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md group"
+                class="w-full py-1.5 sm:py-2.5 bg-black hover:bg-slate-900 active:scale-95 border border-emerald-500/40 rounded-lg sm:rounded-2xl text-emerald-300 flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md group"
+                title="Corregir o alternar turno de saque manualmente" @click="alternarSaqueManual">
+                <RotateCcw class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 group-hover:-rotate-90 transition-transform" />
+                <span class="text-[8px] sm:text-[10px] font-black uppercase tracking-wider hidden xs:inline">Cambiar Saque</span>
+              </button>
+
+              <!-- BOTÓN CAMBIAR DE LADO EN LA MESA -->
+              <button type="button"
+                class="w-full py-1.5 sm:py-2 bg-black hover:bg-slate-900 active:scale-95 border border-white/15 rounded-lg sm:rounded-2xl text-white flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md group"
                 title="Cambiar de lado en la mesa" @click="invertirLados">
                 <ArrowLeftRight
-                  class="w-4 h-4 sm:w-5 sm:h-5 text-sky-400 group-hover:rotate-180 transition-transform duration-300" />
-                <span class="text-[8px] sm:text-xs font-black uppercase tracking-wider hidden xs:inline">Cambiar</span>
+                  class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400 group-hover:rotate-180 transition-transform duration-300" />
+                <span class="text-[8px] sm:text-[10px] font-black uppercase tracking-wider hidden xs:inline">Lados</span>
               </button>
 
+              <!-- BOTÓN DECLARAR VICTORIA POR W (W.O. / ABANDONO) - EXCLUSIVO ADMIN -->
+              <button
+                v-if="authStore.esAdmin"
+                type="button"
+                class="w-full py-1.5 sm:py-2 bg-black hover:bg-amber-950/40 active:scale-95 border border-amber-500/40 rounded-lg sm:rounded-2xl text-amber-300 flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md"
+                title="Declarar victoria por W (Walkover / Inasistencia / Retiro)"
+                @click="abrirModalWO"
+              >
+                <Gavel class="w-3.5 h-3.5 text-amber-400" />
+                <span class="text-[8px] sm:text-[10px] font-black uppercase tracking-wider hidden xs:inline">Declarar W</span>
+              </button>
+
+              <!-- BOTÓN REINICIAR PUNTOS A 0-0 -->
               <button type="button"
-                class="w-full py-2 sm:py-3.5 bg-black hover:bg-slate-900 active:scale-95 border border-white/15 rounded-lg sm:rounded-2xl text-white flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md"
+                class="w-full py-1 sm:py-1.5 bg-black hover:bg-slate-900 active:scale-95 border border-white/15 rounded-lg sm:rounded-2xl text-slate-400 hover:text-white flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md"
                 title="Reiniciar puntos del set actual a 0 - 0" @click="reiniciarSetActual">
-                <RotateCcw class="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                <span class="text-[8px] sm:text-xs font-black uppercase tracking-wider hidden xs:inline">Reset</span>
+                <RotateCcw class="w-3 h-3 text-slate-400" />
+                <span class="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider hidden xs:inline">Reset 0-0</span>
               </button>
 
+              <!-- BOTÓN TERMINAR SET -->
               <button type="button" :disabled="!puedeFinalizarSet" :class="[
                 'w-full py-2 sm:py-3.5 border rounded-lg sm:rounded-2xl font-black flex flex-col items-center justify-center gap-0.5 transition-all shadow-xl',
                 puedeFinalizarSet
@@ -170,8 +245,13 @@
               </button>
             </div>
 
+
+            <!-- LADO B DE LA MESA -->
             <div
-              class="bg-black rounded-xl sm:rounded-3xl border border-white/10 p-2 sm:p-4 md:p-5 flex flex-col justify-between items-center relative overflow-hidden shadow-2xl">
+              class="bg-black rounded-xl sm:rounded-3xl border p-2 sm:p-4 md:p-5 flex flex-col justify-between items-center relative overflow-hidden shadow-2xl transition-all"
+              :class="ladoBEstaSacando ? 'border-emerald-400/80 ring-2 ring-emerald-400/40 shadow-[0_0_30px_rgba(52,211,153,0.25)]' : 'border-white/10'">
+
+              <!-- CABECERA JUGADOR LADO B -->
               <div
                 class="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 border-b border-white/10 pb-1.5 sm:pb-2">
                 <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -201,9 +281,33 @@
                 </button>
               </div>
 
+              <!-- INDICADOR DINÁMICO DE SAQUE LADO B -->
+              <div class="w-full pt-1 flex items-center justify-center sm:justify-start">
+                <div v-if="ladoBEstaSacando"
+                  class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-[10px] sm:text-xs font-black animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.3)]">
+                  <span>🏓</span>
+                  <span>AL SAQUE</span>
+                  <span class="text-[9px] sm:text-[10px] font-mono opacity-90">
+                    {{ esDeuce ? '(1 de 1)' : `(${numeroSaqueTurno} de 2)` }}
+                  </span>
+                  <!-- Indicadores de puntos de saque -->
+                  <span v-if="!esDeuce" class="flex items-center gap-1 ml-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full transition-all"
+                      :class="numeroSaqueTurno >= 1 ? 'bg-emerald-400 shadow-[0_0_4px_#34d399]' : 'bg-white/20'"></span>
+                    <span class="w-1.5 h-1.5 rounded-full transition-all"
+                      :class="numeroSaqueTurno >= 2 ? 'bg-emerald-400 shadow-[0_0_4px_#34d399]' : 'bg-white/20'"></span>
+                  </span>
+                </div>
+                <div v-else
+                  class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 text-[9px] sm:text-[10px] font-semibold">
+                  <span>Al Resto</span>
+                </div>
+              </div>
+
+              <!-- NÚMERO DE PUNTOS GRANDE CLICABLE -->
               <div class="flex-1 flex items-center justify-center select-none py-1 sm:py-2 transition-all"
                 :class="puedeSumarPunto(ladoB.esJugador1 ? 1 : 2) ? 'cursor-pointer active:scale-95' : 'cursor-not-allowed opacity-80'"
-                :title="puedeSumarPunto(ladoB.esJugador1 ? 1 : 2) ? 'Toca para sumar punto' : 'Diferencia de 2 alcanzada • Finaliza el set o descuenta puntos'"
+                :title="puedeSumarPunto(ladoB.esJugador1 ? 1 : 2) ? 'Toca para sumar punto' : 'Set definido • Diferencia de 2 puntos alcanzada'"
                 @click="sumarPunto(ladoB.esJugador1 ? 1 : 2)">
                 <span
                   class="text-5xl xs:text-6xl sm:text-8xl md:text-9xl font-black font-mono tracking-tighter text-white drop-shadow-[0_8px_24px_rgba(255,255,255,0.15)] leading-none transition-transform select-none">
@@ -211,6 +315,7 @@
                 </span>
               </div>
 
+              <!-- BOTONES RESTAR Y SUMAR PUNTOS -->
               <div class="w-full flex items-center justify-between px-0.5 sm:px-3 pt-1">
                 <button type="button" :disabled="(ladoB.esJugador1 ? puntosJ1 : puntosJ2) <= 0"
                   class="w-8 h-8 xs:w-9 xs:h-9 sm:w-12 sm:h-12 rounded-full border border-white/40 hover:border-white text-white flex items-center justify-center text-lg sm:text-2xl font-black hover:bg-white/10 active:scale-90 disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer"
@@ -265,6 +370,71 @@
             </div>
           </Transition>
 
+          <!-- OVERLAY DE DISPUTA DE BOLA (ELECCIÓN DE SAQUE) -->
+          <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in"
+            leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+            <div v-if="mostrarDisputaBola && match"
+              class="absolute inset-0 z-40 bg-black/92 backdrop-blur-md rounded-3xl sm:rounded-[36px] p-4 sm:p-6 flex flex-col items-center justify-center text-center">
+              <div class="max-w-md w-full space-y-4">
+                <div
+                  class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400 text-3xl shadow-lg mx-auto">
+                  🏓
+                </div>
+                <div>
+                  <span class="text-[11px] font-black uppercase tracking-widest text-amber-400 block">Punto Reglamentario Preliminar</span>
+                  <h3 class="text-xl sm:text-2xl font-black text-white font-heading mt-0.5">Disputa de Bola (Elección de Saque)</h3>
+                  <p class="text-xs text-sky-100/80 mt-1 leading-relaxed">
+                    Jueguen el punto de bola previo. Selecciona al jugador que lo ganó para registrarlo y asignarle el primer saque del partido:
+                  </p>
+                </div>
+
+                <!-- Tarjetas para elegir al ganador de la bola -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <button type="button"
+                    class="p-4 rounded-2xl bg-emerald-600/30 hover:bg-emerald-600/50 border-2 border-emerald-400 active:scale-95 transition-all text-white flex flex-col items-center gap-2 cursor-pointer shadow-lg group"
+                    @click="seleccionarGanadorBola(1)">
+                    <div
+                      class="w-12 h-12 rounded-full bg-emerald-600 text-white font-black text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
+                      {{ match.jugador1.iniciales }}
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-xs font-black truncate">{{ match.jugador1.nombre }}</p>
+                      <span
+                        class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-400/25 text-emerald-300 mt-1 inline-block border border-emerald-400/40">
+                        Ganó Bola • Saca 1°
+                      </span>
+                    </div>
+                  </button>
+
+                  <button type="button"
+                    class="p-4 rounded-2xl bg-sky-600/30 hover:bg-sky-600/50 border-2 border-sky-400 active:scale-95 transition-all text-white flex flex-col items-center gap-2 cursor-pointer shadow-lg group"
+                    @click="seleccionarGanadorBola(2)">
+                    <div
+                      class="w-12 h-12 rounded-full bg-sky-600 text-white font-black text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
+                      {{ match.jugador2.iniciales }}
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-xs font-black truncate">{{ match.jugador2.nombre }}</p>
+                      <span
+                        class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-sky-400/25 text-sky-300 mt-1 inline-block border border-sky-400/40">
+                        Ganó Bola • Saca 1°
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                <div v-if="ganadorBola" class="pt-2">
+                  <button type="button"
+                    class="text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    @click="mostrarDisputaBola = false">
+                    Continuar sin cambiar (Actual: {{ ganadorBola.nombre }})
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+
         </div>
       </div>
     </Transition>
@@ -281,12 +451,10 @@
     :show-close="false"
   >
     <div v-if="ganadorPartido" class="flex flex-col items-center text-center gap-4 py-2">
-      <!-- Icono de Trofeo limpio -->
       <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shadow-xs">
         <Trophy class="w-7 h-7" />
       </div>
 
-      <!-- Ganador -->
       <div class="space-y-0.5">
         <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
           Ganador del Encuentro
@@ -294,9 +462,11 @@
         <h3 class="text-xl font-black text-slate-900">
           {{ ganadorPartido.nombre }}
         </h3>
+        <p v-if="ganadorBola" class="text-xs text-slate-500">
+          Ganador de la bola inicial: <strong>{{ ganadorBola.nombre }}</strong>
+        </p>
       </div>
 
-      <!-- Tarjeta resumen limpia idéntica al diseño del resto del sistema -->
       <div class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center gap-2">
         <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
           Marcador Final (Sets)
@@ -305,7 +475,6 @@
           {{ setsGanadosJ1 }} - {{ setsGanadosJ2 }}
         </span>
 
-        <!-- Desglose de sets -->
         <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
           <span
             v-for="(s, idx) in historialSets"
@@ -321,7 +490,6 @@
         </p>
       </div>
 
-      <!-- Botón de Confirmación -->
       <div class="w-full pt-1">
         <Button
           variant="emerald"
@@ -356,6 +524,81 @@
       </div>
     </div>
   </Modal>
+
+  <!-- MODAL DECLARAR DERROTA POR W (WALKOVER / ABANDONO) -->
+  <Modal
+    ref="modalWORef"
+    title="Declarar Victoria por W (Walkover)"
+    sub-title="Dictaminar partido por inasistencia o retiro con sets 11-6 y 11-6"
+    width="sm"
+    :footer="false"
+  >
+    <div v-if="match" class="space-y-4 py-1 text-xs">
+      <div class="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 space-y-1">
+        <p class="font-extrabold flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+          <Gavel class="w-4 h-4 text-amber-600" />
+          Reglamento Oficial: Derrota por W
+        </p>
+        <p class="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+          Conforme al reglamento, los sets se registrarán como <strong>11 - 6 y 11 - 6</strong> (2 - 0). El ganador sumará <strong>2 puntos</strong> en la tabla oficial y el perdedor por inasistencia/abandono recibirá <strong>0 puntos</strong>.
+        </p>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block font-bold text-slate-700 dark:text-slate-300 text-xs">
+          Selecciona al GANADOR por W:
+        </label>
+        <div class="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            :class="[
+              'p-3 rounded-xl border text-center font-bold transition-all cursor-pointer flex flex-col items-center gap-1.5',
+              ganadorWOId === match.jugador1.id
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/30'
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+            ]"
+            @click="ganadorWOId = match.jugador1.id"
+          >
+            <span class="w-8 h-8 rounded-full bg-emerald-700 text-white font-black text-xs flex items-center justify-center">
+              {{ match.jugador1.iniciales }}
+            </span>
+            <span class="text-xs truncate max-w-full font-bold">{{ match.jugador1.nombre }}</span>
+            <span class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-emerald-600 text-white mt-0.5">
+              Gana por W
+            </span>
+          </button>
+
+          <button
+            type="button"
+            :class="[
+              'p-3 rounded-xl border text-center font-bold transition-all cursor-pointer flex flex-col items-center gap-1.5',
+              ganadorWOId === match.jugador2.id
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/30'
+                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+            ]"
+            @click="ganadorWOId = match.jugador2.id"
+          >
+            <span class="w-8 h-8 rounded-full bg-sky-700 text-white font-black text-xs flex items-center justify-center">
+              {{ match.jugador2.iniciales }}
+            </span>
+            <span class="text-xs truncate max-w-full font-bold">{{ match.jugador2.nombre }}</span>
+            <span class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-emerald-600 text-white mt-0.5">
+              Gana por W
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        <Button variant="ghost" size="sm" @click="modalWORef?.close()">
+          Cancelar
+        </Button>
+        <Button variant="emerald" size="sm" :disabled="!ganadorWOId" @click="confirmarVictoriaPorWO">
+          Dictaminar W.O. (11-6, 11-6)
+        </Button>
+      </div>
+    </div>
+  </Modal>
 </template>
 
 <script setup lang="ts">
@@ -371,10 +614,14 @@ import {
   Flame,
   Sparkles,
   AlertTriangle,
+  Gavel,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { PartidoArbitrable, SetPartido, JugadorTorneo } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const props = defineProps<{
   match: PartidoArbitrable | null
@@ -387,6 +634,11 @@ const emit = defineEmits<{
       partidoId: string
       sets: SetPartido[]
       ganadorId: string
+      esWalkover?: boolean
+      marcador?: string
+      marcadorDetallado?: string
+      perdedorPorWId?: string
+      ganadorBolaId?: string
     },
   ): void
   (e: 'close'): void
@@ -405,8 +657,17 @@ const easterEggMensaje = ref('')
 let timerEasterEgg: ReturnType<typeof setTimeout> | null = null
 
 const modalConfirmarSalidaRef = ref<InstanceType<typeof Modal> | null>(null)
+const modalWORef = ref<InstanceType<typeof Modal> | null>(null)
+const ganadorWOId = ref<string>('')
 const mensajeAlertaSet = ref('')
 let timerAlertaSet: ReturnType<typeof setTimeout> | null = null
+
+// Disputa de Bola
+const ganadorBola = ref<JugadorTorneo | null>(null)
+const mostrarDisputaBola = ref(false)
+
+// Corrección manual de saque
+const saqueInvertidoManualmente = ref(false)
 
 const historialSets = ref<SetPartido[]>([])
 const numeroSetActual = computed(() => historialSets.value.length + 1)
@@ -458,50 +719,86 @@ const ladoB = computed(() => {
     : { jugador: props.match.jugador2, esJugador1: false }
 })
 
-const modalFinPartidoRef = ref<InstanceType<typeof Modal> | null>(null)
+// ==========================================
+// LÓGICA REGLAMENTARIA DE SAQUES Y DEUCE
+// ==========================================
 
-watch(partidoTerminado, (terminado) => {
-  if (terminado) {
-    modalFinPartidoRef.value?.open()
+const totalPuntosSet = computed(() => puntosJ1.value + puntosJ2.value)
+
+// Condición de Deuce: empate a 10 o más (10-10, 11-11, etc.)
+const esDeuce = computed(() => puntosJ1.value >= 10 && puntosJ2.value >= 10)
+
+/**
+ * Servidor inicial de cada set según reglamento:
+ * Set 1: Quién ganó la "Bola".
+ * Set 2: El jugador opuesto al que sacó primero en el Set 1.
+ * Set 3: Quien ganó la "Bola" (desempate).
+ */
+const servidorInicialSet = computed<1 | 2>(() => {
+  if (!props.match) return 1
+  const ganadorBolaEsJ1 = ganadorBola.value?.id === props.match.jugador1.id
+  const inicialSet1: 1 | 2 = ganadorBolaEsJ1 ? 1 : 2
+
+  if (numeroSetActual.value === 1) {
+    return inicialSet1
+  } else if (numeroSetActual.value === 2) {
+    return inicialSet1 === 1 ? 2 : 1
   } else {
-    modalFinPartidoRef.value?.close()
+    return inicialSet1
   }
 })
 
-const open = () => {
-  puntosJ1.value = 0
-  puntosJ2.value = 0
-  mallasJ1.value = 0
-  mallasJ2.value = 0
-  historialSets.value = []
-  ladosInvertidos.value = false
-  easterEggMensaje.value = ''
-  modalFinPartidoRef.value?.close()
-  visible.value = true
-}
+/**
+ * Cálculo del servidor actual según los puntos transcurridos:
+ * - Antes de Deuce: 2 saques por jugador consecutivamente.
+ * - En Deuce (10:10+): 1 saque alternado por punto.
+ */
+const servidorActual = computed<1 | 2>(() => {
+  const base = servidorInicialSet.value
+  const opuesto: 1 | 2 = base === 1 ? 2 : 1
+  let natural: 1 | 2 = base
 
-const close = () => {
-  visible.value = false
-  modalFinPartidoRef.value?.close()
-  emit('close')
-}
-
-const handleCerrarConConfirmacion = () => {
-  if (historialSets.value.length > 0 && !partidoTerminado.value) {
-    modalConfirmarSalidaRef.value?.open()
-    return
+  if (!esDeuce.value) {
+    // Cada 2 puntos cambia el saque
+    const ciclo = Math.floor(totalPuntosSet.value / 2)
+    natural = ciclo % 2 === 0 ? base : opuesto
+  } else {
+    // En Deuce: a partir del punto 20, 1 saque por jugador alternado
+    const puntosEnDeuce = totalPuntosSet.value - 20
+    natural = puntosEnDeuce % 2 === 0 ? base : opuesto
   }
-  close()
+
+  // Si el árbitro forzó alternancia manual para corregir:
+  if (saqueInvertidoManualmente.value) {
+    return natural === 1 ? 2 : 1
+  }
+
+  return natural
+})
+
+/**
+ * Número de saque dentro del turno (1 de 2, o 2 de 2; en Deuce siempre 1 de 1)
+ */
+const numeroSaqueTurno = computed<number>(() => {
+  if (esDeuce.value) return 1
+  return (totalPuntosSet.value % 2) + 1
+})
+
+const ladoAEstaSacando = computed<boolean>(() => {
+  return ladoA.value.esJugador1 ? servidorActual.value === 1 : servidorActual.value === 2
+})
+
+const ladoBEstaSacando = computed<boolean>(() => {
+  return ladoB.value.esJugador1 ? servidorActual.value === 1 : servidorActual.value === 2
+})
+
+const alternarSaqueManual = () => {
+  saqueInvertidoManualmente.value = !saqueInvertidoManualmente.value
 }
 
-const confirmarSalida = () => {
-  modalConfirmarSalidaRef.value?.close()
-  close()
-}
-
-const invertirLados = () => {
-  ladosInvertidos.value = !ladosInvertidos.value
-}
+// ==========================================
+// CONDICIÓN REGLAMENTARIA DE VICTORIA DE SET
+// ==========================================
 
 const puedeFinalizarSet = computed<boolean>(() => {
   const maxPts = Math.max(puntosJ1.value, puntosJ2.value)
@@ -519,7 +816,7 @@ const textoEstadoSet = computed<string>(() => {
       puntosJ1.value > puntosJ2.value
         ? props.match?.jugador1.nombre || 'J1'
         : props.match?.jugador2.nombre || 'J2'
-    return `Listo: Gana ${lider}`
+    return `Listo: Gana ${lider} (${puntosJ1.value} - ${puntosJ2.value})`
   }
 
   if (maxPts < 11) {
@@ -538,24 +835,11 @@ const textoEstadoSet = computed<string>(() => {
   return 'Set en juego'
 })
 
-const puedeSumarPunto = (jugador: 1 | 2): boolean => {
-  const ptsActuales = jugador === 1 ? puntosJ1.value : puntosJ2.value
-  const ptsRival = jugador === 1 ? puntosJ2.value : puntosJ1.value
-  const nuevoPts = ptsActuales + 1
-  const nuevaDiferencia = nuevoPts - ptsRival
-
-  if (ptsRival >= 10 && nuevaDiferencia > 2) {
+// Bloqueo estricto: Una vez alcanzada la diferencia reglamentaria de 2 con 11+ puntos, no se pueden sumar más puntos
+const puedeSumarPunto = (_jugador: 1 | 2): boolean => {
+  if (puedeFinalizarSet.value) {
     return false
   }
-
-  if (ptsRival < 10 && ptsActuales >= 11) {
-    return false
-  }
-
-  if (nuevoPts > 11 && nuevaDiferencia > 2) {
-    return false
-  }
-
   return true
 }
 
@@ -579,8 +863,69 @@ const restarPunto = (jugador: 1 | 2) => {
 const reiniciarSetActual = () => {
   puntosJ1.value = 0
   puntosJ2.value = 0
+  saqueInvertidoManualmente.value = false
 }
 
+// Disputa de bola
+const seleccionarGanadorBola = (jugadorNum: 1 | 2) => {
+  if (!props.match) return
+  ganadorBola.value = jugadorNum === 1 ? props.match.jugador1 : props.match.jugador2
+  mostrarDisputaBola.value = false
+  saqueInvertidoManualmente.value = false
+}
+
+// Declaración de W.O. / Abandono - EXCLUSIVO ADMIN
+const abrirModalWO = () => {
+  if (!authStore.esAdmin) return
+  if (!props.match) return
+  ganadorWOId.value = props.match.jugador1.id
+  modalWORef.value?.open()
+}
+
+const confirmarVictoriaPorWO = () => {
+  if (!authStore.esAdmin) return
+  if (!props.match || !ganadorWOId.value) return
+
+  const ganador = ganadorWOId.value === props.match.jugador1.id ? props.match.jugador1 : props.match.jugador2
+  const perdedor = ganadorWOId.value === props.match.jugador1.id ? props.match.jugador2 : props.match.jugador1
+
+  // Sets balanceados a 11-6 y 11-6
+  const setsWO: SetPartido[] = [
+    {
+      setNumero: 1,
+      puntosJugador1: ganadorWOId.value === props.match.jugador1.id ? 11 : 6,
+      puntosJugador2: ganadorWOId.value === props.match.jugador1.id ? 6 : 11,
+      mallasJugador1: 0,
+      mallasJugador2: 0,
+      ganadorId: ganador.id,
+    },
+    {
+      setNumero: 2,
+      puntosJugador1: ganadorWOId.value === props.match.jugador1.id ? 11 : 6,
+      puntosJugador2: ganadorWOId.value === props.match.jugador1.id ? 6 : 11,
+      mallasJugador1: 0,
+      mallasJugador2: 0,
+      ganadorId: ganador.id,
+    },
+  ]
+
+  modalWORef.value?.close()
+
+  emit('partido-finalizado', {
+    partidoId: props.match.partido.id,
+    sets: setsWO,
+    ganadorId: ganador.id,
+    esWalkover: true,
+    marcador: '2 - 0 (W.O.)',
+    marcadorDetallado: '11-6, 11-6',
+    perdedorPorWId: perdedor.id,
+    ganadorBolaId: ganadorBola.value?.id,
+  })
+
+  close()
+}
+
+// Easter egg de mallas
 const registrarMalla = (jugador: 1 | 2) => {
   if (jugador === 1) {
     mallasJ1.value += 1
@@ -624,6 +969,7 @@ const handleTerminarSet = () => {
     mallasJugador1: mallasJ1.value,
     mallasJugador2: mallasJ2.value,
     ganadorId: ganadorSetId,
+    ganadorBolaId: ganadorBola.value?.id,
   }
 
   historialSets.value.push(nuevoSet)
@@ -631,7 +977,67 @@ const handleTerminarSet = () => {
   puntosJ2.value = 0
   mallasJ1.value = 0
   mallasJ2.value = 0
+  saqueInvertidoManualmente.value = false
 
+  ladosInvertidos.value = !ladosInvertidos.value
+}
+
+const modalFinPartidoRef = ref<InstanceType<typeof Modal> | null>(null)
+
+watch(partidoTerminado, (terminado) => {
+  if (terminado) {
+    modalFinPartidoRef.value?.open()
+  } else {
+    modalFinPartidoRef.value?.close()
+  }
+})
+
+const open = () => {
+  puntosJ1.value = 0
+  puntosJ2.value = 0
+  mallasJ1.value = 0
+  mallasJ2.value = 0
+  historialSets.value = []
+  ladosInvertidos.value = false
+  saqueInvertidoManualmente.value = false
+  easterEggMensaje.value = ''
+  modalFinPartidoRef.value?.close()
+
+  // Revisar si ya había ganador de bola guardado en el partido
+  if (props.match?.partido.ganadorBolaId) {
+    ganadorBola.value =
+      props.match.jugador1.id === props.match.partido.ganadorBolaId
+        ? props.match.jugador1
+        : props.match.jugador2
+    mostrarDisputaBola.value = false
+  } else {
+    ganadorBola.value = null
+    mostrarDisputaBola.value = true
+  }
+
+  visible.value = true
+}
+
+const close = () => {
+  visible.value = false
+  modalFinPartidoRef.value?.close()
+  emit('close')
+}
+
+const handleCerrarConConfirmacion = () => {
+  if (historialSets.value.length > 0 && !partidoTerminado.value) {
+    modalConfirmarSalidaRef.value?.open()
+    return
+  }
+  close()
+}
+
+const confirmarSalida = () => {
+  modalConfirmarSalidaRef.value?.close()
+  close()
+}
+
+const invertirLados = () => {
   ladosInvertidos.value = !ladosInvertidos.value
 }
 
@@ -644,6 +1050,8 @@ const confirmarRegistroFinal = () => {
     partidoId: props.match.partido.id,
     sets: historialSets.value,
     ganadorId: ganadorPartido.value.id,
+    esWalkover: false,
+    ganadorBolaId: ganadorBola.value?.id,
   })
 
   close()

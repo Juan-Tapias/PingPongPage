@@ -327,6 +327,7 @@
       :partidos-disponibles="partidosDisponiblesParaArbitrar"
       @validar-codigos="handleValidarCodigos"
       @iniciar-partido="handleIniciarPartidoArbitrado"
+      @declarar-walkover="handleDeclararWalkover"
     />
 
     <!-- MODAL MARCADOR VIRTUAL TEMÁTICO DE MESA DE PING PONG -->
@@ -382,6 +383,7 @@ const {
   partidosDisponiblesParaArbitrar,
   validarCodigosArbitraje,
   registrarResultadoPartido,
+  registrarVictoriaPorWO,
   jugadorMasMallero,
 } = useTorneoGrupo(props.torneo)
 
@@ -431,11 +433,25 @@ const handleIniciarPartidoArbitrado = (datos: { partidoArbitrable: PartidoArbitr
   modalMarcadorVirtualRef.value?.open()
 }
 
+const handleDeclararWalkover = (datos: {
+  partidoId: string
+  ganadorId: string
+  perdedorId: string
+  motivo: string
+}) => {
+  registrarVictoriaPorWO(datos.partidoId, datos.ganadorId, datos.perdedorId, datos.motivo)
+}
+
 const handlePartidoFinalizado = (datos: {
   partidoId: string
   sets: SetPartido[]
   ganadorId: string
+  esWalkover?: boolean
+  marcador?: string
+  marcadorDetallado?: string
+  perdedorPorWId?: string
+  ganadorBolaId?: string
 }) => {
-  registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId)
+  registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId, datos)
 }
 </script>

@@ -1,6 +1,6 @@
 <template>
-  <Modal ref="modalRef" :title="paso === 'seleccion' ? 'Arbitraje de Torneo' : 'Confirmación de Seguridad (PINs)'"
-    :sub-title="paso === 'seleccion' ? 'Selecciona un partido pendiente para arbitrar' : 'Ingresa los códigos de 5 dígitos de ambos rivales'"
+  <Modal ref="modalRef" :title="paso === 'seleccion' ? 'Arbitraje de Torneo' : (modoArbitraje === 'walkover' && authStore.esAdmin ? 'Declarar Victoria por W (Walkover)' : 'Confirmación de Seguridad (PINs)')"
+    :sub-title="paso === 'seleccion' ? 'Selecciona un partido pendiente para arbitrar' : (modoArbitraje === 'walkover' && authStore.esAdmin ? 'Dictamen por inasistencia o vencimiento de 48h (Sets 11-6, 11-6)' : 'Ingresa los códigos de 5 dígitos de ambos rivales')"
     width="xl" :footer="false">
     <div v-if="paso === 'seleccion'" class="space-y-4 py-1">
       <div class="flex items-center justify-between gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 rounded-xl">
@@ -26,7 +26,7 @@
       <!-- Lista de partidos disponibles -->
       <div v-if="partidosDisponibles.length > 0" class="space-y-2.5">
         <h4 class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-400">
-          Partidos listos para jugar ({{ partidosDisponibles.length }})
+          Partidos listos para jugar o dictaminar ({{ partidosDisponibles.length }})
         </h4>
 
         <div v-for="item in partidosDisponibles" :key="item.partido.id"
@@ -34,11 +34,17 @@
           <!-- Información del partido y jugadores -->
           <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0 pr-1 md:pr-4">
             <!-- Badge de Ronda y Estado -->
-            <div class="flex items-center gap-1.5 shrink-0">
+            <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
               <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
                 Ronda {{ item.partido.ronda || item.partido.jornada || 1 }}
               </span>
-              <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
+              <span v-if="item.partido.horasRestantes !== undefined && item.partido.horasRestantes <= 0"
+                class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
+                <AlertTriangle class="w-3 h-3" />
+                >48h Expirado
+              </span>
+              <span v-else
+                class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
                 Libres
               </span>
             </div>
@@ -75,13 +81,26 @@
             </div>
           </div>
 
-          <!-- Botón de Acción -->
-          <Button variant="emerald" size="sm"
-            class="gap-1.5 shrink-0 self-end md:self-auto font-bold shadow-xs cursor-pointer"
-            @click="seleccionarPartido(item)">
-            <ShieldCheck class="w-3.5 h-3.5" />
-            <span>Arbitrar este partido</span>
-          </Button>
+          <!-- Botones de Acción -->
+          <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+            <Button
+              v-if="authStore.esAdmin"
+              variant="outline"
+              size="sm"
+              class="gap-1 text-xs border-amber-400 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/40 cursor-pointer font-bold shadow-2xs"
+              @click="seleccionarPartidoParaWO(item)"
+            >
+              <Gavel class="w-3.5 h-3.5 text-amber-600" />
+              <span>Declarar W</span>
+            </Button>
+
+            <Button variant="emerald" size="sm"
+              class="gap-1.5 font-bold shadow-xs cursor-pointer"
+              @click="seleccionarPartido(item)">
+              <ShieldCheck class="w-3.5 h-3.5" />
+              <span>Arbitrar</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -101,14 +120,47 @@
       </div>
     </div>
 
+    <!-- PASO DE CONFIRMACIÓN O RESOLUCIÓN POR W.O. -->
     <div v-else-if="paso === 'confirmacion' && partidoSeleccionado" class="space-y-4 py-1">
-      <button type="button"
-        class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
-        @click="paso = 'seleccion'">
-        <ArrowLeft class="w-3.5 h-3.5" />
-        <span>Elegir otro partido</span>
-      </button>
+      <div class="flex items-center justify-between">
+        <button type="button"
+          class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+          @click="paso = 'seleccion'">
+          <ArrowLeft class="w-3.5 h-3.5" />
+          <span>Elegir otro partido</span>
+        </button>
 
+        <!-- Selector de Modo: Normal (ambos PINs) vs Walkover (por W) - EXCLUSIVO ADMIN -->
+        <div v-if="authStore.esAdmin" class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+          <button
+            type="button"
+            :class="[
+              'px-3 py-1 rounded-lg transition-all cursor-pointer',
+              modoArbitraje === 'normal'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            ]"
+            @click="modoArbitraje = 'normal'"
+          >
+            Partido Presencial (2 PINs)
+          </button>
+          <button
+            type="button"
+            :class="[
+              'px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1',
+              modoArbitraje === 'walkover'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            ]"
+            @click="modoArbitraje = 'walkover'"
+          >
+            <Gavel class="w-3 h-3" />
+            <span>Derrota por W (W.O.)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta del partido -->
       <div class="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between text-center border border-slate-800 px-4">
         <div class="text-left">
           <p class="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">Jugador 1</p>
@@ -128,55 +180,148 @@
         </div>
       </div>
 
-      <div class="p-3.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800 text-sky-900 dark:text-sky-200 flex items-start gap-3">
-        <KeyRound class="w-5 h-5 text-sky-700 dark:text-sky-400 shrink-0 mt-0.5" />
-        <div class="text-xs space-y-1">
-          <p class="font-extrabold">Protocolo de Validación de Presencia</p>
-          <p class="text-sky-800 dark:text-sky-300">
-            Pide a cada jugador el código numérico de 5 dígitos que aparece en su pantalla para este enfrentamiento.
-            Ambos deben coincidir para abrir el marcador.
+      <!-- VISTA NORMAL: VALIDACIÓN DE AMBOS PINS -->
+      <template v-if="modoArbitraje === 'normal'">
+        <div class="p-3.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800 text-sky-900 dark:text-sky-200 flex items-start gap-3">
+          <KeyRound class="w-5 h-5 text-sky-700 dark:text-sky-400 shrink-0 mt-0.5" />
+          <div class="text-xs space-y-1">
+            <p class="font-extrabold">Protocolo de Validación de Presencia</p>
+            <p class="text-sky-800 dark:text-sky-300">
+              Pide a cada jugador el código numérico de 5 dígitos que aparece en su pantalla para este enfrentamiento.
+              Ambos deben coincidir para abrir el marcador virtual.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+              PIN de {{ partidoSeleccionado.jugador1.nombre }}
+            </label>
+            <input v-model="codigoJ1" type="text" maxlength="5" placeholder="5 dígitos (ej. 58214)"
+              class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
+              @input="limpiarError" />
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+              PIN de {{ partidoSeleccionado.jugador2.nombre }}
+            </label>
+            <input v-model="codigoJ2" type="text" maxlength="5" placeholder="5 dígitos (ej. 91042)"
+              class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
+              @input="limpiarError" />
+          </div>
+        </div>
+
+        <div v-if="mensajeError"
+          class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+          <AlertTriangle class="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{{ mensajeError }}</span>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <Button variant="ghost" size="sm" @click="paso = 'seleccion'">
+            Atrás
+          </Button>
+
+          <Button variant="emerald" size="sm" class="gap-2" :disabled="codigoJ1.length !== 5 || codigoJ2.length !== 5"
+            @click="handleConfirmarInicio">
+            <Play class="w-4 h-4" />
+            <span>Validar e Iniciar Marcador</span>
+          </Button>
+        </div>
+      </template>
+
+      <!-- VISTA WALKOVER: DECLARAR VICTORIA POR W CUANDO NO SE PUEDE JUGAR O >48H -->
+      <template v-else>
+        <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 space-y-1.5 text-xs">
+          <p class="font-extrabold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+            <Gavel class="w-4 h-4 text-amber-600" />
+            Dictamen Oficial de Victoria por W (Walkover)
+          </p>
+          <p class="leading-relaxed text-amber-800 dark:text-amber-300">
+            Aplica cuando un rival <strong>no se presenta</strong>, <strong>rechaza jugar</strong> o el partido ha <strong>excedido el plazo reglamentario de 48 horas</strong>.
+            El resultado se fija en <strong>11-6 y 11-6</strong> (2 - 0). El ganador sumará <strong>2 puntos</strong> y el ausente <strong>0 puntos</strong> de sanción.
           </p>
         </div>
-      </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        <div class="space-y-1.5">
+        <div class="space-y-2">
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
-            PIN de {{ partidoSeleccionado.jugador1.nombre }}
+            Selecciona cuál jugador estuvo PRESENTE (Ganador por W):
           </label>
-          <input v-model="codigoJ1" type="text" maxlength="5" placeholder="5 dígitos (ej. 58214)"
-            class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
-            @input="limpiarError" />
+          <div class="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              :class="[
+                'p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5',
+                ganadorWOSeleccionadoId === partidoSeleccionado.jugador1.id
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/30'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-200'
+              ]"
+              @click="ganadorWOSeleccionadoId = partidoSeleccionado.jugador1.id"
+            >
+              <div class="w-9 h-9 rounded-full bg-emerald-700 text-white font-black text-xs flex items-center justify-center">
+                {{ partidoSeleccionado.jugador1.iniciales }}
+              </div>
+              <span class="text-xs font-bold truncate max-w-full">{{ partidoSeleccionado.jugador1.nombre }}</span>
+              <span class="text-[9px] uppercase font-black px-2 py-0.5 rounded bg-emerald-600 text-white mt-1">
+                Presente (Gana 2-0)
+              </span>
+            </button>
+
+            <button
+              type="button"
+              :class="[
+                'p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1.5',
+                ganadorWOSeleccionadoId === partidoSeleccionado.jugador2.id
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/30'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-200'
+              ]"
+              @click="ganadorWOSeleccionadoId = partidoSeleccionado.jugador2.id"
+            >
+              <div class="w-9 h-9 rounded-full bg-sky-700 text-white font-black text-xs flex items-center justify-center">
+                {{ partidoSeleccionado.jugador2.iniciales }}
+              </div>
+              <span class="text-xs font-bold truncate max-w-full">{{ partidoSeleccionado.jugador2.nombre }}</span>
+              <span class="text-[9px] uppercase font-black px-2 py-0.5 rounded bg-emerald-600 text-white mt-1">
+                Presente (Gana 2-0)
+              </span>
+            </button>
+          </div>
         </div>
 
         <div class="space-y-1.5">
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
-            PIN de {{ partidoSeleccionado.jugador2.nombre }}
+            Motivo reglamentario del W.O.
           </label>
-          <input v-model="codigoJ2" type="text" maxlength="5" placeholder="5 dígitos (ej. 91042)"
-            class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
-            @input="limpiarError" />
+          <select
+            v-model="motivoWO"
+            class="w-full text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 outline-hidden"
+          >
+            <option value="inasistencia">Inasistencia del rival / No se presentó a la mesa</option>
+            <option value="plazo_48h">Plazo límite de 48 horas excedido sin disputar partido</option>
+            <option value="retiro">Retiro voluntario o imposibilidad de jugar</option>
+          </select>
         </div>
-      </div>
 
-      <div v-if="mensajeError"
-        class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
-        <AlertTriangle class="w-4 h-4 text-rose-600 shrink-0" />
-        <span>{{ mensajeError }}</span>
-      </div>
+        <div v-if="mensajeError"
+          class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+          <AlertTriangle class="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{{ mensajeError }}</span>
+        </div>
 
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <Button variant="ghost" size="sm" @click="paso = 'seleccion'">
+            Atrás
+          </Button>
 
-      <div class="flex items-center justify-end gap-2.5 pt-2">
-        <Button variant="ghost" size="sm" @click="paso = 'seleccion'">
-          Atrás
-        </Button>
-
-        <Button variant="emerald" size="sm" class="gap-2" :disabled="codigoJ1.length !== 5 || codigoJ2.length !== 5"
-          @click="handleConfirmarInicio">
-          <Play class="w-4 h-4" />
-          <span>Validar e Iniciar Marcador</span>
-        </Button>
-      </div>
+          <Button variant="emerald" size="sm" class="gap-2" :disabled="!ganadorWOSeleccionadoId"
+            @click="handleConfirmarWalkover">
+            <Gavel class="w-4 h-4" />
+            <span>Dictaminar W.O. (11-6, 11-6)</span>
+          </Button>
+        </div>
+      </template>
     </div>
   </Modal>
 </template>
@@ -190,10 +335,14 @@ import {
   ArrowLeft,
   AlertTriangle,
   Play,
+  Gavel,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { PartidoArbitrable, JugadorTorneo } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const props = defineProps<{
   arbitro: JugadorTorneo | null
@@ -217,30 +366,37 @@ const emit = defineEmits<{
     },
     callback: (resultado: { valido: boolean; mensaje: string }) => void,
   ): void
+  (
+    e: 'declarar-walkover',
+    datos: {
+      partidoId: string
+      ganadorId: string
+      perdedorId: string
+      motivo: string
+    },
+  ): void
   (e: 'cambiar-arbitro', jugador: JugadorTorneo): void
 }>()
 
-const handleCambiarArbitro = (event: Event) => {
-  const target = event.target as HTMLSelectElement
-  const encontrado = props.jugadoresTorneo?.find((j) => j.id === target.value)
-  if (encontrado) {
-    emit('cambiar-arbitro', encontrado)
-  }
-}
-
 const modalRef = ref<InstanceType<typeof Modal> | null>(null)
 const paso = ref<'seleccion' | 'confirmacion'>('seleccion')
+const modoArbitraje = ref<'normal' | 'walkover'>('normal')
 const partidoSeleccionado = ref<PartidoArbitrable | null>(null)
 
 const codigoJ1 = ref('')
 const codigoJ2 = ref('')
+const ganadorWOSeleccionadoId = ref('')
+const motivoWO = ref('inasistencia')
 const mensajeError = ref('')
 
 const open = () => {
   paso.value = 'seleccion'
+  modoArbitraje.value = 'normal'
   partidoSeleccionado.value = null
   codigoJ1.value = ''
   codigoJ2.value = ''
+  ganadorWOSeleccionadoId.value = ''
+  motivoWO.value = 'inasistencia'
   mensajeError.value = ''
   modalRef.value?.open()
 }
@@ -251,8 +407,21 @@ const close = () => {
 
 const seleccionarPartido = (partido: PartidoArbitrable) => {
   partidoSeleccionado.value = partido
+  modoArbitraje.value = 'normal'
   codigoJ1.value = ''
   codigoJ2.value = ''
+  ganadorWOSeleccionadoId.value = partido.jugador1.id
+  mensajeError.value = ''
+  paso.value = 'confirmacion'
+}
+
+const seleccionarPartidoParaWO = (partido: PartidoArbitrable) => {
+  if (!authStore.esAdmin) return
+  partidoSeleccionado.value = partido
+  modoArbitraje.value = 'walkover'
+  codigoJ1.value = ''
+  codigoJ2.value = ''
+  ganadorWOSeleccionadoId.value = partido.jugador1.id
   mensajeError.value = ''
   paso.value = 'confirmacion'
 }
@@ -260,7 +429,6 @@ const seleccionarPartido = (partido: PartidoArbitrable) => {
 const limpiarError = () => {
   mensajeError.value = ''
 }
-
 
 const handleConfirmarInicio = () => {
   if (!partidoSeleccionado.value) return
@@ -285,6 +453,26 @@ const handleConfirmarInicio = () => {
       }
     },
   )
+}
+
+const handleConfirmarWalkover = () => {
+  if (!authStore.esAdmin) return
+  if (!partidoSeleccionado.value || !ganadorWOSeleccionadoId.value) return
+
+  const ganadorId = ganadorWOSeleccionadoId.value
+  const perdedorId =
+    ganadorId === partidoSeleccionado.value.jugador1.id
+      ? partidoSeleccionado.value.jugador2.id
+      : partidoSeleccionado.value.jugador1.id
+
+  emit('declarar-walkover', {
+    partidoId: partidoSeleccionado.value.partido.id,
+    ganadorId,
+    perdedorId,
+    motivo: motivoWO.value,
+  })
+
+  close()
 }
 
 defineExpose({

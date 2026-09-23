@@ -118,8 +118,10 @@ export const calcularTablaDesdePartidos = (
     let pj = 0
     let pg = 0
     let pp = 0
+    let ppPorWO = 0 // Derrotas por inasistencia / W.O. (no suman el punto por derrota)
     let sf = 0
     let sc = 0
+    let mallas = 0
 
     const idJugador = jugador.id || jugador.jugadorId
 
@@ -133,7 +135,7 @@ export const calcularTablaDesdePartidos = (
         let sfPartido = 0
         let scPartido = 0
 
-        // 1. Contabilización de sets detallados
+        // 1. Contabilización de sets detallados y toques de malla
         if (partido.sets && Array.isArray(partido.sets) && partido.sets.length > 0) {
           partido.sets.forEach((s: any) => {
             let ganoEsteSet = false
@@ -148,9 +150,16 @@ export const calcularTablaDesdePartidos = (
             } else {
               scPartido++
             }
+
+            // Acumular toques de red / mallas por set
+            if (esJ1) {
+              mallas += Number(s.mallasJugador1 || 0)
+            } else {
+              mallas += Number(s.mallasJugador2 || 0)
+            }
           })
         } else if (partido.marcador && typeof partido.marcador === 'string') {
-          // 2. Extracción de sets a partir del marcador resumen (ej: "0 - 2", "2-1")
+          // 2. Extracción de sets a partir del marcador resumen (ej: "0 - 2", "2-1", "2 - 0 (W.O.)")
           const partes = partido.marcador.split('-').map((str: string) => parseInt(str.trim(), 10))
           if (partes.length === 2 && !isNaN(partes[0]!) && !isNaN(partes[1]!)) {
             if (esJ1) {
@@ -160,6 +169,15 @@ export const calcularTablaDesdePartidos = (
               sfPartido = partes[1]!
               scPartido = partes[0]!
             }
+          }
+        }
+
+        // Fallback de toques de malla si están en la raíz del partido
+        if ((!partido.sets || partido.sets.length === 0)) {
+          if (esJ1 && partido.mallasJugador1) {
+            mallas += Number(partido.mallasJugador1)
+          } else if (esJ2 && partido.mallasJugador2) {
+            mallas += Number(partido.mallasJugador2)
           }
         }
 
@@ -187,12 +205,23 @@ export const calcularTablaDesdePartidos = (
           pg++
         } else {
           pp++
+          // Si el partido terminó por Walkover / W.O. y este jugador fue el perdedor sancionado
+          const esWO =
+            partido.esWalkover === true ||
+            String(partido.marcador || '').toUpperCase().includes('W.O.') ||
+            String(partido.marcador || '').toUpperCase().includes('(W)') ||
+            (partido.perdedorPorWId && coincideJugador(jugador, partido.perdedorPorWId))
+
+          if (esWO) {
+            ppPorWO++
+          }
         }
       }
     })
 
-    // Sistema Round Robin oficial: 2 pts por victoria, 1 pt por derrota
-    const puntos = pg * 2 + pp * 1
+    // Sistema Round Robin oficial: 2 pts por victoria, 1 pt por derrota jugada, 0 pts por derrota por W.O.
+    const derrotasJugadas = Math.max(0, pp - ppPorWO)
+    const puntos = pg * 2 + derrotasJugadas * 1
 
     return {
       posicion: 0,
@@ -207,6 +236,7 @@ export const calcularTablaDesdePartidos = (
       sc,
       puntos,
       destino: '',
+      mallas,
     }
   })
 

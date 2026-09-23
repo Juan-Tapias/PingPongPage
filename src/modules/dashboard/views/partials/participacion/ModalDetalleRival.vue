@@ -50,7 +50,7 @@
         <div class="flex items-center justify-between py-2">
           <div class="flex flex-col">
             <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Plazo límite:</span>
-            <span class="text-[10px] text-slate-400 dark:text-slate-500">Reglamento: 2 días máx.</span>
+            <span class="text-[10px] text-slate-400 dark:text-slate-500">Reglamento: 48 horas máx.</span>
           </div>
 
           <div class="text-right">
@@ -65,6 +65,16 @@
           </div>
         </div>
 
+        <div v-if="burbuja.partido.estado === 'pendiente_admin' || (burbuja.diasRestantes <= 0 && burbuja.partido.estado === 'pendiente')" class="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-[11px] text-amber-900 dark:text-amber-200">
+          <p class="font-bold flex items-center gap-1">
+            <AlertTriangle class="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            Plazo reglamentario cumplido
+          </p>
+          <p class="text-[10px] text-amber-800 dark:text-amber-300 mt-0.5">
+            Si tu rival no se presentó o no es posible disputar el partido, solicita al árbitro registrar victoria por W.O. (11-6, 11-6).
+          </p>
+        </div>
+
         <div v-if="!props.esVistaRival && burbuja.partido.estado === 'pendiente' && burbuja.codigoSeguridadPropio" class="flex items-center justify-between py-2">
           <div class="flex items-center gap-1.5">
             <KeyRound class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
@@ -77,9 +87,14 @@
 
         <div v-if="burbuja.partido.estado === 'jugado'" class="flex items-center justify-between py-2">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Marcador final:</span>
-          <span class="text-xs font-extrabold font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-md">
-            {{ burbuja.marcador || 'Finalizado' }}
-          </span>
+          <div class="text-right">
+            <span class="text-xs font-extrabold font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-md">
+              {{ burbuja.marcador || 'Finalizado' }}
+            </span>
+            <p v-if="burbuja.partido.esWalkover" class="text-[10px] text-slate-400 mt-0.5 font-bold">
+              Resuelto por W.O. (Sets: 11-6, 11-6)
+            </p>
+          </div>
         </div>
       </div>
 
@@ -157,13 +172,21 @@ const badgeEstadoClase = computed(() => {
 
 const textoFechaLimite = computed(() => {
   if (!props.burbuja) return ''
+  if (props.burbuja.partido.esWalkover) return 'Finalizado por W (11-6, 11-6)'
+  if (props.burbuja.partido.estado === 'jugado') return 'Partido finalizado'
+  if (props.burbuja.partido.horasRestantes !== undefined && props.burbuja.partido.horasRestantes > 0 && props.burbuja.partido.horasRestantes <= 24) {
+    return `${props.burbuja.partido.horasRestantes}h restantes`
+  }
   if (props.burbuja.diasRestantes >= 2) return '2 días'
   if (props.burbuja.diasRestantes === 1) return '1 día'
-  return 'Partido perdido'
+  return 'Plazo 48h vencido (W.O.)'
 })
 
 const estiloFechaLimite = computed(() => {
   if (!props.burbuja) return 'bg-slate-100 text-slate-700'
+  if (props.burbuja.partido.esWalkover || props.burbuja.partido.estado === 'jugado') {
+    return 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300'
+  }
   if (props.burbuja.diasRestantes >= 2) return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
   if (props.burbuja.diasRestantes === 1) return 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300'
   return 'bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300'
