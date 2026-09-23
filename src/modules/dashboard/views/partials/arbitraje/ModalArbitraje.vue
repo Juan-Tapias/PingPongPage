@@ -304,6 +304,26 @@
           </select>
         </div>
 
+        <!-- Opción de Prórroga / Plazo de 1 día -->
+        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2.5">
+            <Clock class="w-4 h-4 text-amber-500 shrink-0" />
+            <div>
+              <p class="font-bold text-slate-800 dark:text-slate-200">¿Conceder plazo extra para jugar?</p>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400">Otorga 1 día adicional (24 horas) para disputar el partido antes de aplicar W.O.</p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="shrink-0 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/40 font-bold cursor-pointer"
+            @click="handleDarPlazoUnDia"
+          >
+            Dar plazo de 1 día
+          </Button>
+        </div>
+
         <div v-if="mensajeError"
           class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
           <AlertTriangle class="w-4 h-4 text-rose-600 shrink-0" />
@@ -336,6 +356,7 @@ import {
   AlertTriangle,
   Play,
   Gavel,
+  Clock,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
@@ -373,6 +394,13 @@ const emit = defineEmits<{
       ganadorId: string
       perdedorId: string
       motivo: string
+    },
+  ): void
+  (
+    e: 'prorrogar-partido',
+    datos: {
+      partidoId: string
+      horasExtra: number
     },
   ): void
   (e: 'cambiar-arbitro', jugador: JugadorTorneo): void
@@ -453,6 +481,18 @@ const handleConfirmarInicio = () => {
       }
     },
   )
+}
+
+const handleDarPlazoUnDia = () => {
+  if (!authStore.esAdmin) return
+  if (!partidoSeleccionado.value) return
+
+  emit('prorrogar-partido', {
+    partidoId: partidoSeleccionado.value.partido.id,
+    horasExtra: 24,
+  })
+
+  close()
 }
 
 const handleConfirmarWalkover = () => {

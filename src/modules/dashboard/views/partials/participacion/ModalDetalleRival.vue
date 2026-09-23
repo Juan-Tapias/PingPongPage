@@ -58,14 +58,25 @@
               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold"
               :class="estiloFechaLimite"
             >
-              <Clock v-if="burbuja.diasRestantes > 0" class="w-3.5 h-3.5" />
+              <Hourglass v-if="burbuja.rivalTienePartidosPendientes" class="w-3.5 h-3.5" />
+              <Clock v-else-if="burbuja.diasRestantes > 0" class="w-3.5 h-3.5" />
               <AlertTriangle v-else class="w-3.5 h-3.5" />
               {{ textoFechaLimite }}
             </span>
           </div>
         </div>
 
-        <div v-if="burbuja.partido.estado === 'pendiente_admin' || (burbuja.diasRestantes <= 0 && burbuja.partido.estado === 'pendiente')" class="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-[11px] text-amber-900 dark:text-amber-200">
+        <div v-if="burbuja.rivalTienePartidosPendientes && burbuja.partido.estado !== 'jugado'" class="p-2.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 text-[11px] text-sky-900 dark:text-sky-200">
+          <p class="font-bold flex items-center gap-1">
+            <Hourglass class="w-3.5 h-3.5 text-sky-600 shrink-0" />
+            Partido en espera de rival
+          </p>
+          <p class="text-[10px] text-sky-800 dark:text-sky-300 mt-0.5">
+            Tu rival aún tiene partidos pendientes por disputar en rondas previas. El plazo reglamentario de 48 horas iniciará en cuanto ambos queden habilitados.
+          </p>
+        </div>
+
+        <div v-else-if="burbuja.partido.estado === 'pendiente_admin' || (burbuja.diasRestantes <= 0 && burbuja.partido.estado === 'pendiente')" class="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-[11px] text-amber-900 dark:text-amber-200">
           <p class="font-bold flex items-center gap-1">
             <AlertTriangle class="w-3.5 h-3.5 text-amber-600 shrink-0" />
             Plazo reglamentario cumplido
@@ -123,7 +134,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Clock, AlertTriangle, Eye, KeyRound, Calendar } from 'lucide-vue-next'
+import { Clock, AlertTriangle, Eye, KeyRound, Calendar, Hourglass } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { BurbujaRival, JugadorTorneo } from '@/types'
@@ -174,6 +185,7 @@ const textoFechaLimite = computed(() => {
   if (!props.burbuja) return ''
   if (props.burbuja.partido.esWalkover) return 'Finalizado por W (11-6, 11-6)'
   if (props.burbuja.partido.estado === 'jugado') return 'Partido finalizado'
+  if (props.burbuja.rivalTienePartidosPendientes) return 'En espera (rival con partidos previos)'
   if (props.burbuja.partido.horasRestantes !== undefined && props.burbuja.partido.horasRestantes > 0 && props.burbuja.partido.horasRestantes <= 24) {
     return `${props.burbuja.partido.horasRestantes}h restantes`
   }
@@ -186,6 +198,9 @@ const estiloFechaLimite = computed(() => {
   if (!props.burbuja) return 'bg-slate-100 text-slate-700'
   if (props.burbuja.partido.esWalkover || props.burbuja.partido.estado === 'jugado') {
     return 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300'
+  }
+  if (props.burbuja.rivalTienePartidosPendientes) {
+    return 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
   }
   if (props.burbuja.diasRestantes >= 2) return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
   if (props.burbuja.diasRestantes === 1) return 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300'
