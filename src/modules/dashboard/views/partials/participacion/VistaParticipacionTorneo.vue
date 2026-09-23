@@ -344,7 +344,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import RuedaBurbujas from './RuedaBurbujas.vue'
@@ -367,7 +368,21 @@ defineEmits<{
   (e: 'volver'): void
 }>()
 
-const tabActiva = ref<'grafica' | 'posiciones' | 'playoffs'>('grafica')
+const route = useRoute()
+const router = useRouter()
+
+const vistaGuardada = (route.query.vista as string) || localStorage.getItem('spinapp_torneo_tab')
+const tabValida = (vistaGuardada === 'grafica' || vistaGuardada === 'posiciones' || vistaGuardada === 'playoffs') ? vistaGuardada : 'grafica'
+const tabActiva = ref<'grafica' | 'posiciones' | 'playoffs'>(tabValida)
+
+watch(tabActiva, (nuevaTab) => {
+  try {
+    localStorage.setItem('spinapp_torneo_tab', nuevaTab)
+  } catch {
+    // ignorar error
+  }
+  router.replace({ query: { ...route.query, vista: nuevaTab } })
+})
 
 const {
   usuarioActual,

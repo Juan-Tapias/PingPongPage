@@ -4,10 +4,10 @@
       enter-to-class="opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100"
       leave-to-class="opacity-0">
       <div v-if="visible && match"
-        class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md">
+        class="fixed inset-0 z-50 flex items-center justify-center p-1.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
         <!-- CONTENEDOR PRINCIPAL ESTILO TABLET / MESA DE PING PONG -->
         <div
-          class="w-full max-w-5xl bg-[#0096c7] p-2 sm:p-3.5 rounded-3xl sm:rounded-[36px] shadow-[0_0_50px_rgba(0,150,199,0.3)] border-4 sm:border-6 border-[#0077b6] flex flex-col gap-2 relative animate-in zoom-in-95 duration-200 select-none overflow-hidden">
+          class="w-full max-w-5xl my-auto bg-[#0096c7] p-2 sm:p-3.5 rounded-2xl sm:rounded-[36px] shadow-[0_0_50px_rgba(0,150,199,0.3)] border-2 sm:border-6 border-[#0077b6] flex flex-col gap-1.5 sm:gap-2 relative animate-in zoom-in-95 duration-200 select-none overflow-hidden max-h-[98dvh]">
 
           <!-- BARRA SUPERIOR DE INFORMACIÓN -->
           <div class="flex flex-wrap items-center justify-between px-3 py-1 text-white font-heading gap-2">
@@ -375,60 +375,72 @@
             enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in"
             leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
             <div v-if="mostrarDisputaBola && match"
-              class="absolute inset-0 z-40 bg-black/92 backdrop-blur-md rounded-3xl sm:rounded-[36px] p-4 sm:p-6 flex flex-col items-center justify-center text-center">
-              <div class="max-w-md w-full space-y-4">
+              class="absolute inset-0 z-40 bg-black/92 backdrop-blur-md rounded-2xl sm:rounded-[36px] p-3 sm:p-6 flex flex-col items-center justify-center text-center overflow-y-auto overscroll-contain">
+              <div class="max-w-md w-full my-auto space-y-3 sm:space-y-4 relative py-2">
+                <!-- Botón de cierre superior para móvil / escritorio -->
+                <button type="button"
+                  class="absolute -top-1 -right-1 sm:top-0 sm:right-0 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="Cerrar ventana" @click="mostrarDisputaBola = false">
+                  <X class="w-4 h-4" />
+                </button>
+
                 <div
-                  class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400 text-3xl shadow-lg mx-auto">
+                  class="inline-flex items-center justify-center w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-amber-500/20 border border-amber-400 text-2xl sm:text-3xl shadow-lg mx-auto">
                   🏓
                 </div>
                 <div>
-                  <span class="text-[11px] font-black uppercase tracking-widest text-amber-400 block">Punto Reglamentario Preliminar</span>
-                  <h3 class="text-xl sm:text-2xl font-black text-white font-heading mt-0.5">Disputa de Bola (Elección de Saque)</h3>
-                  <p class="text-xs text-sky-100/80 mt-1 leading-relaxed">
+                  <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-amber-400 block">Punto Reglamentario Preliminar</span>
+                  <h3 class="text-lg sm:text-2xl font-black text-white font-heading mt-0.5 leading-snug">Disputa de Bola (Elección de Saque)</h3>
+                  <p class="text-[11px] sm:text-xs text-sky-100/80 mt-1 leading-relaxed px-2">
                     Jueguen el punto de bola previo. Selecciona al jugador que lo ganó para registrarlo y asignarle el primer saque del partido:
                   </p>
                 </div>
 
-                <!-- Tarjetas para elegir al ganador de la bola -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <!-- Tarjetas para elegir al ganador de la bola (adaptables horizontal en móvil, vertical en desktop) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 pt-1 sm:pt-2">
                   <button type="button"
-                    class="p-4 rounded-2xl bg-emerald-600/30 hover:bg-emerald-600/50 border-2 border-emerald-400 active:scale-95 transition-all text-white flex flex-col items-center gap-2 cursor-pointer shadow-lg group"
+                    class="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-600/30 hover:bg-emerald-600/50 border-2 border-emerald-400 active:scale-95 transition-all text-white flex flex-row sm:flex-col items-center gap-3 sm:gap-2 cursor-pointer shadow-lg group text-left sm:text-center"
                     @click="seleccionarGanadorBola(1)">
                     <div
-                      class="w-12 h-12 rounded-full bg-emerald-600 text-white font-black text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
+                      class="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-full bg-emerald-600 text-white font-black text-xs sm:text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
                       {{ match.jugador1.iniciales }}
                     </div>
-                    <div class="min-w-0">
-                      <p class="text-xs font-black truncate">{{ match.jugador1.nombre }}</p>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-xs sm:text-sm font-black truncate">{{ match.jugador1.nombre }}</p>
                       <span
-                        class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-400/25 text-emerald-300 mt-1 inline-block border border-emerald-400/40">
+                        class="text-[9px] sm:text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-400/25 text-emerald-300 mt-0.5 sm:mt-1 inline-block border border-emerald-400/40">
                         Ganó Bola • Saca 1°
                       </span>
                     </div>
                   </button>
 
                   <button type="button"
-                    class="p-4 rounded-2xl bg-sky-600/30 hover:bg-sky-600/50 border-2 border-sky-400 active:scale-95 transition-all text-white flex flex-col items-center gap-2 cursor-pointer shadow-lg group"
+                    class="p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-sky-600/30 hover:bg-sky-600/50 border-2 border-sky-400 active:scale-95 transition-all text-white flex flex-row sm:flex-col items-center gap-3 sm:gap-2 cursor-pointer shadow-lg group text-left sm:text-center"
                     @click="seleccionarGanadorBola(2)">
                     <div
-                      class="w-12 h-12 rounded-full bg-sky-600 text-white font-black text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
+                      class="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-full bg-sky-600 text-white font-black text-xs sm:text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
                       {{ match.jugador2.iniciales }}
                     </div>
-                    <div class="min-w-0">
-                      <p class="text-xs font-black truncate">{{ match.jugador2.nombre }}</p>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-xs sm:text-sm font-black truncate">{{ match.jugador2.nombre }}</p>
                       <span
-                        class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-sky-400/25 text-sky-300 mt-1 inline-block border border-sky-400/40">
+                        class="text-[9px] sm:text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-sky-400/25 text-sky-300 mt-0.5 sm:mt-1 inline-block border border-sky-400/40">
                         Ganó Bola • Saca 1°
                       </span>
                     </div>
                   </button>
                 </div>
 
-                <div v-if="ganadorBola" class="pt-2">
-                  <button type="button"
-                    class="text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
+                <div class="pt-1">
+                  <button v-if="ganadorBola" type="button"
+                    class="text-[11px] sm:text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer py-1"
                     @click="mostrarDisputaBola = false">
                     Continuar sin cambiar (Actual: {{ ganadorBola.nombre }})
+                  </button>
+                  <button v-else type="button"
+                    class="text-[11px] sm:text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer py-1 underline underline-offset-4"
+                    @click="mostrarDisputaBola = false">
+                    Omitir por ahora (asignar saque en la mesa)
                   </button>
                 </div>
               </div>

@@ -12,9 +12,20 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/services/firebase'
 
 export const useAuthStore = defineStore('auth', () => {
-  const usuario = ref<Usuario | null>(null)
+  // Hidratación instantánea desde caché local para evitar esperas y parpadeos
+  let usuarioInicial: Usuario | null = null
+  try {
+    const raw = localStorage.getItem('spinapp_usuario')
+    if (raw) {
+      usuarioInicial = JSON.parse(raw) as Usuario
+    }
+  } catch {
+    usuarioInicial = null
+  }
+
+  const usuario = ref<Usuario | null>(usuarioInicial)
   const cargando = ref<boolean>(false)
-  const inicializando = ref<boolean>(true)
+  const inicializando = ref<boolean>(!usuarioInicial)
   const errorAuth = ref<string | null>(null)
 
   const estaAutenticado = computed(() => !!usuario.value)
@@ -25,17 +36,46 @@ export const useAuthStore = defineStore('auth', () => {
     resolverInicializacion = resolve
   })
 
+  // Timeout de seguridad: Si Firebase tarda más de 3 segundos, desbloquear el router
+  setTimeout(() => {
+    if (inicializando.value) {
+      console.warn('Timeout de inicialización de Firebase Auth alcanzado. Desbloqueando navegación.')
+      inicializando.value = false
+      if (resolverInicializacion) {
+        resolverInicializacion()
+        resolverInicializacion = null
+      }
+    }
+  }, 3000)
+
   const inicializarAuth = () => {
     onAuthStateChanged(auth, async (userFirebase) => {
       try {
         if (userFirebase) {
-          usuario.value = await obtenerPerfilUsuario(userFirebase.uid)
+          const perfil = await obtenerPerfilUsuario(userFirebase.uid)
+          if (perfil) {
+            usuario.value = perfil
+            try {
+              localStorage.setItem('spinapp_usuario', JSON.stringify(perfil))
+            } catch {
+              // ignorar error de storage
+            }
+          } else if (!usuario.value) {
+            usuario.value = null
+          }
         } else {
           usuario.value = null
+          try {
+            localStorage.removeItem('spinapp_usuario')
+          } catch {
+            // ignorar error de storage
+          }
         }
       } catch (err: unknown) {
         console.error('Error al recuperar perfil del usuario:', err)
-        usuario.value = null
+        if (!usuario.value) {
+          usuario.value = null
+        }
       } finally {
         inicializando.value = false
         if (resolverInicializacion) {
@@ -46,7 +86,13 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  const esperarInicializacion = () => promesaInicializacion
+  const esperarInicializacion = () => {
+    if (!inicializando.value) return Promise.resolve()
+    return Promise.race([
+      promesaInicializacion,
+      new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+    ])
+  }
 
   const login = async (credenciales: CredencialesLogin) => {
     cargando.value = true

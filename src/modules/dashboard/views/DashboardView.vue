@@ -11,7 +11,7 @@
       <VistaParticipacionTorneo
         v-if="torneoParticipacion"
         :torneo="torneoParticipacion"
-        @volver="torneoParticipacion = null"
+        @volver="handleVolverDeTorneo"
       />
 
       <template v-else>
@@ -193,6 +193,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Trophy, Compass } from 'lucide-vue-next'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
 import TorneoCard from './partials/dashboard/TorneoCard.vue'
@@ -215,9 +216,24 @@ import {
   type EstadisticasJugador,
 } from '@/services/torneoDatabaseService'
 
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
-const tabActiva = ref<'mis-torneos' | 'disponibles'>('mis-torneos')
+const tabGuardada = (route.query.tab as string) || localStorage.getItem('spinapp_dashboard_tab')
+const tabActiva = ref<'mis-torneos' | 'disponibles'>(
+  tabGuardada === 'disponibles' || tabGuardada === 'mis-torneos' ? tabGuardada : 'mis-torneos'
+)
+
+watch(tabActiva, (nuevaTab) => {
+  try {
+    localStorage.setItem('spinapp_dashboard_tab', nuevaTab)
+  } catch {
+    // ignorar error
+  }
+  router.replace({ query: { ...route.query, tab: nuevaTab } })
+})
+
 const torneoParticipacion = ref<Torneo | null>(null)
 const cargando = ref(false)
 
@@ -304,6 +320,15 @@ onMounted(async () => {
     misTorneos.value = inscritos
     torneosDisponibles.value = disponibles
     await cargarEstadisticas()
+
+    // Restaurar torneo activo persistido en URL o localStorage tras recarga
+    const torneoIdPersistido = (route.query.torneo as string) || localStorage.getItem('spinapp_torneo_activo_id')
+    if (torneoIdPersistido) {
+      const encontrado = [...inscritos, ...disponibles].find((t) => t.id === torneoIdPersistido)
+      if (encontrado && encontrado.subestado !== 'PENDIENTE') {
+        torneoParticipacion.value = encontrado
+      }
+    }
   } catch (err) {
     console.error('Error al cargar torneos desde la base de datos:', err)
   } finally {
@@ -400,5 +425,24 @@ const handleVerTorneo = (torneo: Torneo) => {
     return
   }
   torneoParticipacion.value = torneo
+  try {
+    localStorage.setItem('spinapp_torneo_activo_id', torneo.id)
+  } catch {
+    // ignorar error
+  }
+  router.replace({ query: { ...route.query, torneo: torneo.id } })
+}
+
+const handleVolverDeTorneo = () => {
+  torneoParticipacion.value = null
+  try {
+    localStorage.removeItem('spinapp_torneo_activo_id')
+  } catch {
+    // ignorar error
+  }
+  const q = { ...route.query }
+  delete q.torneo
+  delete q.vista
+  router.replace({ query: q })
 }
 </script>

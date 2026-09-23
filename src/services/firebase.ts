@@ -13,9 +13,11 @@ const firebaseConfig = {
 
 export const app: FirebaseApp = initializeApp(firebaseConfig)
 
-const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID || 'default'
-
-export const db: Firestore = getFirestore(app, databaseId)
+const dbId = import.meta.env.VITE_FIREBASE_DATABASE_ID
+export const db: Firestore =
+  dbId && dbId !== 'default' && dbId !== '(default)'
+    ? getFirestore(app, dbId)
+    : getFirestore(app)
 export const auth: Auth = getAuth(app)
 
 if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
