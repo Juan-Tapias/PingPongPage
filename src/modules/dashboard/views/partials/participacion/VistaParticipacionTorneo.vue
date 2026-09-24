@@ -338,13 +338,14 @@
       ref="modalMarcadorVirtualRef"
       :match="partidoEnMarcador"
       @partido-finalizado="handlePartidoFinalizado"
+      @actualizar-marcador-en-vivo="handleActualizarMarcadorEnVivo"
     />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
@@ -358,7 +359,7 @@ import ModalMarcadorVirtual from '../arbitraje/ModalMarcadorVirtual.vue'
 import CardAvanceTorneo from './CardAvanceTorneo.vue'
 import CardInfoRival from './CardInfoRival.vue'
 import { useTorneoGrupo } from '@/modules/dashboard/composables/useTorneoGrupo'
-import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido } from '@/types'
+import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido, MarcadorEnVivo } from '@/types'
 
 const props = defineProps<{
   torneo: Torneo
@@ -400,6 +401,7 @@ const {
   setArbitroActual,
   partidosDisponiblesParaArbitrar,
   validarCodigosArbitraje,
+  actualizarMarcadorEnVivo,
   registrarResultadoPartido,
   registrarVictoriaPorWO,
   prorrogarPlazoPartido,
@@ -447,8 +449,9 @@ const handleValidarCodigos = async (
   callback(resultado)
 }
 
-const handleIniciarPartidoArbitrado = (datos: { partidoArbitrable: PartidoArbitrable }) => {
+const handleIniciarPartidoArbitrado = async (datos: { partidoArbitrable: PartidoArbitrable }) => {
   partidoEnMarcador.value = datos.partidoArbitrable
+  await nextTick()
   modalMarcadorVirtualRef.value?.open()
 }
 
@@ -479,5 +482,12 @@ const handlePartidoFinalizado = (datos: {
   ganadorBolaId?: string
 }) => {
   registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId, datos)
+}
+
+const handleActualizarMarcadorEnVivo = async (datos: {
+  partidoId: string
+  marcadorEnVivo: MarcadorEnVivo
+}) => {
+  await actualizarMarcadorEnVivo(datos.partidoId, datos.marcadorEnVivo)
 }
 </script>

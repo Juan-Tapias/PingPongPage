@@ -630,7 +630,7 @@ import {
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
-import type { PartidoArbitrable, SetPartido, JugadorTorneo } from '@/types'
+import type { PartidoArbitrable, SetPartido, JugadorTorneo, MarcadorEnVivo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -651,6 +651,13 @@ const emit = defineEmits<{
       marcadorDetallado?: string
       perdedorPorWId?: string
       ganadorBolaId?: string
+    },
+  ): void
+  (
+    e: 'actualizar-marcador-en-vivo',
+    datos: {
+      partidoId: string
+      marcadorEnVivo: MarcadorEnVivo
     },
   ): void
   (e: 'close'): void
@@ -806,6 +813,7 @@ const ladoBEstaSacando = computed<boolean>(() => {
 
 const alternarSaqueManual = () => {
   saqueInvertidoManualmente.value = !saqueInvertidoManualmente.value
+  emitirMarcadorEnVivo()
 }
 
 // ==========================================
@@ -847,6 +855,24 @@ const textoEstadoSet = computed<string>(() => {
   return 'Set en juego'
 })
 
+const emitirMarcadorEnVivo = () => {
+  if (!props.match?.partido.id) return
+  emit('actualizar-marcador-en-vivo', {
+    partidoId: props.match.partido.id,
+    marcadorEnVivo: {
+      puntosJ1: puntosJ1.value,
+      puntosJ2: puntosJ2.value,
+      setActual: `Set ${numeroSetActual.value}`,
+      numeroSet: numeroSetActual.value,
+      setsGanadosJ1: setsGanadosJ1.value,
+      setsGanadosJ2: setsGanadosJ2.value,
+      mesa: props.match.partido.mesa || `Mesa ${props.match.partido.numeroPartido || 1}`,
+      servidorActual: servidorActual.value,
+      actualizadoEn: Date.now(),
+    },
+  })
+}
+
 // Bloqueo estricto: Una vez alcanzada la diferencia reglamentaria de 2 con 11+ puntos, no se pueden sumar más puntos
 const puedeSumarPunto = (_jugador: 1 | 2): boolean => {
   if (puedeFinalizarSet.value) {
@@ -862,6 +888,7 @@ const sumarPunto = (jugador: 1 | 2) => {
   } else {
     puntosJ2.value += 1
   }
+  emitirMarcadorEnVivo()
 }
 
 const restarPunto = (jugador: 1 | 2) => {
@@ -870,12 +897,14 @@ const restarPunto = (jugador: 1 | 2) => {
   } else {
     puntosJ2.value = Math.max(0, puntosJ2.value - 1)
   }
+  emitirMarcadorEnVivo()
 }
 
 const reiniciarSetActual = () => {
   puntosJ1.value = 0
   puntosJ2.value = 0
   saqueInvertidoManualmente.value = false
+  emitirMarcadorEnVivo()
 }
 
 // Disputa de bola
@@ -884,6 +913,7 @@ const seleccionarGanadorBola = (jugadorNum: 1 | 2) => {
   ganadorBola.value = jugadorNum === 1 ? props.match.jugador1 : props.match.jugador2
   mostrarDisputaBola.value = false
   saqueInvertidoManualmente.value = false
+  emitirMarcadorEnVivo()
 }
 
 // Declaración de W.O. / Abandono - EXCLUSIVO ADMIN
@@ -992,6 +1022,7 @@ const handleTerminarSet = () => {
   saqueInvertidoManualmente.value = false
 
   ladosInvertidos.value = !ladosInvertidos.value
+  emitirMarcadorEnVivo()
 }
 
 const modalFinPartidoRef = ref<InstanceType<typeof Modal> | null>(null)
@@ -1028,6 +1059,7 @@ const open = () => {
   }
 
   visible.value = true
+  emitirMarcadorEnVivo()
 }
 
 const close = () => {

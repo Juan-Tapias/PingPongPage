@@ -40,14 +40,26 @@
         </div>
         <div class="space-y-2 text-xs">
           <div class="flex justify-between items-center gap-2">
-            <span class="font-medium text-slate-200 truncate">{{ primerPartido.jugador1.nombre }}</span>
-            <span class="font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded shrink-0">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span v-if="primerPartido.jugador1.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+              <span class="font-medium text-slate-200 truncate">{{ primerPartido.jugador1.nombre }}</span>
+              <span v-if="primerPartido.jugador1.setsGanados !== undefined && primerPartido.jugador1.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
+                ({{ primerPartido.jugador1.setsGanados }} set{{ primerPartido.jugador1.setsGanados > 1 ? 's' : '' }})
+              </span>
+            </div>
+            <span class="font-mono font-bold text-white bg-slate-800 px-2.5 py-0.5 rounded shrink-0 shadow-xs text-sm">
               {{ primerPartido.jugador1.puntos }}
             </span>
           </div>
           <div class="flex justify-between items-center gap-2">
-            <span class="font-medium text-slate-400 truncate">{{ primerPartido.jugador2.nombre }}</span>
-            <span class="font-mono font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded shrink-0">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span v-if="primerPartido.jugador2.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+              <span class="font-medium text-slate-400 truncate">{{ primerPartido.jugador2.nombre }}</span>
+              <span v-if="primerPartido.jugador2.setsGanados !== undefined && primerPartido.jugador2.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
+                ({{ primerPartido.jugador2.setsGanados }} set{{ primerPartido.jugador2.setsGanados > 1 ? 's' : '' }})
+              </span>
+            </div>
+            <span class="font-mono font-bold text-slate-300 bg-slate-800 px-2.5 py-0.5 rounded shrink-0 shadow-xs text-sm">
               {{ primerPartido.jugador2.puntos }}
             </span>
           </div>
@@ -94,14 +106,26 @@
 
           <div class="space-y-2 text-xs">
             <div class="flex justify-between items-center gap-2">
-              <span class="font-medium text-slate-200 truncate">{{ partido.jugador1.nombre }}</span>
-              <span class="font-mono font-bold text-white bg-slate-800 px-2 py-0.5 rounded shrink-0">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span v-if="partido.jugador1.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+                <span class="font-medium text-slate-200 truncate">{{ partido.jugador1.nombre }}</span>
+                <span v-if="partido.jugador1.setsGanados !== undefined && partido.jugador1.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
+                  ({{ partido.jugador1.setsGanados }} set{{ partido.jugador1.setsGanados > 1 ? 's' : '' }})
+                </span>
+              </div>
+              <span class="font-mono font-bold text-white bg-slate-800 px-2.5 py-0.5 rounded shrink-0 shadow-xs text-sm">
                 {{ partido.jugador1.puntos }}
               </span>
             </div>
             <div class="flex justify-between items-center gap-2">
-              <span class="font-medium text-slate-400 truncate">{{ partido.jugador2.nombre }}</span>
-              <span class="font-mono font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded shrink-0">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span v-if="partido.jugador2.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+                <span class="font-medium text-slate-400 truncate">{{ partido.jugador2.nombre }}</span>
+                <span v-if="partido.jugador2.setsGanados !== undefined && partido.jugador2.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
+                  ({{ partido.jugador2.setsGanados }} set{{ partido.jugador2.setsGanados > 1 ? 's' : '' }})
+                </span>
+              </div>
+              <span class="font-mono font-bold text-slate-300 bg-slate-800 px-2.5 py-0.5 rounded shrink-0 shadow-xs text-sm">
                 {{ partido.jugador2.puntos }}
               </span>
             </div>
@@ -118,6 +142,8 @@ import { computed } from 'vue'
 export interface JugadorMarcador {
   nombre: string
   puntos: number
+  setsGanados?: number
+  estaSacando?: boolean
 }
 
 export interface PartidoEnVivo {

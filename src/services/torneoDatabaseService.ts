@@ -13,7 +13,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Torneo, EstadoTorneo, Usuario, FilaPosicionOficial, TablaPosicionesTorneo } from '@/types'
+import type { Torneo, EstadoTorneo, Usuario, FilaPosicionOficial, TablaPosicionesTorneo, MarcadorEnVivo } from '@/types'
 
 const COLECCION_TORNEOS = 'torneos'
 const COLECCION_PARTIDOS = 'partidos'
@@ -205,6 +205,68 @@ export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
 export const actualizarPartidoDB = async (partidoId: string, datos: any): Promise<void> => {
   const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
   await updateDoc(pRef, datos)
+}
+
+/**
+ * Actualiza el marcador en vivo punto a punto de un partido en disputa
+ */
+export const actualizarMarcadorEnVivoDB = async (
+  partidoId: string,
+  marcadorEnVivo: MarcadorEnVivo | null,
+): Promise<void> => {
+  if (!partidoId) return
+  try {
+    const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
+    if (!marcadorEnVivo) {
+      await updateDoc(pRef, {
+        marcadorEnVivo: null,
+      })
+      return
+    }
+
+    const marcadorLimpio: Record<string, unknown> = {
+      puntosJ1: Number(marcadorEnVivo.puntosJ1) || 0,
+      puntosJ2: Number(marcadorEnVivo.puntosJ2) || 0,
+      setActual: String(marcadorEnVivo.setActual || 'Set 1'),
+      numeroSet: Number(marcadorEnVivo.numeroSet) || 1,
+      setsGanadosJ1: Number(marcadorEnVivo.setsGanadosJ1) || 0,
+      setsGanadosJ2: Number(marcadorEnVivo.setsGanadosJ2) || 0,
+      mesa: String(marcadorEnVivo.mesa || 'Mesa 1'),
+      servidorActual: Number(marcadorEnVivo.servidorActual) || 1,
+      actualizadoEn: Number(marcadorEnVivo.actualizadoEn) || Date.now(),
+    }
+
+    await updateDoc(pRef, {
+      marcadorEnVivo: marcadorLimpio,
+      mesa: marcadorLimpio.mesa,
+    })
+  } catch (error) {
+    console.error(`[MarcadorEnVivo] Error al actualizar en Firestore para partido ${partidoId}:`, error)
+  }
+}
+
+/**
+ * Suscribe a todos los partidos que se encuentran actualmente 'en_curso' (disputándose en vivo en mesas)
+ */
+export const suscribirPartidosEnVivoDB = (
+  onActualizar: (partidos: any[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe => {
+  const q = query(collection(db, COLECCION_PARTIDOS), where('estado', '==', 'en_curso'))
+  return onSnapshot(
+    q,
+    (snap) => {
+      const partidos: any[] = []
+      snap.forEach((documento) => {
+        partidos.push({ id: documento.id, ...documento.data() })
+      })
+      onActualizar(partidos)
+    },
+    (err) => {
+      console.warn('Error en listener en tiempo real de partidos en vivo:', err)
+      onError?.(err)
+    },
+  )
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   actualizarTablaPosicionesDB,
   suscribirTablaPosicionesDB,
   ordenarPartidosNumerico,
+  actualizarMarcadorEnVivoDB,
 } from '@/services/torneoDatabaseService'
 import type {
   JugadorTorneo,
@@ -18,6 +19,7 @@ import type {
   Torneo,
   SetPartido,
   PartidoArbitrable,
+  MarcadorEnVivo,
 } from '@/types'
 
 import {
@@ -224,6 +226,7 @@ export function useTorneoGrupo(torneo: Torneo) {
               arbitroId: p.arbitroId,
               arbitroActivoId: p.arbitroActivoId,
               mesa: p.mesa,
+              marcadorEnVivo: p.marcadorEnVivo || null,
               codigoJugador1: p.codigoJugador1 || generarCodigoSeguridad(j1Id, j2Id),
               codigoJugador2: p.codigoJugador2 || generarCodigoSeguridad(j2Id, j1Id),
               ganadorBolaId: p.ganadorBolaId,
@@ -569,17 +572,34 @@ export function useTorneoGrupo(torneo: Torneo) {
       const nuevoPin2 = (Math.floor(Math.random() * 90000) + 10000).toString()
       const aId = usuarioActual?.id || ''
 
+      const mesaAsignada = partido.mesa || `Mesa ${partido.numeroPartido || 1}`
+      const marcadorInicial = {
+        puntosJ1: 0,
+        puntosJ2: 0,
+        setActual: 'Set 1',
+        numeroSet: 1,
+        setsGanadosJ1: 0,
+        setsGanadosJ2: 0,
+        mesa: mesaAsignada,
+        servidorActual: 1 as const,
+        actualizadoEn: Date.now(),
+      }
+
       try {
         await actualizarPartidoDB(partidoId, {
           estado: 'en_curso',
           arbitroActivoId: aId,
+          mesa: mesaAsignada,
+          marcadorEnVivo: marcadorInicial,
           codigoJugador1: nuevoPin1,
-          codigoJugador2: nuevoPin2
+          codigoJugador2: nuevoPin2,
         })
         
         // Actualizar localmente para la UI reactiva
         partido.estado = 'en_curso'
         partido.arbitroActivoId = aId
+        partido.mesa = mesaAsignada
+        partido.marcadorEnVivo = marcadorInicial
         partido.codigoJugador1 = nuevoPin1
         partido.codigoJugador2 = nuevoPin2
 
@@ -594,6 +614,21 @@ export function useTorneoGrupo(torneo: Torneo) {
       valido: false,
       mensaje: 'Códigos incorrectos. Solicita a ambos jugadores su PIN de 5 dígitos para este partido.',
     }
+  }
+
+  // Actualizar marcador en vivo punto a punto (reactividad local inmediata + Firestore)
+  const actualizarMarcadorEnVivo = async (
+    partidoId: string,
+    marcadorEnVivo: MarcadorEnVivo,
+  ): Promise<void> => {
+    const partido = partidos.value.find((p) => p.id === partidoId)
+    if (partido) {
+      partido.marcadorEnVivo = { ...marcadorEnVivo }
+      if (marcadorEnVivo.mesa) {
+        partido.mesa = marcadorEnVivo.mesa
+      }
+    }
+    await actualizarMarcadorEnVivoDB(partidoId, marcadorEnVivo)
   }
 
   // Registrar resultado de partido arbitrado (al mejor de 3 sets) y persistir en Firestore
@@ -647,6 +682,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     try {
       await actualizarPartidoDB(partidoId, {
         estado: 'jugado',
+        marcadorEnVivo: null,
         jugadorGanadorId: ganadorId,
         marcador: marcadorResumen,
         marcadorDetallado,
@@ -856,6 +892,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     setArbitroActual,
     partidosDisponiblesParaArbitrar,
     validarCodigosArbitraje,
+    actualizarMarcadorEnVivo,
     registrarResultadoPartido,
     registrarVictoriaPorWO,
     prorrogarPlazoPartido,

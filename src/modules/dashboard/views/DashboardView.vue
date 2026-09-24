@@ -161,7 +161,7 @@
           </div>
         </section>
 
-        <BannerSeguimientoMesas v-if="tabActiva === 'mis-torneos'" />
+        <BannerSeguimientoMesas v-if="tabActiva === 'mis-torneos'" :partidos="partidosEnVivoParaBanner" />
         <BannerReglamento v-else />
 
         <KpiEstadisticas
@@ -192,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Trophy, Compass } from 'lucide-vue-next'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
@@ -200,7 +200,7 @@ import TorneoCard from './partials/dashboard/TorneoCard.vue'
 import BreadcrumbExpediente from './partials/dashboard/BreadcrumbExpediente.vue'
 import FiltrosMisTorneos from './partials/dashboard/FiltrosMisTorneos.vue'
 import FiltrosDisponibles from './partials/dashboard/FiltrosDisponibles.vue'
-import BannerSeguimientoMesas from './partials/dashboard/BannerSeguimientoMesas.vue'
+import BannerSeguimientoMesas, { type PartidoEnVivo } from './partials/dashboard/BannerSeguimientoMesas.vue'
 import BannerReglamento from './partials/dashboard/BannerReglamento.vue'
 import KpiEstadisticas from './partials/dashboard/KpiEstadisticas.vue'
 import ModalInscripcionTorneo from './partials/dashboard/ModalInscripcionTorneo.vue'
@@ -213,6 +213,7 @@ import {
   obtenerInscripcionesDB,
   guardarInscripcionDB,
   obtenerEstadisticasJugadorDB,
+  suscribirPartidosEnVivoDB,
   type EstadisticasJugador,
 } from '@/services/torneoDatabaseService'
 
@@ -293,8 +294,42 @@ const conteoEnCurso = computed(() => misTorneos.value.filter((t) => t.subestado 
 const conteoPorIniciar = computed(() => misTorneos.value.filter((t) => t.subestado !== 'PENDIENTE' && t.estado === 'por iniciar').length)
 const conteoFinalizado = computed(() => misTorneos.value.filter((t) => t.subestado !== 'PENDIENTE' && t.estado === 'finalizado').length)
 
+// Estado y sincronización en tiempo real de mesas en vivo
+const partidosEnVivoDB = ref<any[]>([])
+let unsubscribeMesasEnVivo: (() => void) | null = null
+
+const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
+  return partidosEnVivoDB.value.map((p) => {
+    const m = p.marcadorEnVivo
+    const j1Nombre = p.jugador1?.nombre || 'Jugador 1'
+    const j2Nombre = p.jugador2?.nombre || 'Jugador 2'
+    return {
+      id: p.id,
+      mesa: m?.mesa || p.mesa || 'Mesa 1',
+      setActual: m?.setActual || 'Set 1',
+      jugador1: {
+        nombre: j1Nombre,
+        puntos: m?.puntosJ1 ?? 0,
+        setsGanados: m?.setsGanadosJ1,
+        estaSacando: m?.servidorActual === 1,
+      },
+      jugador2: {
+        nombre: j2Nombre,
+        puntos: m?.puntosJ2 ?? 0,
+        setsGanados: m?.setsGanadosJ2,
+        estaSacando: m?.servidorActual === 2,
+      },
+    }
+  })
+})
+
 // Carga de torneos reales desde Firestore
 onMounted(async () => {
+  // Iniciar suscripción en tiempo real a las mesas de juego con partidos en vivo de inmediato
+  unsubscribeMesasEnVivo = suscribirPartidosEnVivoDB((partidos) => {
+    partidosEnVivoDB.value = partidos
+  })
+
   cargando.value = true
   try {
     const torneosRemotos = await obtenerTorneosDB()
@@ -445,4 +480,11 @@ const handleVolverDeTorneo = () => {
   delete q.vista
   router.replace({ query: q })
 }
+
+onUnmounted(() => {
+  if (unsubscribeMesasEnVivo) {
+    unsubscribeMesasEnVivo()
+    unsubscribeMesasEnVivo = null
+  }
+})
 </script>

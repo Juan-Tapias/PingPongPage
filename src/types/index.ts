@@ -86,6 +86,18 @@ export interface SetPartido {
   ganadorBolaId?: string
 }
 
+export interface MarcadorEnVivo {
+  puntosJ1: number
+  puntosJ2: number
+  setActual: string       // Ej. 'Set 1', 'Set 2', 'Set 3'
+  numeroSet: number       // 1, 2 o 3
+  setsGanadosJ1: number   // Sets acumulados jugador 1
+  setsGanadosJ2: number   // Sets acumulados jugador 2
+  mesa: string            // Ej. 'Mesa 1', 'Mesa 2'
+  servidorActual?: 1 | 2  // Indicador de saque
+  actualizadoEn: number   // Timestamp milisegundos
+}
+
 export interface PartidoGrupo {
   id: string
   numeroPartido?: number
@@ -107,6 +119,8 @@ export interface PartidoGrupo {
   jornada?: number           // Ronda del fixture (Algoritmo Berger)
   esBye?: boolean            // Fecha libre por ser número impar de jugadores
   enVivo?: boolean           // Partido disputándose actualmente
+  mesa?: string              // Mesa física o asignada (ej. 'Mesa 1')
+  marcadorEnVivo?: MarcadorEnVivo // Puntuación en tiempo real emitida por el árbitro
   arbitroActivoId?: string   // Árbitro activo con candado de edición
   totalEspectadores?: number // Cantidad de espectadores en tiempo real
   // Seguridad y arbitraje
