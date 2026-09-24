@@ -1,6 +1,6 @@
 <template>
-  <Modal ref="modalRef" :title="paso === 'seleccion' ? 'Arbitraje de Torneo' : (modoArbitraje === 'walkover' && authStore.esAdmin ? 'Declarar Victoria por W (Walkover)' : 'Confirmación de Seguridad (PINs)')"
-    :sub-title="paso === 'seleccion' ? 'Selecciona un partido pendiente para arbitrar' : (modoArbitraje === 'walkover' && authStore.esAdmin ? 'Dictamen por inasistencia o vencimiento de 48h (Sets 11-6, 11-6)' : 'Ingresa los códigos de 5 dígitos de ambos rivales')"
+  <Modal ref="modalRef" :title="paso === 'seleccion' ? 'Arbitraje de Torneo' : (modoArbitraje === 'walkover' && authStore.esAdmin ? 'Declarar Victoria por W (Walkover)' : (modoArbitraje === 'transmision' ? 'Transmitir en Vivo • PIN de Seguridad' : 'Confirmación de Seguridad (PINs)'))"
+    :sub-title="paso === 'seleccion' ? 'Selecciona un partido pendiente para arbitrar o transmitir en vivo' : (modoArbitraje === 'walkover' && authStore.esAdmin ? 'Dictamen por inasistencia o vencimiento de 48h (Sets 11-6, 11-6)' : (modoArbitraje === 'transmision' ? 'Ingresa los códigos de seguridad para activar la transmisión en vivo de este partido' : 'Ingresa los códigos de 5 dígitos de ambos rivales'))"
     width="xl" :footer="false">
     <div v-if="paso === 'seleccion'" class="space-y-4 py-1">
       <div class="flex items-center justify-between gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 rounded-xl">
@@ -82,7 +82,7 @@
           </div>
 
           <!-- Botones de Acción -->
-          <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+          <div class="flex items-center gap-2 shrink-0 self-end md:self-auto flex-wrap">
             <Button
               v-if="authStore.esAdmin"
               variant="outline"
@@ -92,6 +92,17 @@
             >
               <Gavel class="w-3.5 h-3.5 text-amber-600" />
               <span>Declarar W</span>
+            </Button>
+
+            <!-- Botón Transmitir en Vivo con Validación de PIN -->
+            <Button
+              variant="outline"
+              size="sm"
+              class="gap-1 text-xs border-rose-400 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer font-bold shadow-2xs"
+              @click="seleccionarPartidoParaTransmitir(item)"
+            >
+              <Radio class="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+              <span>Transmitir</span>
             </Button>
 
             <Button variant="emerald" size="sm"
@@ -130,8 +141,14 @@
           <span>Elegir otro partido</span>
         </button>
 
-        <!-- Selector de Modo: Normal (ambos PINs) vs Walkover (por W) - EXCLUSIVO ADMIN -->
-        <div v-if="authStore.esAdmin" class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+        <!-- Modo Transmisión: Badge informativo -->
+        <div v-if="modoArbitraje === 'transmision'" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs font-bold text-rose-700 dark:text-rose-300">
+          <Radio class="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+          <span>Transmisión en Vivo</span>
+        </div>
+
+        <!-- Selector de Modo: Normal (ambos PINs) vs Walkover (por W) - EXCLUSIVO ADMIN (Solo en arbitraje) -->
+        <div v-else-if="authStore.esAdmin" class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
           <button
             type="button"
             :class="[
@@ -180,20 +197,44 @@
         </div>
       </div>
 
-      <!-- VISTA NORMAL: VALIDACIÓN DE AMBOS PINS -->
-      <template v-if="modoArbitraje === 'normal'">
-        <div class="p-3.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800 text-sky-900 dark:text-sky-200 flex items-start gap-3">
-          <KeyRound class="w-5 h-5 text-sky-700 dark:text-sky-400 shrink-0 mt-0.5" />
+      <!-- VISTA NORMAL Y TRANSMISIÓN: VALIDACIÓN DE AMBOS PINS -->
+      <template v-if="modoArbitraje === 'normal' || modoArbitraje === 'transmision'">
+        <div
+          :class="[
+            'p-3.5 rounded-xl border flex items-start gap-3',
+            modoArbitraje === 'transmision'
+              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-950 dark:text-rose-200'
+              : 'bg-sky-50 dark:bg-sky-950/40 border-sky-200/80 dark:border-sky-800 text-sky-900 dark:text-sky-200'
+          ]"
+        >
+          <Radio v-if="modoArbitraje === 'transmision'" class="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+          <KeyRound v-else class="w-5 h-5 text-sky-700 dark:text-sky-400 shrink-0 mt-0.5" />
           <div class="text-xs space-y-1">
-            <p class="font-extrabold">Protocolo de Validación de Presencia</p>
-            <p class="text-sky-800 dark:text-sky-300">
-              Pide a cada jugador el código numérico de 5 dígitos que aparece en su pantalla para este enfrentamiento.
-              Ambos deben coincidir para abrir el marcador virtual.
+            <p class="font-extrabold">
+              {{ modoArbitraje === 'transmision' ? 'Protocolo de Seguridad para Transmisión en Vivo' : 'Protocolo de Validación de Presencia' }}
+            </p>
+            <p :class="modoArbitraje === 'transmision' ? 'text-rose-800 dark:text-rose-300' : 'text-sky-800 dark:text-sky-300'">
+              {{
+                modoArbitraje === 'transmision'
+                  ? 'Pide a cada jugador el código numérico de 5 dígitos para autorizar e iniciar la transmisión en vivo de este partido.'
+                  : 'Pide a cada jugador el código numérico de 5 dígitos que aparece en su pantalla para este enfrentamiento. Ambos deben coincidir para abrir el marcador virtual.'
+              }}
             </p>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <!-- Modo Transmisión (Pruebas directas sin PINs) -->
+        <div v-if="modoArbitraje === 'transmision'" class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-center space-y-1">
+          <p class="text-xs font-bold text-slate-800 dark:text-slate-200">
+            Prueba de Transmisión Directa
+          </p>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">
+            Se ha omitido la solicitud de PINs para pruebas. Haz clic abajo para iniciar la transmisión en vivo directamente.
+          </p>
+        </div>
+
+        <!-- Inputs de PIN para arbitraje normal -->
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div class="space-y-1.5">
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
               PIN de {{ partidoSeleccionado.jugador1.nombre }}
@@ -224,16 +265,22 @@
             Atrás
           </Button>
 
-          <Button variant="emerald" size="sm" class="gap-2" :disabled="codigoJ1.length !== 5 || codigoJ2.length !== 5"
-            @click="handleConfirmarInicio">
-            <Play class="w-4 h-4" />
-            <span>Validar e Iniciar Marcador</span>
+          <Button
+            :variant="modoArbitraje === 'transmision' ? 'primary' : 'emerald'"
+            size="sm"
+            class="gap-2"
+            :disabled="modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5)"
+            @click="handleConfirmarInicio"
+          >
+            <Radio v-if="modoArbitraje === 'transmision'" class="w-4 h-4 text-white animate-pulse" />
+            <Play v-else class="w-4 h-4" />
+            <span>{{ modoArbitraje === 'transmision' ? 'Iniciar Transmisión' : 'Validar e Iniciar Marcador' }}</span>
           </Button>
         </div>
       </template>
 
       <!-- VISTA WALKOVER: DECLARAR VICTORIA POR W CUANDO NO SE PUEDE JUGAR O >48H -->
-      <template v-else>
+      <template v-else-if="modoArbitraje === 'walkover'">
         <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 space-y-1.5 text-xs">
           <p class="font-extrabold flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
             <Gavel class="w-4 h-4 text-amber-600" />
@@ -357,6 +404,7 @@ import {
   Play,
   Gavel,
   Clock,
+  Radio,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
@@ -374,6 +422,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   (
     e: 'iniciar-partido',
+    datos: {
+      partidoArbitrable: PartidoArbitrable
+    },
+  ): void
+  (
+    e: 'iniciar-transmision',
     datos: {
       partidoArbitrable: PartidoArbitrable
     },
@@ -408,7 +462,7 @@ const emit = defineEmits<{
 
 const modalRef = ref<InstanceType<typeof Modal> | null>(null)
 const paso = ref<'seleccion' | 'confirmacion'>('seleccion')
-const modoArbitraje = ref<'normal' | 'walkover'>('normal')
+const modoArbitraje = ref<'normal' | 'walkover' | 'transmision'>('normal')
 const partidoSeleccionado = ref<PartidoArbitrable | null>(null)
 
 const codigoJ1 = ref('')
@@ -443,6 +497,20 @@ const seleccionarPartido = (partido: PartidoArbitrable) => {
   paso.value = 'confirmacion'
 }
 
+const seleccionarPartidoParaTransmitir = (partido: PartidoArbitrable) => {
+  // Comentado para pruebas: omitir PINs e iniciar transmisión de forma directa
+  close()
+  emit('iniciar-transmision', { partidoArbitrable: partido })
+  /*
+  partidoSeleccionado.value = partido
+  modoArbitraje.value = 'transmision'
+  codigoJ1.value = ''
+  codigoJ2.value = ''
+  mensajeError.value = ''
+  paso.value = 'confirmacion'
+  */
+}
+
 const seleccionarPartidoParaWO = (partido: PartidoArbitrable) => {
   if (!authStore.esAdmin) return
   partidoSeleccionado.value = partido
@@ -461,6 +529,14 @@ const limpiarError = () => {
 const handleConfirmarInicio = () => {
   if (!partidoSeleccionado.value) return
 
+  // Comentado para pruebas: si es transmisión, iniciar directamente sin validar PINs
+  if (modoArbitraje.value === 'transmision') {
+    const match = partidoSeleccionado.value
+    close()
+    emit('iniciar-transmision', { partidoArbitrable: match })
+    return
+  }
+
   emit(
     'validar-codigos',
     {
@@ -474,7 +550,11 @@ const handleConfirmarInicio = () => {
         const match = partidoSeleccionado.value
         close()
         if (match) {
-          emit('iniciar-partido', { partidoArbitrable: match })
+          if (modoArbitraje.value === 'transmision') {
+            emit('iniciar-transmision', { partidoArbitrable: match })
+          } else {
+            emit('iniciar-partido', { partidoArbitrable: match })
+          }
         }
       } else {
         mensajeError.value = resultado.mensaje

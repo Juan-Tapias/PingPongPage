@@ -10,6 +10,7 @@
       <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
         <div
           class="w-14 h-14 rounded-full flex items-center justify-center font-black text-lg text-white shadow-md select-none shrink-0"
+          :class="burbuja.esRivalDeTurno && burbuja.partido.estado !== 'jugado' ? 'border-2 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.7)]' : ''"
           :style="{ backgroundColor: colorBurbuja }"
         >
           {{ burbuja.jugador.iniciales }}
@@ -308,6 +309,7 @@ const colorBurbuja = computed(() => {
   if (!props.burbuja) return '#1e293b'
   if (props.burbuja.resultadoParaCentro === 'ganado') return '#10b981'
   if (props.burbuja.resultadoParaCentro === 'perdido') return '#ef4444'
+  if (props.burbuja.esRivalDeTurno && props.burbuja.partido.estado !== 'jugado') return '#0284c7'
   return '#1e293b'
 })
 

@@ -235,6 +235,46 @@
       </Button>
     </div>
 
+    <!-- BANNER RESPONSIVE DE TRANSMISIÓN EN VIVO -->
+    <div
+      v-if="partidoEnTransmisionActivo"
+      class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-950/90 via-slate-900 to-slate-900 border border-rose-500/50 shadow-xl text-white animate-in fade-in"
+    >
+      <div class="flex items-center gap-3">
+        <div class="relative flex items-center justify-center">
+          <span class="w-10 h-10 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center text-rose-400">
+            <Radio class="w-5 h-5 animate-pulse" />
+          </span>
+          <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white">
+              🔴 Partido en Vivo
+            </span>
+            <span class="text-xs text-slate-400 font-mono">
+              Ronda {{ partidoEnTransmisionActivo.ronda || 1 }}
+            </span>
+          </div>
+          <h4 class="text-sm font-black text-white mt-0.5">
+            {{ partidoEnTransmisionActivo.jugador1?.nombre || 'Jugador 1' }} vs {{ partidoEnTransmisionActivo.jugador2?.nombre || 'Jugador 2' }}
+          </h4>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <Button
+          variant="danger"
+          size="sm"
+          class="gap-2 cursor-pointer w-full sm:w-auto font-black shadow-md bg-rose-600 hover:bg-rose-500 active:scale-95"
+          @click="sintonizarTransmision(partidoEnTransmisionActivo)"
+        >
+          <Play class="w-3.5 h-3.5 fill-current" />
+          <span>Sintonizar Partido</span>
+        </Button>
+      </div>
+    </div>
+
     <div v-show="tabActiva === 'grafica'" class="w-full grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
       <div class="lg:col-span-7 w-full bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-4 sm:p-5 flex flex-col items-center overflow-hidden transition-colors duration-300">
         <div class="w-full flex flex-wrap items-center justify-center sm:justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-2.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
@@ -256,7 +296,7 @@
               Pendiente (Gris)
             </span>
             <span v-if="torneo.estado === 'en curso'" class="flex items-center gap-1.5 text-sky-800 dark:text-sky-300 font-extrabold">
-              <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse shrink-0"></span>
+              <span class="w-2.5 h-2.5 rounded-full border-2 border-sky-400 bg-sky-500/30 shadow-[0_0_8px_rgba(56,189,248,0.8)] animate-pulse shrink-0"></span>
               Luz Azul: Pendiente por Jugar (A las 12)
             </span>
           </div>
@@ -329,6 +369,7 @@
       :partidos-disponibles="partidosDisponiblesParaArbitrar"
       @validar-codigos="handleValidarCodigos"
       @iniciar-partido="handleIniciarPartidoArbitrado"
+      @iniciar-transmision="handleIniciarTransmisionArbitrado"
       @declarar-walkover="handleDeclararWalkover"
       @prorrogar-partido="handleProrrogarPartido"
     />
@@ -339,6 +380,35 @@
       :match="partidoEnMarcador"
       @partido-finalizado="handlePartidoFinalizado"
       @actualizar-marcador-en-vivo="handleActualizarMarcadorEnVivo"
+      @iniciar-transmision-marcador="handleIniciarTransmisionDesdeMarcador"
+    />
+
+    <!-- MODAL DE TRANSMISIÓN DE CÁMARA (EMISOR: ADMIN / ÁRBITRO) -->
+    <ModalCamaraTransmision
+      ref="modalCamaraTransmisionRef"
+      :partido="partidoTransmitiendo"
+      :stream-local="streamLocal"
+      :total-espectadores="totalEspectadores"
+      :camara-trasera="camaraTrasera"
+      :audio-activo="audioActivo"
+      :video-activo="videoActivo"
+      :reacciones="reaccionesEnVivo"
+      @finalizar="handleDetenerTransmision"
+      @alternar-camara="alternarCamara"
+      @alternar-audio="alternarAudio"
+      @alternar-video="alternarVideo"
+    />
+
+    <!-- MODAL DE REPRODUCCIÓN EN VIVO (ESPECTADORES / JUGADORES) -->
+    <ModalTransmisionEnVivo
+      ref="modalTransmisionEnVivoRef"
+      :partido="partidoSintonizado"
+      :stream-remoto="streamRemoto"
+      :total-espectadores="totalEspectadores"
+      :cargando-conexion="cargandoConexion"
+      :reacciones="reaccionesEnVivo"
+      @cerrar="handleCerrarEspectador"
+      @enviar-reaccion="handleEnviarReaccion"
     />
     </template>
   </div>
@@ -347,7 +417,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock } from 'lucide-vue-next'
+import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock, Radio, Play } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import RuedaBurbujas from './RuedaBurbujas.vue'
 import TablaPosicionesGrupo from './TablaPosicionesGrupo.vue'
@@ -356,10 +426,13 @@ import ModalDetalleRival from './ModalDetalleRival.vue'
 import ModalMarcadorRival from './ModalMarcadorRival.vue'
 import ModalArbitraje from '../arbitraje/ModalArbitraje.vue'
 import ModalMarcadorVirtual from '../arbitraje/ModalMarcadorVirtual.vue'
+import ModalCamaraTransmision from '@/modules/streaming/components/ModalCamaraTransmision.vue'
+import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmisionEnVivo.vue'
 import CardAvanceTorneo from './CardAvanceTorneo.vue'
 import CardInfoRival from './CardInfoRival.vue'
 import { useTorneoGrupo } from '@/modules/dashboard/composables/useTorneoGrupo'
-import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido, MarcadorEnVivo } from '@/types'
+import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
+import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido, PartidoGrupo, TipoReaccionLive, MarcadorEnVivo } from '@/types'
 
 const props = defineProps<{
   torneo: Torneo
@@ -489,5 +562,105 @@ const handleActualizarMarcadorEnVivo = async (datos: {
   marcadorEnVivo: MarcadorEnVivo
 }) => {
   await actualizarMarcadorEnVivo(datos.partidoId, datos.marcadorEnVivo)
+}
+
+// ==========================================
+// LÓGICA DE TRANSMISIÓN EN VIVO (WEBRTC)
+// ==========================================
+const {
+  streamLocal,
+  streamRemoto,
+  transmitiendo,
+  conectadoComoEspectador,
+  cargandoConexion,
+  camaraTrasera,
+  audioActivo,
+  videoActivo,
+  totalEspectadores,
+  reaccionesEnVivo,
+  iniciarTransmision,
+  detenerTransmision,
+  alternarCamara,
+  alternarAudio,
+  alternarVideo,
+  conectarComoEspectador,
+  desconectarEspectador,
+  enviarReaccion,
+} = useWebRTCStream()
+
+const modalCamaraTransmisionRef = ref<InstanceType<typeof ModalCamaraTransmision> | null>(null)
+const modalTransmisionEnVivoRef = ref<InstanceType<typeof ModalTransmisionEnVivo> | null>(null)
+
+const partidoTransmitiendo = ref<PartidoGrupo | null>(null)
+const partidoSintonizado = ref<PartidoGrupo | null>(null)
+
+// Identificar si algún partido del torneo está transmitiéndose en vivo
+const partidoEnTransmisionActivo = computed(() => {
+  return partidos.value.find((p) => p.transmisionActiva && p.enVivo) || null
+})
+
+// Iniciar transmisión desde ModalArbitraje (después de validar los PINs)
+const handleIniciarTransmisionArbitrado = async (datos: { partidoArbitrable: PartidoArbitrable }) => {
+  const adminNombre = arbitroActual.value?.nombre || usuarioActual?.nombre || 'Administrador'
+  const adminId = arbitroActual.value?.id || usuarioActual?.id || 'admin'
+  partidoTransmitiendo.value = datos.partidoArbitrable.partido
+
+  const ok = await iniciarTransmision(datos.partidoArbitrable.partido.id, {
+    id: adminId,
+    nombre: adminNombre,
+  })
+
+  if (ok) {
+    modalCamaraTransmisionRef.value?.open()
+  }
+}
+
+// Iniciar transmisión directamente desde el marcador virtual activo
+const handleIniciarTransmisionDesdeMarcador = async (match: PartidoArbitrable) => {
+  const adminNombre = arbitroActual.value?.nombre || usuarioActual?.nombre || 'Árbitro'
+  const adminId = arbitroActual.value?.id || usuarioActual?.id || 'arbitro'
+  partidoTransmitiendo.value = match.partido
+
+  const ok = await iniciarTransmision(match.partido.id, {
+    id: adminId,
+    nombre: adminNombre,
+  })
+
+  if (ok) {
+    modalCamaraTransmisionRef.value?.open()
+  }
+}
+
+// Detener transmisión activa
+const handleDetenerTransmision = async () => {
+  await detenerTransmision()
+  partidoTransmitiendo.value = null
+}
+
+// Sintonizar transmisión como espectador
+const sintonizarTransmision = async (partido: PartidoGrupo) => {
+  partidoSintonizado.value = partido
+  const viewerNombre = usuarioActual?.nombre || 'Espectador'
+  const viewerId = usuarioActual?.id || `viewer_${Date.now()}`
+
+  modalTransmisionEnVivoRef.value?.open()
+  await conectarComoEspectador(partido.id, {
+    id: viewerId,
+    nombre: viewerNombre,
+  })
+}
+
+// Cerrar reproductor de espectador
+const handleCerrarEspectador = () => {
+  desconectarEspectador()
+  partidoSintonizado.value = null
+}
+
+// Enviar reacción
+const handleEnviarReaccion = (emoji: TipoReaccionLive) => {
+  if (partidoSintonizado.value) {
+    const usuarioNombre = usuarioActual?.nombre || 'Espectador'
+    enviarReaccion(partidoSintonizado.value.id, emoji, usuarioNombre)
+  }
 }
 </script>

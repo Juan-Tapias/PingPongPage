@@ -27,9 +27,10 @@
         </linearGradient>
       </defs>
 
+      <!-- HAZ DE LUZ RADIAL HACIA EL RIVAL DE TURNO (A LAS 12 EN PUNTO) -->
       <g v-if="tieneLuzAzulActiva" class="haz-luz-12 pointer-events-none">
         <polygon
-          points="252,270 288,270 302,75 238,75"
+          :points="conoPolygonPoints"
           fill="url(#haz-luz-gradiente)"
           class="animate-pulse"
           filter="url(#glow-azul)"
@@ -56,10 +57,8 @@
         ]"
         @click="handleSeleccionar(item.burbuja)"
       >
-        <g
-          :class="idx % 2 === 0 ? 'animacion-flotar-1' : 'animacion-flotar-2'"
-          :style="{ animationDelay: `${(idx * 0.45).toFixed(2)}s` }"
-        >
+        <g>
+          <!-- Sombra base -->
           <circle
             :r="radioBurbuja + 2"
             fill="#000000"
@@ -67,6 +66,7 @@
             class="filter drop-shadow-[0_12px_18px_rgba(0,0,0,0.4)] transition-transform duration-300 group-hover:scale-105"
           />
 
+          <!-- Pelota del Rival -->
           <circle
             :r="radioBurbuja"
             fill="#1e293b"
@@ -75,6 +75,7 @@
             class="transition-all duration-300 group-hover:stroke-width-[5px]"
           />
 
+          <!-- Badges de estado -->
           <circle
             v-if="item.burbuja.resultadoParaCentro === 'ganado'"
             :cx="badgeOffset"
@@ -215,6 +216,20 @@ const radioBurbuja = computed(() => {
   return 16
 })
 
+const conoPolygonPoints = computed(() => {
+  const r = radioBurbuja.value
+  // La cima del cono es una línea recta horizontal que sobrepasa y envuelve toda la bola sin cortarla a la mitad
+  const yTop = Math.max(10, 75 - r - 12)
+  const halfWidthTop = Math.max(46, r + 20)
+  const halfWidthBottom = 20
+  const xLeftBottom = 270 - halfWidthBottom
+  const xRightBottom = 270 + halfWidthBottom
+  const xLeftTop = 270 - halfWidthTop
+  const xRightTop = 270 + halfWidthTop
+
+  return `${xLeftBottom},270 ${xRightBottom},270 ${xRightTop},${yTop} ${xLeftTop},${yTop}`
+})
+
 const badgeOffset = computed(() => {
   const r = radioBurbuja.value
   return Math.round(r * 0.7)
@@ -248,9 +263,23 @@ const posicionesRivales = computed(() => {
   })
 })
 
+const esRivalDeTurnoActivo = (burbuja: BurbujaRival): boolean => {
+  return (
+    props.torneo.estado === 'en curso' &&
+    burbuja.esRivalDeTurno &&
+    burbuja.partido?.estado !== 'jugado' &&
+    burbuja.resultadoParaCentro === 'pendiente'
+  )
+}
+
 const obtenerColorBorde = (burbuja: BurbujaRival): string => {
   if (props.torneo.estado === 'por iniciar') {
     return '#64748b' // Gris para no jugados
+  }
+
+  // Rival con quien le toca jugar (SM / a las 12): borde azul cielo
+  if (burbuja.colorBorde === 'azul_pulsante' || esRivalDeTurnoActivo(burbuja)) {
+    return '#38bdf8'
   }
 
   if (burbuja.colorBorde) {
@@ -278,7 +307,7 @@ const obtenerColorBorde = (burbuja: BurbujaRival): string => {
 }
 
 const obtenerGrosorBorde = (burbuja: BurbujaRival): string => {
-  if (burbuja.esRivalDeTurno && tieneLuzAzulActiva.value) {
+  if (burbuja.colorBorde === 'azul_pulsante' || esRivalDeTurnoActivo(burbuja)) {
     return '4.5'
   }
   return '3.5'
@@ -311,29 +340,4 @@ const formatearNombre = (nombre: string): string => {
 </script>
 
 <style scoped>
-.animacion-flotar-1 {
-  animation: flotar1 3.8s ease-in-out infinite;
-}
-
-.animacion-flotar-2 {
-  animation: flotar2 4.4s ease-in-out infinite;
-}
-
-@keyframes flotar1 {
-  0%, 100% {
-    transform: translateY(0px) translateX(0px);
-  }
-  50% {
-    transform: translateY(-8px) translateX(2px);
-  }
-}
-
-@keyframes flotar2 {
-  0%, 100% {
-    transform: translateY(0px) translateX(0px);
-  }
-  50% {
-    transform: translateY(-6px) translateX(-3px);
-  }
-}
 </style>

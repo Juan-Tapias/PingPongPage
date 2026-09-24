@@ -439,17 +439,19 @@ export function useTorneoGrupo(torneo: Torneo) {
 
       const estaHabilitadoParaJugar = !rivalTienePartidosPendientes && !centroTienePartidosPendientes && partido.estado !== 'jugado'
 
+      const esRivalDeTurno = index === 0
+
       // Color del borde de la burbuja orbital:
       let colorBorde: ColorBordeBurbuja = 'gris'
       if (partido.estado === 'jugado') {
         colorBorde = resultadoParaCentro === 'ganado' ? 'verde' : 'rojo'
       } else if (partido.estado === 'pendiente_admin' && !rivalTienePartidosPendientes) {
         colorBorde = 'naranja'
+      } else if (esRivalDeTurno) {
+        colorBorde = 'azul_pulsante'
       } else {
         colorBorde = 'gris'
       }
-
-      const esRivalDeTurno = index === 0
       const diasRestantes = rivalTienePartidosPendientes
         ? 2
         : (esRivalDeTurno ? (partido.diasRestantes ?? 2) : 2)

@@ -41,6 +41,17 @@
             </div>
 
             <div class="flex items-center gap-2">
+              <!-- Botón Transmitir en Vivo -->
+              <button
+                type="button"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-[11px] sm:text-xs font-black shadow-md transition-all cursor-pointer border border-rose-400/50"
+                title="Transmitir este partido en vivo con tu cámara"
+                @click="handleIniciarTransmision"
+              >
+                <Radio class="w-3.5 h-3.5 animate-pulse" />
+                <span>Transmitir</span>
+              </button>
+
               <span class="text-[11px] font-bold bg-black/30 px-2.5 py-0.5 rounded-full text-sky-100 hidden sm:inline">
                 Primero en ganar 2 sets gana el partido
               </span>
@@ -627,6 +638,7 @@ import {
   Sparkles,
   AlertTriangle,
   Gavel,
+  Radio,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
@@ -660,8 +672,15 @@ const emit = defineEmits<{
       marcadorEnVivo: MarcadorEnVivo
     },
   ): void
+  (e: 'iniciar-transmision-marcador', match: PartidoArbitrable): void
   (e: 'close'): void
 }>()
+
+const handleIniciarTransmision = () => {
+  if (props.match) {
+    emit('iniciar-transmision-marcador', props.match)
+  }
+}
 
 const visible = ref(false)
 

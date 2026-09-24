@@ -2,7 +2,10 @@
   <div v-if="rival" class="w-full bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-4 sm:p-5 flex flex-col gap-3 transition-colors duration-300">
     <div class="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full bg-slate-900 dark:bg-sky-600 text-white flex items-center justify-center font-black text-xs shadow-md shrink-0">
+        <div
+          class="w-10 h-10 rounded-full bg-slate-900 dark:bg-sky-600 text-white flex items-center justify-center font-black text-xs shadow-md shrink-0"
+          :class="rival.esRivalDeTurno ? 'border-2 border-sky-400 dark:border-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : ''"
+        >
           {{ rival.jugador.iniciales }}
         </div>
         <div>

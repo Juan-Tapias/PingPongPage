@@ -123,6 +123,11 @@ export interface PartidoGrupo {
   marcadorEnVivo?: MarcadorEnVivo // Puntuación en tiempo real emitida por el árbitro
   arbitroActivoId?: string   // Árbitro activo con candado de edición
   totalEspectadores?: number // Cantidad de espectadores en tiempo real
+  // Transmisión en vivo (Live Streaming WebRTC)
+  transmisionActiva?: boolean
+  transmisorId?: string
+  transmisorNombre?: string
+  fechaInicioTransmision?: number
   // Seguridad y arbitraje
   codigoJugador1?: string    // PIN de 5 dígitos dinámico por rival
   codigoJugador2?: string    // PIN de 5 dígitos dinámico por rival
@@ -133,6 +138,15 @@ export interface PartidoGrupo {
   esWalkover?: boolean       // Si finalizó por inasistencia / W.O.
   perdedorPorWId?: string    // Jugador sancionado por inasistencia (0 pts)
   motivoWO?: string          // Justificación o motivo del W.O.
+}
+
+export type TipoReaccionLive = '🏓' | '🔥' | '👏' | '🏆'
+
+export interface ReaccionLive {
+  id?: string
+  emoji: TipoReaccionLive
+  usuarioNombre: string
+  timestamp: number
 }
 
 export interface BurbujaRival {
