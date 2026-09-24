@@ -596,7 +596,7 @@ const partidoSintonizado = ref<PartidoGrupo | null>(null)
 
 // Identificar si algún partido del torneo está transmitiéndose en vivo
 const partidoEnTransmisionActivo = computed(() => {
-  return partidos.value.find((p) => p.transmisionActiva && p.enVivo) || null
+  return partidos.value.find((p) => p.transmisionActiva) || null
 })
 
 // Iniciar transmisión desde ModalArbitraje (después de validar los PINs)

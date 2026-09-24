@@ -246,27 +246,59 @@ export const actualizarMarcadorEnVivoDB = async (
 }
 
 /**
- * Suscribe a todos los partidos que se encuentran actualmente 'en_curso' (disputándose en vivo en mesas)
+ * Suscribe a todos los partidos que se encuentran actualmente 'en_curso' o con 'transmisionActiva'
  */
 export const suscribirPartidosEnVivoDB = (
   onActualizar: (partidos: any[]) => void,
   onError?: (error: Error) => void,
 ): Unsubscribe => {
-  const q = query(collection(db, COLECCION_PARTIDOS), where('estado', '==', 'en_curso'))
-  return onSnapshot(
-    q,
+  const docsQ1 = new Map<string, any>()
+  const docsQ2 = new Map<string, any>()
+
+  const emitir = () => {
+    const mapa = new Map<string, any>()
+    docsQ1.forEach((val, key) => mapa.set(key, val))
+    docsQ2.forEach((val, key) => mapa.set(key, val))
+    onActualizar(Array.from(mapa.values()))
+  }
+
+  const q1 = query(collection(db, COLECCION_PARTIDOS), where('estado', '==', 'en_curso'))
+  const q2 = query(collection(db, COLECCION_PARTIDOS), where('transmisionActiva', '==', true))
+
+  const unsub1 = onSnapshot(
+    q1,
     (snap) => {
-      const partidos: any[] = []
+      docsQ1.clear()
       snap.forEach((documento) => {
-        partidos.push({ id: documento.id, ...documento.data() })
+        docsQ1.set(documento.id, { id: documento.id, ...documento.data() })
       })
-      onActualizar(partidos)
+      emitir()
     },
     (err) => {
-      console.warn('Error en listener en tiempo real de partidos en vivo:', err)
+      console.warn('Error en listener en tiempo real de partidos en vivo (estado):', err)
       onError?.(err)
     },
   )
+
+  const unsub2 = onSnapshot(
+    q2,
+    (snap) => {
+      docsQ2.clear()
+      snap.forEach((documento) => {
+        docsQ2.set(documento.id, { id: documento.id, ...documento.data() })
+      })
+      emitir()
+    },
+    (err) => {
+      console.warn('Error en listener en tiempo real de partidos en vivo (transmision):', err)
+      onError?.(err)
+    },
+  )
+
+  return () => {
+    unsub1()
+    unsub2()
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   deleteDoc,
   onSnapshot,
   getDocs,
+  getDoc,
   query,
   where,
   orderBy,
@@ -93,15 +94,30 @@ export function useWebRTCStream() {
       audioActivo.value = true
       videoActivo.value = true
 
-      // 2. Registrar en Firestore que el partido está transmitiéndose en vivo
+      // 2. Registrar en Firestore que el partido está transmitiéndose en vivo y en curso
       const partidoRef = doc(db, 'partidos', partidoId)
+      const partidoSnap = await getDoc(partidoRef)
+      const dataActual = partidoSnap.exists() ? partidoSnap.data() : {}
+
       await updateDoc(partidoRef, {
+        estado: 'en_curso',
         enVivo: true,
         transmisionActiva: true,
         transmisorId: adminUser.id,
         transmisorNombre: adminUser.nombre,
         fechaInicioTransmision: Date.now(),
         totalEspectadores: 0,
+        mesa: dataActual.mesa || 'Mesa 1',
+        marcadorEnVivo: dataActual.marcadorEnVivo || {
+          puntosJ1: 0,
+          puntosJ2: 0,
+          setActual: 'Set 1',
+          numeroSet: 1,
+          setsGanadosJ1: 0,
+          setsGanadosJ2: 0,
+          mesa: dataActual.mesa || 'Mesa 1',
+          actualizadoEn: Date.now(),
+        },
       })
 
       transmitiendo.value = true

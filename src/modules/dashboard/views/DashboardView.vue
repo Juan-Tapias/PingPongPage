@@ -161,7 +161,11 @@
           </div>
         </section>
 
-        <BannerSeguimientoMesas v-if="tabActiva === 'mis-torneos'" :partidos="partidosEnVivoParaBanner" />
+        <BannerSeguimientoMesas
+          v-if="tabActiva === 'mis-torneos'"
+          :partidos="partidosEnVivoParaBanner"
+          @sintonizar-transmision="handleSintonizarTransmision"
+        />
         <BannerReglamento v-else />
 
         <KpiEstadisticas
@@ -188,6 +192,18 @@
       ref="modalVerificacionRef"
       :torneo="torneoSeleccionado"
     />
+
+    <!-- MODAL DE TRANSMISIÓN EN VIVO (VISOR ESPECTADOR DESDE DASHBOARD) -->
+    <ModalTransmisionEnVivo
+      ref="modalTransmisionDashboardRef"
+      :partido="partidoSintonizado"
+      :stream-remoto="streamRemoto"
+      :total-espectadores="totalEspectadores"
+      :cargando-conexion="cargandoConexion"
+      :reacciones="reaccionesEnVivo"
+      @cerrar="handleCerrarEspectador"
+      @enviar-reaccion="handleEnviarReaccion"
+    />
   </div>
 </template>
 
@@ -206,7 +222,9 @@ import KpiEstadisticas from './partials/dashboard/KpiEstadisticas.vue'
 import ModalInscripcionTorneo from './partials/dashboard/ModalInscripcionTorneo.vue'
 import ModalVerificacionPago from './partials/dashboard/ModalVerificacionPago.vue'
 import VistaParticipacionTorneo from './partials/participacion/VistaParticipacionTorneo.vue'
-import type { Torneo } from '@/types'
+import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmisionEnVivo.vue'
+import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
+import type { Torneo, TipoReaccionLive } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
   obtenerTorneosDB,
@@ -298,6 +316,44 @@ const conteoFinalizado = computed(() => misTorneos.value.filter((t) => t.subesta
 const partidosEnVivoDB = ref<any[]>([])
 let unsubscribeMesasEnVivo: (() => void) | null = null
 
+// Transmisión WebRTC para espectadores desde el Dashboard
+const {
+  streamRemoto,
+  cargandoConexion,
+  totalEspectadores,
+  reaccionesEnVivo,
+  conectarComoEspectador,
+  desconectarEspectador,
+  enviarReaccion,
+} = useWebRTCStream()
+
+const modalTransmisionDashboardRef = ref<InstanceType<typeof ModalTransmisionEnVivo> | null>(null)
+const partidoSintonizado = ref<any | null>(null)
+
+const handleSintonizarTransmision = async (partido: any) => {
+  partidoSintonizado.value = partido
+  const viewerNombre = authStore.usuario?.nombre || 'Espectador'
+  const viewerId = authStore.usuario?.id || `viewer_${Date.now()}`
+
+  modalTransmisionDashboardRef.value?.open()
+  await conectarComoEspectador(partido.id, {
+    id: viewerId,
+    nombre: viewerNombre,
+  })
+}
+
+const handleCerrarEspectador = () => {
+  desconectarEspectador()
+  partidoSintonizado.value = null
+}
+
+const handleEnviarReaccion = (emoji: TipoReaccionLive) => {
+  if (partidoSintonizado.value) {
+    const usuarioNombre = authStore.usuario?.nombre || 'Espectador'
+    enviarReaccion(partidoSintonizado.value.id, emoji, usuarioNombre)
+  }
+}
+
 const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
   return partidosEnVivoDB.value.map((p) => {
     const m = p.marcadorEnVivo
@@ -319,6 +375,8 @@ const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
         setsGanados: m?.setsGanadosJ2,
         estaSacando: m?.servidorActual === 2,
       },
+      transmisionActiva: p.transmisionActiva === true,
+      partidoOriginal: p,
     }
   })
 })

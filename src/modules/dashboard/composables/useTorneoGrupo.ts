@@ -233,6 +233,12 @@ export function useTorneoGrupo(torneo: Torneo) {
               esWalkover: p.esWalkover,
               perdedorPorWId: p.perdedorPorWId,
               motivoWO: p.motivoWO,
+              enVivo: p.enVivo ?? (p.transmisionActiva || false),
+              transmisionActiva: p.transmisionActiva || false,
+              transmisorId: p.transmisorId,
+              transmisorNombre: p.transmisorNombre,
+              fechaInicioTransmision: p.fechaInicioTransmision,
+              totalEspectadores: p.totalEspectadores || 0,
             }
           })
           partidos.value = ordenarPartidosNumerico(mapeados)
