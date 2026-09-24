@@ -3,9 +3,11 @@
     <!-- Fondo Oficial de Estadio WTT & Líneas de Cancha Reglamentarias -->
     <FondoEstadioCancha />
 
-    <Navbar class="relative z-10" />
-
-    <BreadcrumbExpediente class="relative z-10" />
+    <BreadcrumbExpediente
+      class="relative z-10"
+      :torneo-nombre="torneoParticipacion?.nombre"
+      @volver="handleVolverDeTorneo"
+    />
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-6 relative z-10">
       <VistaParticipacionTorneo

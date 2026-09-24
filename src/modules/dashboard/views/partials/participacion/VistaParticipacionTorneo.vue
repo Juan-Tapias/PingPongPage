@@ -1,18 +1,19 @@
 <template>
   <div class="w-full max-w-full overflow-x-hidden flex flex-col gap-6 animate-in fade-in duration-200">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-300">
-      <div class="flex items-center gap-3">
+      <div class="flex items-start sm:items-center gap-2.5 sm:gap-3">
         <button
           type="button"
           title="Volver a mis torneos"
           aria-label="Volver a mis torneos"
-          class="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-700/60 transition-colors cursor-pointer shrink-0 shadow-xs"
+          class="flex items-center gap-1.5 px-3 py-2 sm:px-3 sm:py-2.5 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200/80 dark:border-slate-700/80 active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs text-xs font-bold"
           @click="$emit('volver')"
         >
-          <ArrowLeft class="w-5 h-5" />
+          <ArrowLeft class="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+          <span class="inline">Volver</span>
         </button>
 
-        <div class="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
+        <div class="h-6 w-px bg-slate-200 dark:bg-slate-800 shrink-0"></div>
 
         <div>
           <div class="flex flex-wrap items-center gap-2">
