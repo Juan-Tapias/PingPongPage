@@ -9,7 +9,6 @@ import {
   getDocs,
   getDoc,
   query,
-  where,
   orderBy,
   limit,
   serverTimestamp,
@@ -20,8 +19,28 @@ import type { TipoReaccionLive, ReaccionLive } from '@/types'
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
-    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    {
+      urls: [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun2.l.google.com:19302',
+        'stun:stun3.l.google.com:19302',
+        'stun:stun4.l.google.com:19302',
+        'stun:global.stun.twilio.com:3478',
+      ],
+    },
+    {
+      urls: [
+        'stun:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
   ],
+  iceCandidatePoolSize: 10,
 }
 
 export function useWebRTCStream() {
@@ -43,11 +62,17 @@ export function useWebRTCStream() {
   // Variables internas de WebRTC
   let unsubPeers: Unsubscribe | null = null
   let unsubPeerDoc: Unsubscribe | null = null
+  let unsubPartidoDoc: Unsubscribe | null = null
   let unsubReacciones: Unsubscribe | null = null
   let pcViewer: RTCPeerConnection | null = null
   const peerConnections = new Map<string, RTCPeerConnection>()
   let currentPartidoId = ''
   let currentViewerId = ''
+  let heartbeatTimer: any = null
+
+  // Buffers y registros de candidatos ICE para evitar pérdidas en carreras asíncronas
+  const broadcasterCandidatosProcesados = new Map<string, Set<string>>()
+  const broadcasterCandidatosEnEspera = new Map<string, RTCIceCandidateInit[]>()
 
   // ==========================================
   // 1. FLUJO DEL EMISOR (ADMIN / ÁRBITRO)
@@ -98,6 +123,7 @@ export function useWebRTCStream() {
       const partidoRef = doc(db, 'partidos', partidoId)
       const partidoSnap = await getDoc(partidoRef)
       const dataActual = partidoSnap.exists() ? partidoSnap.data() : {}
+      const ahora = Date.now()
 
       await updateDoc(partidoRef, {
         estado: 'en_curso',
@@ -105,7 +131,8 @@ export function useWebRTCStream() {
         transmisionActiva: true,
         transmisorId: adminUser.id,
         transmisorNombre: adminUser.nombre,
-        fechaInicioTransmision: Date.now(),
+        fechaInicioTransmision: ahora,
+        ultimaSenalEnVivo: ahora,
         totalEspectadores: 0,
         mesa: dataActual.mesa || 'Mesa 1',
         marcadorEnVivo: dataActual.marcadorEnVivo || {
@@ -116,14 +143,26 @@ export function useWebRTCStream() {
           setsGanadosJ1: 0,
           setsGanadosJ2: 0,
           mesa: dataActual.mesa || 'Mesa 1',
-          actualizadoEn: Date.now(),
+          actualizadoEn: ahora,
         },
       })
 
       transmitiendo.value = true
       cargandoConexion.value = false
 
-      // 3. Escuchar nuevos espectadores en la subcolección `stream_peers`
+      // 3. Heartbeat cada 10 segundos para indicar que la transmisión sigue viva
+      if (heartbeatTimer) clearInterval(heartbeatTimer)
+      heartbeatTimer = setInterval(async () => {
+        if (currentPartidoId && transmitiendo.value) {
+          try {
+            await updateDoc(doc(db, 'partidos', currentPartidoId), {
+              ultimaSenalEnVivo: Date.now(),
+            })
+          } catch {}
+        }
+      }, 10000)
+
+      // 4. Escuchar nuevos espectadores en la subcolección `stream_peers`
       escucharEspectadoresEntrantes(partidoId)
       suscribirReacciones(partidoId)
 
@@ -150,38 +189,77 @@ export function useWebRTCStream() {
         const viewerId = change.doc.id
         const peerData = change.doc.data()
 
-        if (change.type === 'added') {
-          // Un nuevo espectador solicitó conexión
-          if (peerData.estado === 'solicitando' && !peerConnections.has(viewerId)) {
-            await conectarEspectadorDesdeEmisor(partidoId, viewerId, change.doc.ref)
+        if ((change.type === 'added' || change.type === 'modified') && peerData.estado === 'solicitando') {
+          // Si ya existía una conexión previa con este espectador, cerrarla primero
+          if (peerConnections.has(viewerId)) {
+            cerrarPeer(viewerId)
           }
+          await conectarEspectadorDesdeEmisor(partidoId, viewerId, change.doc.ref)
         } else if (change.type === 'modified') {
-          // El espectador respondió con su SDP Answer
           const pc = peerConnections.get(viewerId)
-          if (pc && peerData.answer && pc.signalingState === 'have-local-offer') {
+          if (!pc) return
+
+          // 1. Establecer SDP Answer si el espectador respondió
+          if (peerData.answer && pc.signalingState === 'have-local-offer') {
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(peerData.answer))
+
+              // Procesar candidatos acumulados en espera antes de tener la descripción remota
+              const enEspera = broadcasterCandidatosEnEspera.get(viewerId)
+              if (enEspera && enEspera.length > 0) {
+                await procesarCandidatosEspectador(viewerId, enEspera)
+                broadcasterCandidatosEnEspera.delete(viewerId)
+              }
             } catch (err) {
               console.warn(`Error al establecer Remote Description para ${viewerId}:`, err)
             }
           }
 
-          // Procesar candidatos ICE enviados por el espectador
-          if (pc && Array.isArray(peerData.viewerCandidates) && peerData.viewerCandidates.length > 0) {
-            for (const cand of peerData.viewerCandidates) {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(cand))
-              } catch (e) {
-                // Candidato redundante o tardío
-              }
-            }
+          // 2. Procesar candidatos ICE enviados por el espectador
+          if (Array.isArray(peerData.viewerCandidates) && peerData.viewerCandidates.length > 0) {
+            await procesarCandidatosEspectador(viewerId, peerData.viewerCandidates)
           }
         } else if (change.type === 'removed') {
-          // El espectador abandonó
           cerrarPeer(viewerId)
         }
       })
     })
+  }
+
+  /**
+   * Procesa y agrega candidatos ICE de un espectador de forma segura
+   */
+  const procesarCandidatosEspectador = async (viewerId: string, candidates: RTCIceCandidateInit[]) => {
+    const pc = peerConnections.get(viewerId)
+    if (!pc) return
+
+    // Si aún no se ha fijado la descripción remota, acumular en espera
+    if (!pc.remoteDescription) {
+      const enEspera = broadcasterCandidatosEnEspera.get(viewerId) || []
+      for (const cand of candidates) {
+        enEspera.push(cand)
+      }
+      broadcasterCandidatosEnEspera.set(viewerId, enEspera)
+      return
+    }
+
+    let procesados = broadcasterCandidatosProcesados.get(viewerId)
+    if (!procesados) {
+      procesados = new Set<string>()
+      broadcasterCandidatosProcesados.set(viewerId, procesados)
+    }
+
+    for (const cand of candidates) {
+      const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
+      if (!procesados.has(key)) {
+        procesados.add(key)
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(cand))
+        } catch (e) {
+          // Candidato redundante
+        }
+      }
+    }
   }
 
   /**
@@ -192,6 +270,8 @@ export function useWebRTCStream() {
 
     const pc = new RTCPeerConnection(RTC_CONFIG)
     peerConnections.set(viewerId, pc)
+    broadcasterCandidatosProcesados.set(viewerId, new Set<string>())
+    broadcasterCandidatosEnEspera.set(viewerId, [])
 
     const broadcasterCandidates: RTCIceCandidateInit[] = []
 
@@ -209,7 +289,7 @@ export function useWebRTCStream() {
     }
 
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+      if (pc.iceConnectionState === 'failed') {
         cerrarPeer(viewerId)
       }
     }
@@ -240,6 +320,8 @@ export function useWebRTCStream() {
       } catch {}
       peerConnections.delete(viewerId)
     }
+    broadcasterCandidatosProcesados.delete(viewerId)
+    broadcasterCandidatosEnEspera.delete(viewerId)
   }
 
   /**
@@ -248,9 +330,18 @@ export function useWebRTCStream() {
   const detenerTransmision = async () => {
     transmitiendo.value = false
 
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
+    }
+
     // 1. Detener pistas de hardware
     if (streamLocal.value) {
-      streamLocal.value.getTracks().forEach((t) => t.stop())
+      streamLocal.value.getTracks().forEach((t) => {
+        try {
+          t.stop()
+        } catch {}
+      })
       streamLocal.value = null
     }
 
@@ -261,6 +352,8 @@ export function useWebRTCStream() {
       } catch {}
     })
     peerConnections.clear()
+    broadcasterCandidatosProcesados.clear()
+    broadcasterCandidatosEnEspera.clear()
 
     if (unsubPeers) {
       unsubPeers()
@@ -272,23 +365,51 @@ export function useWebRTCStream() {
     }
 
     // 3. Notificar a Firestore que concluyó la transmisión
-    if (currentPartidoId) {
-      try {
-        const partidoRef = doc(db, 'partidos', currentPartidoId)
-        await updateDoc(partidoRef, {
-          transmisionActiva: false,
-          totalEspectadores: 0,
-        })
+    const partidoIdToClean = currentPartidoId
+    currentPartidoId = ''
 
-        // Eliminar colección temporal de stream_peers
-        const peersColl = collection(db, 'partidos', currentPartidoId, 'stream_peers')
-        const snap = await getDocs(peersColl)
-        const batchDeletes = snap.docs.map((d) => deleteDoc(d.ref))
+    if (partidoIdToClean) {
+      try {
+        const partidoRef = doc(db, 'partidos', partidoIdToClean)
+        const snap = await getDoc(partidoRef)
+        const d = snap.exists() ? snap.data() : null
+
+        const payloadUpdate: any = {
+          transmisionActiva: false,
+          enVivo: false,
+          totalEspectadores: 0,
+          fechaFinTransmision: Date.now(),
+          ultimaSenalEnVivo: 0,
+          transmisorId: null,
+          transmisorNombre: null,
+        }
+
+        // Si el partido está marcado como 'en_curso' pero no se han disputado sets ni puntos,
+        // revertirlo a 'pendiente' para que no quede como partido zombi
+        if (d && d.estado === 'en_curso' && (!d.sets || d.sets.length === 0)) {
+          const m = d.marcadorEnVivo
+          const sinPuntos =
+            !m ||
+            (Number(m.puntosJ1 || 0) === 0 &&
+              Number(m.puntosJ2 || 0) === 0 &&
+              Number(m.setsGanadosJ1 || 0) === 0 &&
+              Number(m.setsGanadosJ2 || 0) === 0)
+          if (sinPuntos && !d.marcador) {
+            payloadUpdate.estado = 'pendiente'
+            payloadUpdate.marcadorEnVivo = null
+          }
+        }
+
+        await updateDoc(partidoRef, payloadUpdate)
+
+        // Eliminar subcolección temporal de stream_peers
+        const peersColl = collection(db, 'partidos', partidoIdToClean, 'stream_peers')
+        const snapPeers = await getDocs(peersColl)
+        const batchDeletes = snapPeers.docs.map((dDoc) => deleteDoc(dDoc.ref))
         await Promise.all(batchDeletes)
       } catch (err) {
         console.warn('Error al limpiar datos de stream en Firestore:', err)
       }
-      currentPartidoId = ''
     }
   }
 
@@ -380,13 +501,29 @@ export function useWebRTCStream() {
       // 1. Crear RTCPeerConnection para recibir el video
       pcViewer = new RTCPeerConnection(RTC_CONFIG)
       const viewerCandidates: RTCIceCandidateInit[] = []
+      const candidatosEmisorProcesados = new Set<string>()
+      let candidatosEmisorEnEspera: RTCIceCandidateInit[] = []
 
       // Escuchar el track de video/audio que llega del emisor
       pcViewer.ontrack = (event) => {
         if (event.streams && event.streams[0]) {
           streamRemoto.value = event.streams[0]
+        } else if (event.track) {
+          const ms = streamRemoto.value ? new MediaStream(streamRemoto.value.getTracks()) : new MediaStream()
+          ms.addTrack(event.track)
+          streamRemoto.value = ms
+        }
+        cargandoConexion.value = false
+        conectadoComoEspectador.value = true
+      }
+
+      pcViewer.oniceconnectionstatechange = () => {
+        if (pcViewer && (pcViewer.iceConnectionState === 'connected' || pcViewer.iceConnectionState === 'completed')) {
           cargandoConexion.value = false
           conectadoComoEspectador.value = true
+        } else if (pcViewer && pcViewer.iceConnectionState === 'failed') {
+          errorStreaming.value = 'Conexión interrumpida con la cámara de la mesa.'
+          cargandoConexion.value = false
         }
       }
 
@@ -395,6 +532,24 @@ export function useWebRTCStream() {
           viewerCandidates.push(event.candidate.toJSON())
           const peerRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
           updateDoc(peerRef, { viewerCandidates }).catch(() => {})
+        }
+      }
+
+      // Procesar candidatos del emisor con control de buffer
+      const procesarCandidatosEmisor = async (candidates: RTCIceCandidateInit[]) => {
+        if (!pcViewer || !pcViewer.remoteDescription) {
+          candidatosEmisorEnEspera.push(...candidates)
+          return
+        }
+
+        for (const cand of candidates) {
+          const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
+          if (!candidatosEmisorProcesados.has(key)) {
+            candidatosEmisorProcesados.add(key)
+            try {
+              await pcViewer.addIceCandidate(new RTCIceCandidate(cand))
+            } catch (e) {}
+          }
         }
       }
 
@@ -431,19 +586,30 @@ export function useWebRTCStream() {
               },
               estado: 'conectado',
             })
+
+            // Procesar candidatos acumulados en espera
+            if (candidatosEmisorEnEspera.length > 0) {
+              await procesarCandidatosEmisor(candidatosEmisorEnEspera)
+              candidatosEmisorEnEspera = []
+            }
           } catch (err) {
             console.error('Error al responder oferta SDP como espectador:', err)
           }
         }
 
         // Agregar candidatos ICE del emisor
-        if (pcViewer && Array.isArray(data.broadcasterCandidates) && data.broadcasterCandidates.length > 0) {
-          for (const cand of data.broadcasterCandidates) {
-            try {
-              await pcViewer.addIceCandidate(new RTCIceCandidate(cand))
-            } catch (e) {
-              // Candidato ya agregado
-            }
+        if (Array.isArray(data.broadcasterCandidates) && data.broadcasterCandidates.length > 0) {
+          await procesarCandidatosEmisor(data.broadcasterCandidates)
+        }
+      })
+
+      // 4. Escuchar el documento del partido para saber si la transmisión concluyó
+      const partidoRef = doc(db, 'partidos', currentPartidoId)
+      unsubPartidoDoc = onSnapshot(partidoRef, (pSnap) => {
+        if (pSnap.exists()) {
+          const pData = pSnap.data()
+          if (pData.transmisionActiva === false || pData.estado === 'jugado') {
+            desconectarEspectador()
           }
         }
       })
@@ -467,7 +633,11 @@ export function useWebRTCStream() {
     cargandoConexion.value = false
 
     if (streamRemoto.value) {
-      streamRemoto.value.getTracks().forEach((t) => t.stop())
+      streamRemoto.value.getTracks().forEach((t) => {
+        try {
+          t.stop()
+        } catch {}
+      })
       streamRemoto.value = null
     }
 
@@ -482,18 +652,25 @@ export function useWebRTCStream() {
       unsubPeerDoc()
       unsubPeerDoc = null
     }
+    if (unsubPartidoDoc) {
+      unsubPartidoDoc()
+      unsubPartidoDoc = null
+    }
     if (unsubReacciones) {
       unsubReacciones()
       unsubReacciones = null
     }
 
-    if (currentPartidoId && currentViewerId) {
+    const vId = currentViewerId
+    const pId = currentPartidoId
+    currentViewerId = ''
+    currentPartidoId = ''
+
+    if (pId && vId) {
       try {
-        const peerRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
+        const peerRef = doc(db, 'partidos', pId, 'stream_peers', vId)
         await deleteDoc(peerRef)
       } catch {}
-      currentViewerId = ''
-      currentPartidoId = ''
     }
   }
 
@@ -523,7 +700,6 @@ export function useWebRTCStream() {
 
   const suscribirReacciones = (partidoId: string) => {
     const reaccionesColl = collection(db, 'partidos', partidoId, 'reacciones')
-    // Solo últimas reacciones recientes
     const q = query(reaccionesColl, orderBy('timestamp', 'desc'), limit(15))
 
     unsubReacciones = onSnapshot(q, (snapshot) => {
@@ -533,6 +709,20 @@ export function useWebRTCStream() {
       })
       reaccionesEnVivo.value = lista
     })
+  }
+
+  // Limpieza en eventos de cierre de navegador / pestaña
+  if (typeof window !== 'undefined') {
+    const limpiarAlSalir = () => {
+      if (transmitiendo.value && currentPartidoId) {
+        detenerTransmision()
+      }
+      if (conectadoComoEspectador.value) {
+        desconectarEspectador()
+      }
+    }
+    window.addEventListener('beforeunload', limpiarAlSalir)
+    window.addEventListener('pagehide', limpiarAlSalir)
   }
 
   return {

@@ -128,6 +128,8 @@ export interface PartidoGrupo {
   transmisorId?: string
   transmisorNombre?: string
   fechaInicioTransmision?: number
+  fechaFinTransmision?: number
+  ultimaSenalEnVivo?: number // Timestamp del último latido/heartbeat de la cámara en vivo
   // Seguridad y arbitraje
   codigoJugador1?: string    // PIN de 5 dígitos dinámico por rival
   codigoJugador2?: string    // PIN de 5 dígitos dinámico por rival

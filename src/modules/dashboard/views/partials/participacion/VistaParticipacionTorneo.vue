@@ -416,7 +416,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock, Radio, Play } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
@@ -545,7 +545,7 @@ const handleProrrogarPartido = async (datos: {
   await prorrogarPlazoPartido(datos.partidoId, datos.horasExtra)
 }
 
-const handlePartidoFinalizado = (datos: {
+const handlePartidoFinalizado = async (datos: {
   partidoId: string
   sets: SetPartido[]
   ganadorId: string
@@ -555,6 +555,10 @@ const handlePartidoFinalizado = (datos: {
   perdedorPorWId?: string
   ganadorBolaId?: string
 }) => {
+  if (transmitiendo.value) {
+    await detenerTransmision()
+    modalCamaraTransmisionRef.value?.close()
+  }
   registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId, datos)
 }
 
@@ -597,7 +601,14 @@ const partidoSintonizado = ref<PartidoGrupo | null>(null)
 
 // Identificar si algún partido del torneo está transmitiéndose en vivo
 const partidoEnTransmisionActivo = computed(() => {
-  return partidos.value.find((p) => p.transmisionActiva) || null
+  const ahora = Date.now()
+  return (
+    partidos.value.find((p) => {
+      if (!p.transmisionActiva || p.estado === 'jugado') return false
+      if (p.ultimaSenalEnVivo && ahora - p.ultimaSenalEnVivo > 45000) return false
+      return true
+    }) || null
+  )
 })
 
 // Iniciar transmisión desde ModalArbitraje (después de validar los PINs)
@@ -664,4 +675,14 @@ const handleEnviarReaccion = (emoji: TipoReaccionLive) => {
     enviarReaccion(partidoSintonizado.value.id, emoji, usuarioNombre)
   }
 }
+
+// Limpieza automática al salir o cambiar de vista
+onUnmounted(() => {
+  if (transmitiendo.value) {
+    detenerTransmision()
+  }
+  if (conectadoComoEspectador.value) {
+    desconectarEspectador()
+  }
+})
 </script>

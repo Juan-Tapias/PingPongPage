@@ -298,6 +298,13 @@ const close = () => {
   visible.value = false
 }
 
+onUnmounted(() => {
+  if (visible.value) {
+    emit('finalizar')
+    visible.value = false
+  }
+})
+
 defineExpose({
   open,
   close,

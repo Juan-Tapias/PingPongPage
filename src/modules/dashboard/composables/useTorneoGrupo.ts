@@ -233,11 +233,17 @@ export function useTorneoGrupo(torneo: Torneo) {
               esWalkover: p.esWalkover,
               perdedorPorWId: p.perdedorPorWId,
               motivoWO: p.motivoWO,
-              enVivo: p.enVivo ?? (p.transmisionActiva || false),
-              transmisionActiva: p.transmisionActiva || false,
+              enVivo: plazos.estado !== 'jugado' && p.estado !== 'jugado' && (p.enVivo === true || p.transmisionActiva === true),
+              transmisionActiva:
+                plazos.estado !== 'jugado' &&
+                p.estado !== 'jugado' &&
+                p.transmisionActiva === true &&
+                (!p.ultimaSenalEnVivo || Date.now() - p.ultimaSenalEnVivo <= 45000),
               transmisorId: p.transmisorId,
               transmisorNombre: p.transmisorNombre,
               fechaInicioTransmision: p.fechaInicioTransmision,
+              fechaFinTransmision: p.fechaFinTransmision || null,
+              ultimaSenalEnVivo: p.ultimaSenalEnVivo || 0,
               totalEspectadores: p.totalEspectadores || 0,
             }
           })
@@ -691,6 +697,13 @@ export function useTorneoGrupo(torneo: Torneo) {
       await actualizarPartidoDB(partidoId, {
         estado: 'jugado',
         marcadorEnVivo: null,
+        enVivo: false,
+        transmisionActiva: false,
+        totalEspectadores: 0,
+        fechaFinTransmision: Date.now(),
+        ultimaSenalEnVivo: 0,
+        transmisorId: null,
+        transmisorNombre: null,
         jugadorGanadorId: ganadorId,
         marcador: marcadorResumen,
         marcadorDetallado,

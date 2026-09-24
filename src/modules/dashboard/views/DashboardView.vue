@@ -3,6 +3,9 @@
     <!-- Fondo Oficial de Estadio WTT & Líneas de Cancha Reglamentarias -->
     <FondoEstadioCancha />
 
+    <!-- Barra de Navegación Global (Logo, Perfil de Usuario, Tema y Cerrar Sesión) -->
+    <Navbar class="relative z-10" />
+
     <BreadcrumbExpediente
       class="relative z-10"
       :torneo-nombre="torneoParticipacion?.nombre"
@@ -214,6 +217,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Trophy, Compass } from 'lucide-vue-next'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
+import Navbar from '@/components/Navbar.vue'
 import TorneoCard from './partials/dashboard/TorneoCard.vue'
 import BreadcrumbExpediente from './partials/dashboard/BreadcrumbExpediente.vue'
 import FiltrosMisTorneos from './partials/dashboard/FiltrosMisTorneos.vue'
@@ -357,30 +361,50 @@ const handleEnviarReaccion = (emoji: TipoReaccionLive) => {
 }
 
 const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
-  return partidosEnVivoDB.value.map((p) => {
-    const m = p.marcadorEnVivo
-    const j1Nombre = p.jugador1?.nombre || 'Jugador 1'
-    const j2Nombre = p.jugador2?.nombre || 'Jugador 2'
-    return {
-      id: p.id,
-      mesa: m?.mesa || p.mesa || 'Mesa 1',
-      setActual: m?.setActual || 'Set 1',
-      jugador1: {
-        nombre: j1Nombre,
-        puntos: m?.puntosJ1 ?? 0,
-        setsGanados: m?.setsGanadosJ1,
-        estaSacando: m?.servidorActual === 1,
-      },
-      jugador2: {
-        nombre: j2Nombre,
-        puntos: m?.puntosJ2 ?? 0,
-        setsGanados: m?.setsGanadosJ2,
-        estaSacando: m?.servidorActual === 2,
-      },
-      transmisionActiva: p.transmisionActiva === true,
-      partidoOriginal: p,
-    }
-  })
+  const ahora = Date.now()
+  return partidosEnVivoDB.value
+    .filter((p) => {
+      if (p.estado === 'jugado') return false
+      const transmisionViva =
+        p.transmisionActiva === true &&
+        (!p.ultimaSenalEnVivo || ahora - p.ultimaSenalEnVivo <= 45000)
+      const tieneMarcadorValido =
+        p.marcadorEnVivo &&
+        (Number(p.marcadorEnVivo.puntosJ1 || 0) > 0 ||
+          Number(p.marcadorEnVivo.puntosJ2 || 0) > 0 ||
+          Number(p.marcadorEnVivo.setsGanadosJ1 || 0) > 0 ||
+          Number(p.marcadorEnVivo.setsGanadosJ2 || 0) > 0)
+
+      return p.estado === 'en_curso' || transmisionViva || tieneMarcadorValido
+    })
+    .map((p) => {
+      const m = p.marcadorEnVivo
+      const j1Nombre = p.jugador1?.nombre || 'Jugador 1'
+      const j2Nombre = p.jugador2?.nombre || 'Jugador 2'
+      const transmisionViva =
+        p.transmisionActiva === true &&
+        (!p.ultimaSenalEnVivo || ahora - p.ultimaSenalEnVivo <= 45000)
+
+      return {
+        id: p.id,
+        mesa: m?.mesa || p.mesa || 'Mesa 1',
+        setActual: m?.setActual || 'Set 1',
+        jugador1: {
+          nombre: j1Nombre,
+          puntos: m?.puntosJ1 ?? 0,
+          setsGanados: m?.setsGanadosJ1,
+          estaSacando: m?.servidorActual === 1,
+        },
+        jugador2: {
+          nombre: j2Nombre,
+          puntos: m?.puntosJ2 ?? 0,
+          setsGanados: m?.setsGanadosJ2,
+          estaSacando: m?.servidorActual === 2,
+        },
+        transmisionActiva: transmisionViva,
+        partidoOriginal: p,
+      }
+    })
 })
 
 // Carga de torneos reales desde Firestore
@@ -542,6 +566,7 @@ const handleVolverDeTorneo = () => {
 }
 
 onUnmounted(() => {
+  desconectarEspectador()
   if (unsubscribeMesasEnVivo) {
     unsubscribeMesasEnVivo()
     unsubscribeMesasEnVivo = null

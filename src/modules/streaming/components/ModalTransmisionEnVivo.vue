@@ -800,6 +800,10 @@ const open = () => {
       videoElementRef.value.srcObject = props.streamRemoto
       videoElementRef.value.play().catch(() => {
         audioSilenciadoPorNavegador.value = true
+        if (videoElementRef.value) {
+          videoElementRef.value.muted = true
+          videoElementRef.value.play().catch(() => {})
+        }
       })
     }
   }, 100)

@@ -68,6 +68,16 @@ service cloud.firestore {
         request.auth.uid != resource.data.jugador2Id
       ));
       allow delete: if isAdmin();
+
+      // Subcolección para señalización WebRTC P2P de transmisiones en vivo
+      match /stream_peers/{peerId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Subcolección para reacciones en vivo
+      match /reacciones/{reacId} {
+        allow read, write: if isAuthenticated();
+      }
     }
 
     // Reglas para la colección 'tablas_posiciones'

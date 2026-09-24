@@ -259,7 +259,21 @@ export const suscribirPartidosEnVivoDB = (
     const mapa = new Map<string, any>()
     docsQ1.forEach((val, key) => mapa.set(key, val))
     docsQ2.forEach((val, key) => mapa.set(key, val))
-    onActualizar(Array.from(mapa.values()))
+
+    const ahora = Date.now()
+    const validos = Array.from(mapa.values()).filter((p: any) => {
+      // Ignorar de inmediato partidos que ya fueron registrados como jugados
+      if (p.estado === 'jugado') return false
+
+      // Descartar transmisiones zombis si no emitieron latido en los últimos 45 segundos
+      if (p.transmisionActiva && p.ultimaSenalEnVivo && ahora - p.ultimaSenalEnVivo > 45000) {
+        p.transmisionActiva = false
+      }
+
+      return p.estado === 'en_curso' || p.transmisionActiva === true
+    })
+
+    onActualizar(validos)
   }
 
   const q1 = query(collection(db, COLECCION_PARTIDOS), where('estado', '==', 'en_curso'))
