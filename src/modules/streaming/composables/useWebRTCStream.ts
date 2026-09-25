@@ -211,6 +211,7 @@ export function useWebRTCStream() {
         ultimaSenalEnVivo: ahora,
         totalEspectadores: 0,
         mesa: dataActual.mesa || partidoInfo?.mesa || 'Mesa 1',
+        torneoId: dataActual.torneoId || partidoInfo?.torneoId || '',
         marcadorEnVivo: dataActual.marcadorEnVivo || {
           puntosJ1: 0,
           puntosJ2: 0,
@@ -260,12 +261,13 @@ export function useWebRTCStream() {
               {
                 ultimaSenalEnVivo: Date.now(),
                 transmisionActiva: true,
+                enVivo: true,
               },
               { merge: true },
             )
           } catch {}
         }
-      }, 5000)
+      }, 4000)
 
       // Emitir latido inmediato al volver a la pestaña/celular
       if (typeof document !== 'undefined') {
@@ -481,6 +483,7 @@ export function useWebRTCStream() {
     }
 
     for (const cand of candidates) {
+      if (!cand || !cand.candidate) continue
       const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
       if (!procesados.has(key)) {
         procesados.add(key)
@@ -506,33 +509,23 @@ export function useWebRTCStream() {
 
     const broadcasterCandidates: RTCIceCandidateInit[] = []
     let updateCandidatesTimeout: any = null
+    let offerPublicada = false
 
-    // Agregar tracks locales de cámara y micrófono con bitrate acotado para evitar saturación de subida en móviles
+    // Agregar tracks locales de cámara y micrófono
     streamLocal.value.getTracks().forEach((track) => {
-      const sender = pc.addTrack(track, streamLocal.value!)
-      if (track.kind === 'video') {
-        try {
-          const params = sender.getParameters()
-          if (params.encodings && params.encodings[0]) {
-            params.encodings[0].maxBitrate = modoCalidadActual.value === 'ultra_baja' ? 850_000 : 1_300_000
-            params.encodings[0].maxFramerate = 30
-            sender.setParameters(params).catch(() => {})
-          }
-        } catch {}
-      }
+      pc.addTrack(track, streamLocal.value!)
     })
 
-    // Recolectar candidatos ICE del emisor y guardarlos con debounce para evitar ráfagas masivas en Firestore
+    // Recolectar candidatos ICE del emisor
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
+      if (event.candidate && event.candidate.candidate) {
         broadcasterCandidates.push(event.candidate.toJSON())
-        if (updateCandidatesTimeout) clearTimeout(updateCandidatesTimeout)
-        updateCandidatesTimeout = setTimeout(() => {
-          updateDoc(peerDocRef, { broadcasterCandidates }).catch(() => {})
-        }, 120)
-      } else {
-        if (updateCandidatesTimeout) clearTimeout(updateCandidatesTimeout)
-        updateDoc(peerDocRef, { broadcasterCandidates }).catch(() => {})
+        if (offerPublicada) {
+          if (updateCandidatesTimeout) clearTimeout(updateCandidatesTimeout)
+          updateCandidatesTimeout = setTimeout(() => {
+            updateDoc(peerDocRef, { broadcasterCandidates }).catch(() => {})
+          }, 150)
+        }
       }
     }
 
@@ -547,13 +540,27 @@ export function useWebRTCStream() {
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
 
+      const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video')
+      if (videoSender) {
+        try {
+          const params = videoSender.getParameters()
+          if (params && params.encodings && params.encodings[0]) {
+            params.encodings[0].maxBitrate = modoCalidadActual.value === 'ultra_baja' ? 850_000 : 1_300_000
+            params.encodings[0].maxFramerate = 30
+            videoSender.setParameters(params).catch(() => {})
+          }
+        } catch {}
+      }
+
       await updateDoc(peerDocRef, {
         offer: {
           type: offer.type,
           sdp: offer.sdp,
         },
         estado: 'ofertado',
+        broadcasterCandidates,
       })
+      offerPublicada = true
     } catch (err) {
       console.error(`Error al crear oferta SDP para ${viewerId}:`, err)
       cerrarPeer(viewerId)
@@ -851,19 +858,20 @@ export function useWebRTCStream() {
         }
       }
 
-      // Enviar candidatos ICE del espectador con debounce para no saturar Firestore
+      let ofertaRespondida = false
+      let answerPublicada = false
+
+      // Enviar candidatos ICE del espectador
       pcViewer.onicecandidate = (event) => {
-        if (event.candidate && currentPartidoId && currentViewerId) {
+        if (event.candidate && event.candidate.candidate && currentPartidoId && currentViewerId) {
           viewerCandidates.push(event.candidate.toJSON())
-          if (updateViewerCandidatesTimeout) clearTimeout(updateViewerCandidatesTimeout)
-          updateViewerCandidatesTimeout = setTimeout(() => {
-            const peerRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
-            updateDoc(peerRef, { viewerCandidates }).catch(() => {})
-          }, 120)
-        } else if (!event.candidate && currentPartidoId && currentViewerId) {
-          if (updateViewerCandidatesTimeout) clearTimeout(updateViewerCandidatesTimeout)
-          const peerRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
-          updateDoc(peerRef, { viewerCandidates }).catch(() => {})
+          if (answerPublicada) {
+            if (updateViewerCandidatesTimeout) clearTimeout(updateViewerCandidatesTimeout)
+            updateViewerCandidatesTimeout = setTimeout(() => {
+              const pRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
+              updateDoc(pRef, { viewerCandidates }).catch(() => {})
+            }, 150)
+          }
         }
       }
 
@@ -875,6 +883,7 @@ export function useWebRTCStream() {
         }
 
         for (const cand of candidates) {
+          if (!cand || !cand.candidate) continue
           const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
           if (!candidatosEmisorProcesados.has(key)) {
             candidatosEmisorProcesados.add(key)
@@ -905,7 +914,8 @@ export function useWebRTCStream() {
         const data = snap.data()
 
         // Si el emisor envió una oferta y aún no la hemos respondido
-        if (data.offer && pcViewer && pcViewer.signalingState === 'stable') {
+        if (data.offer && !ofertaRespondida && pcViewer) {
+          ofertaRespondida = true
           try {
             await pcViewer.setRemoteDescription(new RTCSessionDescription(data.offer))
             const answer = await pcViewer.createAnswer()
@@ -917,7 +927,9 @@ export function useWebRTCStream() {
                 sdp: answer.sdp,
               },
               estado: 'conectado',
+              viewerCandidates,
             })
+            answerPublicada = true
 
             // Procesar candidatos acumulados en espera
             if (candidatosEmisorEnEspera.length > 0) {
@@ -926,6 +938,7 @@ export function useWebRTCStream() {
             }
           } catch (err) {
             console.error('Error al responder oferta SDP como espectador:', err)
+            ofertaRespondida = false
           }
         }
 

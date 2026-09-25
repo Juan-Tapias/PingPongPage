@@ -652,10 +652,13 @@ const abrirModalTransmisionDirecta = () => {
 
 // Identificar si algún partido del torneo está transmitiéndose en vivo
 const partidoEnTransmisionActivo = computed(() => {
+  if (transmitiendo.value && partidoTransmitiendo.value) {
+    return partidoTransmitiendo.value
+  }
   const ahora = Date.now()
   return (
     partidos.value.find((p) => {
-      if (!p.transmisionActiva || p.estado === 'jugado') return false
+      if ((!p.transmisionActiva && !p.enVivo) || p.estado === 'jugado') return false
       const rawSenal = p.ultimaSenalEnVivo as any
       const ultimaSenal = typeof rawSenal === 'number'
         ? rawSenal
@@ -700,7 +703,7 @@ const abrirOCrearMiCamaraTransmision = async () => {
     const adminNombre = arbitroActual.value?.nombre || usuarioActual?.nombre || 'Administrador'
     const adminId = arbitroActual.value?.id || usuarioActual?.id || 'admin'
     try {
-      await iniciarTransmision(p.id, { id: adminId, nombre: adminNombre }, undefined, p)
+      await iniciarTransmision(p.id, { id: adminId, nombre: adminNombre }, undefined, { ...p, torneoId: props.torneo.id })
     } catch (err: any) {
       console.warn('Error al iniciar cámara:', err)
     }
@@ -717,7 +720,7 @@ const handleIniciarTransmisionArbitrado = async (datos: { partidoArbitrable: Par
     const ok = await iniciarTransmision(datos.partidoArbitrable.partido.id, {
       id: adminId,
       nombre: adminNombre,
-    }, undefined, datos.partidoArbitrable.partido)
+    }, undefined, { ...datos.partidoArbitrable.partido, torneoId: props.torneo.id })
 
     if (ok) {
       await nextTick()
@@ -742,7 +745,7 @@ const handleIniciarTransmisionDesdeMarcador = async (match: PartidoArbitrable) =
     const ok = await iniciarTransmision(match.partido.id, {
       id: adminId,
       nombre: adminNombre,
-    }, undefined, match.partido)
+    }, undefined, { ...match.partido, torneoId: props.torneo.id })
 
     if (ok) {
       await nextTick()

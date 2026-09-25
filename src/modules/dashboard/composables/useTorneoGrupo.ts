@@ -205,6 +205,7 @@ export function useTorneoGrupo(torneo: Torneo) {
 
             return {
               id: p.id,
+              torneoId: p.torneoId || torneo.id,
               numeroPartido: p.numeroPartido,
               jugador1Id: j1Id,
               jugador2Id: j2Id,
@@ -256,6 +257,7 @@ export function useTorneoGrupo(torneo: Torneo) {
             const ahora = Date.now()
             return {
               id: `p-${idA}-${idB}`,
+              torneoId: torneo.id,
               numeroPartido: idx + 1,
               jugador1Id: idA,
               jugador2Id: idB,
