@@ -29,6 +29,9 @@ import {
   generarFixtureBerger,
   calcularTablaDesdePartidos,
   estanJugadoresLibresParaPartido,
+  esFinDeSemana,
+  calcularFechaLimiteHabiles,
+  calcularTiempoRestanteHabil,
 } from '@/services/torneoAlgoritmos'
 
 export interface MalleroTorneo {
@@ -173,16 +176,14 @@ export function useTorneoGrupo(torneo: Torneo) {
         ? p.fechaHabilitacion
         : (p.fechaHabilitacion ? new Date(p.fechaHabilitacion).getTime() : (typeof p.fechaCreacion === 'number' ? p.fechaCreacion : ahora))
       const fechaLimite = typeof p.fechaLimite === 'number'
-        ? p.fechaLimite
-        : (p.fechaLimite ? new Date(p.fechaLimite).getTime() : fechaHabilitacion + 48 * 3600 * 1000)
+        ? (p.prorrogaOtorgada ? p.fechaLimite : calcularFechaLimiteHabiles(fechaHabilitacion, 48))
+        : (p.fechaLimite ? new Date(p.fechaLimite).getTime() : calcularFechaLimiteHabiles(fechaHabilitacion, 48))
 
-      const msRestantes = fechaLimite - ahora
-      const horasRestantes = Math.max(0, Math.floor(msRestantes / (1000 * 3600)))
-      const diasRestantes = Math.max(0, Math.ceil(msRestantes / (1000 * 3600 * 24)))
+      const { msRestantes, horasRestantes, diasRestantes } = calcularTiempoRestanteHabil(fechaLimite, ahora)
 
       let estado = p.estado || 'pendiente'
       if (p.estado === 'pendiente' && msRestantes <= 0) {
-        estado = 'pendiente_admin' // Vencido más de 48h
+        estado = 'pendiente_admin' // Vencido más de 48h hábiles
       }
 
       return {
@@ -269,7 +270,7 @@ export function useTorneoGrupo(torneo: Torneo) {
               diasRestantes: 2,
               horasRestantes: 48,
               fechaCreacion: ahora,
-              fechaLimite: ahora + 48 * 3600 * 1000,
+              fechaLimite: calcularFechaLimiteHabiles(ahora, 48),
               codigoJugador1: generarCodigoSeguridad(idA, idB),
               codigoJugador2: generarCodigoSeguridad(idB, idA),
             }
@@ -572,6 +573,13 @@ export function useTorneoGrupo(torneo: Torneo) {
     codigoJ1: string,
     codigoJ2: string,
   ): Promise<{ valido: boolean; mensaje: string }> => {
+    if (esFinDeSemana()) {
+      return {
+        valido: false,
+        mensaje: 'Los fines de semana (sábado y domingo) no se juegan partidos. El torneo se reanuda el lunes.',
+      }
+    }
+
     const partido = partidos.value.find((p) => p.id === partidoId)
     if (!partido) {
       return { valido: false, mensaje: 'El partido no existe en este torneo.' }
@@ -777,7 +785,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     if (pIndex === -1) return
 
     const ahora = Date.now()
-    const nuevaFechaLimite = ahora + horas * 3600 * 1000
+    const nuevaFechaLimite = calcularFechaLimiteHabiles(ahora, horas)
 
     const partidoActual = partidos.value[pIndex]
     if (partidoActual) {
