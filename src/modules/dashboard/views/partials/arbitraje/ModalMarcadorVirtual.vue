@@ -3,8 +3,8 @@
     <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0"
       enter-to-class="opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100"
       leave-to-class="opacity-0">
-      <div v-if="visible && match"
-        class="fixed inset-0 z-[60] flex items-center justify-center p-1.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+      <div v-if="visible && (matchActual || match)"
+        class="fixed inset-0 z-[9999] flex items-center justify-center p-1.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
         <!-- CONTENEDOR PRINCIPAL ESTILO TABLET / MESA DE PING PONG -->
         <div
           class="w-full max-w-5xl my-auto bg-[#0096c7] p-2 sm:p-3.5 rounded-2xl sm:rounded-[36px] shadow-[0_0_50px_rgba(0,150,199,0.3)] border-2 sm:border-6 border-[#0077b6] flex flex-col gap-1.5 sm:gap-2 relative animate-in zoom-in-95 duration-200 select-none overflow-hidden max-h-[98dvh]">
@@ -385,7 +385,7 @@
           <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 scale-95"
             enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in"
             leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
-            <div v-if="mostrarDisputaBola && match"
+            <div v-if="mostrarDisputaBola && (matchActual || match)"
               class="absolute inset-0 z-40 bg-black/92 backdrop-blur-md rounded-2xl sm:rounded-[36px] p-3 sm:p-6 flex flex-col items-center justify-center text-center overflow-y-auto overscroll-contain">
               <div class="max-w-md w-full my-auto space-y-3 sm:space-y-4 relative py-2">
                 <!-- Botón de cierre superior para móvil / escritorio -->
@@ -414,10 +414,10 @@
                     @click="seleccionarGanadorBola(1)">
                     <div
                       class="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-full bg-emerald-600 text-white font-black text-xs sm:text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
-                      {{ match.jugador1.iniciales }}
+                      {{ (matchActual || match)?.jugador1.iniciales }}
                     </div>
                     <div class="min-w-0 flex-1">
-                      <p class="text-xs sm:text-sm font-black truncate">{{ match.jugador1.nombre }}</p>
+                      <p class="text-xs sm:text-sm font-black truncate">{{ (matchActual || match)?.jugador1.nombre }}</p>
                       <span
                         class="text-[9px] sm:text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-400/25 text-emerald-300 mt-0.5 sm:mt-1 inline-block border border-emerald-400/40">
                         Ganó Bola • Saca 1°
@@ -430,10 +430,10 @@
                     @click="seleccionarGanadorBola(2)">
                     <div
                       class="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-full bg-sky-600 text-white font-black text-xs sm:text-sm flex items-center justify-center border-2 border-white shadow-md group-hover:scale-105 transition-transform">
-                      {{ match.jugador2.iniciales }}
+                      {{ (matchActual || match)?.jugador2.iniciales }}
                     </div>
                     <div class="min-w-0 flex-1">
-                      <p class="text-xs sm:text-sm font-black truncate">{{ match.jugador2.nombre }}</p>
+                      <p class="text-xs sm:text-sm font-black truncate">{{ (matchActual || match)?.jugador2.nombre }}</p>
                       <span
                         class="text-[9px] sm:text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-sky-400/25 text-sky-300 mt-0.5 sm:mt-1 inline-block border border-sky-400/40">
                         Ganó Bola • Saca 1°
@@ -556,7 +556,7 @@
     width="sm"
     :footer="false"
   >
-    <div v-if="match" class="space-y-4 py-1 text-xs">
+    <div v-if="matchActual || match" class="space-y-4 py-1 text-xs">
       <div class="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 space-y-1">
         <p class="font-extrabold flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
           <Gavel class="w-4 h-4 text-amber-600" />
@@ -576,16 +576,16 @@
             type="button"
             :class="[
               'p-3 rounded-xl border text-center font-bold transition-all cursor-pointer flex flex-col items-center gap-1.5',
-              ganadorWOId === match.jugador1.id
+              ganadorWOId === (matchActual || match)?.jugador1.id
                 ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/30'
                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
             ]"
-            @click="ganadorWOId = match.jugador1.id"
+            @click="ganadorWOId = (matchActual || match)?.jugador1.id || ''"
           >
             <span class="w-8 h-8 rounded-full bg-emerald-700 text-white font-black text-xs flex items-center justify-center">
-              {{ match.jugador1.iniciales }}
+              {{ (matchActual || match)?.jugador1.iniciales }}
             </span>
-            <span class="text-xs truncate max-w-full font-bold">{{ match.jugador1.nombre }}</span>
+            <span class="text-xs truncate max-w-full font-bold">{{ (matchActual || match)?.jugador1.nombre }}</span>
             <span class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-emerald-600 text-white mt-0.5">
               Gana por W
             </span>
@@ -595,16 +595,16 @@
             type="button"
             :class="[
               'p-3 rounded-xl border text-center font-bold transition-all cursor-pointer flex flex-col items-center gap-1.5',
-              ganadorWOId === match.jugador2.id
+              ganadorWOId === (matchActual || match)?.jugador2.id
                 ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/30'
                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
             ]"
-            @click="ganadorWOId = match.jugador2.id"
+            @click="ganadorWOId = (matchActual || match)?.jugador2.id || ''"
           >
             <span class="w-8 h-8 rounded-full bg-sky-700 text-white font-black text-xs flex items-center justify-center">
-              {{ match.jugador2.iniciales }}
+              {{ (matchActual || match)?.jugador2.iniciales }}
             </span>
-            <span class="text-xs truncate max-w-full font-bold">{{ match.jugador2.nombre }}</span>
+            <span class="text-xs truncate max-w-full font-bold">{{ (matchActual || match)?.jugador2.nombre }}</span>
             <span class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-emerald-600 text-white mt-0.5">
               Gana por W
             </span>
@@ -651,6 +651,17 @@ const props = defineProps<{
   match: PartidoArbitrable | null
 }>()
 
+const matchInterno = ref<PartidoArbitrable | null>(null)
+const matchActual = computed(() => matchInterno.value || props.match)
+
+watch(
+  () => props.match,
+  (nuevo) => {
+    if (nuevo) matchInterno.value = nuevo
+  },
+  { immediate: true },
+)
+
 const emit = defineEmits<{
   (
     e: 'partido-finalizado',
@@ -677,8 +688,8 @@ const emit = defineEmits<{
 }>()
 
 const handleIniciarTransmision = () => {
-  if (props.match) {
-    emit('iniciar-transmision-marcador', props.match)
+  if (matchActual.value) {
+    emit('iniciar-transmision-marcador', matchActual.value)
   }
 }
 
@@ -711,13 +722,13 @@ const historialSets = ref<SetPartido[]>([])
 const numeroSetActual = computed(() => historialSets.value.length + 1)
 
 const setsGanadosJ1 = computed(() => {
-  if (!props.match) return 0
-  return historialSets.value.filter((s) => s.ganadorId === props.match?.jugador1.id).length
+  if (!matchActual.value) return 0
+  return historialSets.value.filter((s) => s.ganadorId === matchActual.value?.jugador1.id).length
 })
 
 const setsGanadosJ2 = computed(() => {
-  if (!props.match) return 0
-  return historialSets.value.filter((s) => s.ganadorId === props.match?.jugador2.id).length
+  if (!matchActual.value) return 0
+  return historialSets.value.filter((s) => s.ganadorId === matchActual.value?.jugador2.id).length
 })
 
 // Mejor de 3 sets (primer jugador que alcance 2 sets)
@@ -726,35 +737,35 @@ const partidoTerminado = computed(() => {
 })
 
 const ganadorPartido = computed<JugadorTorneo | null>(() => {
-  if (!props.match) return null
-  if (setsGanadosJ1.value >= 2) return props.match.jugador1
-  if (setsGanadosJ2.value >= 2) return props.match.jugador2
+  if (!matchActual.value) return null
+  if (setsGanadosJ1.value >= 2) return matchActual.value.jugador1
+  if (setsGanadosJ2.value >= 2) return matchActual.value.jugador2
   return null
 })
 
 // Mapeo dinámico de qué jugador está en qué lado de la pantalla
 const ladoA = computed(() => {
-  if (!props.match) {
+  if (!matchActual.value) {
     return {
       jugador: { id: '', nombre: '', iniciales: '', telefono: '' },
       esJugador1: true,
     }
   }
   return ladosInvertidos.value
-    ? { jugador: props.match.jugador2, esJugador1: false }
-    : { jugador: props.match.jugador1, esJugador1: true }
+    ? { jugador: matchActual.value.jugador2, esJugador1: false }
+    : { jugador: matchActual.value.jugador1, esJugador1: true }
 })
 
 const ladoB = computed(() => {
-  if (!props.match) {
+  if (!matchActual.value) {
     return {
       jugador: { id: '', nombre: '', iniciales: '', telefono: '' },
       esJugador1: false,
     }
   }
   return ladosInvertidos.value
-    ? { jugador: props.match.jugador1, esJugador1: true }
-    : { jugador: props.match.jugador2, esJugador1: false }
+    ? { jugador: matchActual.value.jugador1, esJugador1: true }
+    : { jugador: matchActual.value.jugador2, esJugador1: false }
 })
 
 // ==========================================
@@ -773,8 +784,8 @@ const esDeuce = computed(() => puntosJ1.value >= 10 && puntosJ2.value >= 10)
  * Set 3: Quien ganó la "Bola" (desempate).
  */
 const servidorInicialSet = computed<1 | 2>(() => {
-  if (!props.match) return 1
-  const ganadorBolaEsJ1 = ganadorBola.value?.id === props.match.jugador1.id
+  if (!matchActual.value) return 1
+  const ganadorBolaEsJ1 = ganadorBola.value?.id === matchActual.value.jugador1.id
   const inicialSet1: 1 | 2 = ganadorBolaEsJ1 ? 1 : 2
 
   if (numeroSetActual.value === 1) {
@@ -853,8 +864,8 @@ const textoEstadoSet = computed<string>(() => {
   if (puedeFinalizarSet.value) {
     const lider =
       puntosJ1.value > puntosJ2.value
-        ? props.match?.jugador1.nombre || 'J1'
-        : props.match?.jugador2.nombre || 'J2'
+        ? matchActual.value?.jugador1.nombre || 'J1'
+        : matchActual.value?.jugador2.nombre || 'J2'
     return `Listo: Gana ${lider} (${puntosJ1.value} - ${puntosJ2.value})`
   }
 
@@ -875,9 +886,9 @@ const textoEstadoSet = computed<string>(() => {
 })
 
 const emitirMarcadorEnVivo = () => {
-  if (!props.match?.partido.id) return
+  if (!matchActual.value?.partido.id) return
   emit('actualizar-marcador-en-vivo', {
-    partidoId: props.match.partido.id,
+    partidoId: matchActual.value.partido.id,
     marcadorEnVivo: {
       puntosJ1: puntosJ1.value,
       puntosJ2: puntosJ2.value,
@@ -885,7 +896,7 @@ const emitirMarcadorEnVivo = () => {
       numeroSet: numeroSetActual.value,
       setsGanadosJ1: setsGanadosJ1.value,
       setsGanadosJ2: setsGanadosJ2.value,
-      mesa: props.match.partido.mesa || `Mesa ${props.match.partido.numeroPartido || 1}`,
+      mesa: matchActual.value.partido.mesa || `Mesa ${matchActual.value.partido.numeroPartido || 1}`,
       servidorActual: servidorActual.value,
       actualizadoEn: Date.now(),
     },
@@ -928,8 +939,8 @@ const reiniciarSetActual = () => {
 
 // Disputa de bola
 const seleccionarGanadorBola = (jugadorNum: 1 | 2) => {
-  if (!props.match) return
-  ganadorBola.value = jugadorNum === 1 ? props.match.jugador1 : props.match.jugador2
+  if (!matchActual.value) return
+  ganadorBola.value = jugadorNum === 1 ? matchActual.value.jugador1 : matchActual.value.jugador2
   mostrarDisputaBola.value = false
   saqueInvertidoManualmente.value = false
   emitirMarcadorEnVivo()
@@ -938,32 +949,32 @@ const seleccionarGanadorBola = (jugadorNum: 1 | 2) => {
 // Declaración de W.O. / Abandono - EXCLUSIVO ADMIN
 const abrirModalWO = () => {
   if (!authStore.esAdmin) return
-  if (!props.match) return
-  ganadorWOId.value = props.match.jugador1.id
+  if (!matchActual.value) return
+  ganadorWOId.value = matchActual.value.jugador1.id
   modalWORef.value?.open()
 }
 
 const confirmarVictoriaPorWO = () => {
   if (!authStore.esAdmin) return
-  if (!props.match || !ganadorWOId.value) return
+  if (!matchActual.value || !ganadorWOId.value) return
 
-  const ganador = ganadorWOId.value === props.match.jugador1.id ? props.match.jugador1 : props.match.jugador2
-  const perdedor = ganadorWOId.value === props.match.jugador1.id ? props.match.jugador2 : props.match.jugador1
+  const ganador = ganadorWOId.value === matchActual.value.jugador1.id ? matchActual.value.jugador1 : matchActual.value.jugador2
+  const perdedor = ganadorWOId.value === matchActual.value.jugador1.id ? matchActual.value.jugador2 : matchActual.value.jugador1
 
   // Sets balanceados a 11-6 y 11-6
   const setsWO: SetPartido[] = [
     {
       setNumero: 1,
-      puntosJugador1: ganadorWOId.value === props.match.jugador1.id ? 11 : 6,
-      puntosJugador2: ganadorWOId.value === props.match.jugador1.id ? 6 : 11,
+      puntosJugador1: ganadorWOId.value === matchActual.value.jugador1.id ? 11 : 6,
+      puntosJugador2: ganadorWOId.value === matchActual.value.jugador1.id ? 6 : 11,
       mallasJugador1: 0,
       mallasJugador2: 0,
       ganadorId: ganador.id,
     },
     {
       setNumero: 2,
-      puntosJugador1: ganadorWOId.value === props.match.jugador1.id ? 11 : 6,
-      puntosJugador2: ganadorWOId.value === props.match.jugador1.id ? 6 : 11,
+      puntosJugador1: ganadorWOId.value === matchActual.value.jugador1.id ? 11 : 6,
+      puntosJugador2: ganadorWOId.value === matchActual.value.jugador1.id ? 6 : 11,
       mallasJugador1: 0,
       mallasJugador2: 0,
       ganadorId: ganador.id,
@@ -973,7 +984,7 @@ const confirmarVictoriaPorWO = () => {
   modalWORef.value?.close()
 
   emit('partido-finalizado', {
-    partidoId: props.match.partido.id,
+    partidoId: matchActual.value.partido.id,
     sets: setsWO,
     ganadorId: ganador.id,
     esWalkover: true,
@@ -994,7 +1005,7 @@ const registrarMalla = (jugador: 1 | 2) => {
     mallasJ2.value += 1
   }
 
-  const nombreJugador = jugador === 1 ? props.match?.jugador1.nombre : props.match?.jugador2.nombre
+  const nombreJugador = jugador === 1 ? matchActual.value?.jugador1.nombre : matchActual.value?.jugador2.nombre
   const totalMallas = jugador === 1 ? mallasJ1.value : mallasJ2.value
 
   if (totalMallas % 2 === 1) {
@@ -1010,7 +1021,7 @@ const registrarMalla = (jugador: 1 | 2) => {
 }
 
 const handleTerminarSet = () => {
-  if (!props.match) return
+  if (!matchActual.value) return
 
   if (puntosJ1.value === puntosJ2.value) {
     mensajeAlertaSet.value = 'El set está empatado. Debe haber un jugador con mayor puntuación para definir el ganador del set.'
@@ -1021,7 +1032,7 @@ const handleTerminarSet = () => {
     return
   }
 
-  const ganadorSetId = puntosJ1.value > puntosJ2.value ? props.match.jugador1.id : props.match.jugador2.id
+  const ganadorSetId = puntosJ1.value > puntosJ2.value ? matchActual.value.jugador1.id : matchActual.value.jugador2.id
 
   const nuevoSet: SetPartido = {
     setNumero: numeroSetActual.value,
@@ -1054,7 +1065,13 @@ watch(partidoTerminado, (terminado) => {
   }
 })
 
-const open = () => {
+const open = (partidoDirecto?: PartidoArbitrable) => {
+  if (partidoDirecto) {
+    matchInterno.value = partidoDirecto
+  } else if (props.match) {
+    matchInterno.value = props.match
+  }
+
   puntosJ1.value = 0
   puntosJ2.value = 0
   mallasJ1.value = 0
@@ -1066,11 +1083,11 @@ const open = () => {
   modalFinPartidoRef.value?.close()
 
   // Revisar si ya había ganador de bola guardado en el partido
-  if (props.match?.partido.ganadorBolaId) {
+  if (matchActual.value?.partido.ganadorBolaId) {
     ganadorBola.value =
-      props.match.jugador1.id === props.match.partido.ganadorBolaId
-        ? props.match.jugador1
-        : props.match.jugador2
+      matchActual.value.jugador1.id === matchActual.value.partido.ganadorBolaId
+        ? matchActual.value.jugador1
+        : matchActual.value.jugador2
     mostrarDisputaBola.value = false
   } else {
     ganadorBola.value = null
@@ -1105,12 +1122,12 @@ const invertirLados = () => {
 }
 
 const confirmarRegistroFinal = () => {
-  if (!props.match || !ganadorPartido.value) return
+  if (!matchActual.value || !ganadorPartido.value) return
 
   modalFinPartidoRef.value?.close()
 
   emit('partido-finalizado', {
-    partidoId: props.match.partido.id,
+    partidoId: matchActual.value.partido.id,
     sets: historialSets.value,
     ganadorId: ganadorPartido.value.id,
     esWalkover: false,

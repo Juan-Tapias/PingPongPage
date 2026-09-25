@@ -4,10 +4,11 @@ import type { FilaPosicionOficial } from '@/types'
 // UTILIDADES DE COMPARACIÓN Y SEGURIDAD
 // ==========================================
 
-export function sonMismoJugador(a?: string, b?: string): boolean {
-  if (!a || !b) return false
-  const cA = a.trim().toLowerCase()
-  const cB = b.trim().toLowerCase()
+export function sonMismoJugador(a?: string | any, b?: string | any): boolean {
+  if (a === undefined || a === null || b === undefined || b === null) return false
+  const cA = String(a).trim().toLowerCase()
+  const cB = String(b).trim().toLowerCase()
+  if (!cA || !cB) return false
   if (cA === cB) return true
 
   // Evitar falsos positivos como 'user_seed_10'.includes('user_seed_1')

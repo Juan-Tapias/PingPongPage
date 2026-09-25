@@ -550,14 +550,19 @@ const handleValidarCodigos = async (
   datos: { partidoId: string; codigo1: string; codigo2: string },
   callback: (res: { valido: boolean; mensaje: string }) => void,
 ) => {
-  const resultado = await validarCodigosArbitraje(datos.partidoId, datos.codigo1, datos.codigo2)
-  callback(resultado)
+  try {
+    const resultado = await validarCodigosArbitraje(datos.partidoId, datos.codigo1, datos.codigo2)
+    callback(resultado)
+  } catch (err: any) {
+    console.error('Error al validar códigos:', err)
+    callback({ valido: false, mensaje: err?.message || 'Error de conexión al validar códigos.' })
+  }
 }
 
 const handleIniciarPartidoArbitrado = async (datos: { partidoArbitrable: PartidoArbitrable }) => {
   partidoEnMarcador.value = datos.partidoArbitrable
   await nextTick()
-  modalMarcadorVirtualRef.value?.open()
+  modalMarcadorVirtualRef.value?.open(datos.partidoArbitrable)
 }
 
 const handleDeclararWalkover = (datos: {

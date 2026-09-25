@@ -298,12 +298,13 @@
             :variant="modoArbitraje === 'transmision' ? 'primary' : 'emerald'"
             size="sm"
             class="gap-2 font-black shadow-xs cursor-pointer"
-            :disabled="modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5)"
+            :loading="validando"
+            :disabled="validando || (modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5))"
             @click="handleConfirmarInicio"
           >
             <Radio v-if="modoArbitraje === 'transmision'" class="w-4 h-4 text-white animate-pulse" />
             <Play v-else class="w-4 h-4" />
-            <span>{{ modoArbitraje === 'transmision' ? 'Iniciar Transmisión' : 'Validar e Iniciar Marcador' }}</span>
+            <span>{{ modoArbitraje === 'transmision' ? 'Iniciar Transmisión' : (validando ? 'Validando...' : 'Validar e Iniciar Marcador') }}</span>
           </Button>
         </div>
       </template>
@@ -499,6 +500,7 @@ const partidoSeleccionado = ref<PartidoArbitrable | null>(null)
 
 const codigoJ1 = ref('')
 const codigoJ2 = ref('')
+const validando = ref(false)
 const ganadorWOSeleccionadoId = ref('')
 const motivoWO = ref('inasistencia')
 const mensajeError = ref('')
@@ -509,6 +511,7 @@ const open = () => {
   partidoSeleccionado.value = null
   codigoJ1.value = ''
   codigoJ2.value = ''
+  validando.value = false
   ganadorWOSeleccionadoId.value = ''
   motivoWO.value = 'inasistencia'
   mensajeError.value = ''
@@ -524,6 +527,7 @@ const seleccionarPartido = (partido: PartidoArbitrable) => {
   modoArbitraje.value = 'normal'
   codigoJ1.value = ''
   codigoJ2.value = ''
+  validando.value = false
   ganadorWOSeleccionadoId.value = partido.jugador1.id
   mensajeError.value = ''
   paso.value = 'confirmacion'
@@ -540,6 +544,7 @@ const seleccionarPartidoParaWO = (partido: PartidoArbitrable) => {
   modoArbitraje.value = 'walkover'
   codigoJ1.value = ''
   codigoJ2.value = ''
+  validando.value = false
   ganadorWOSeleccionadoId.value = partido.jugador1.id
   mensajeError.value = ''
   paso.value = 'confirmacion'
@@ -551,7 +556,7 @@ const limpiarError = () => {
 
 
 const handleConfirmarInicio = () => {
-  if (!partidoSeleccionado.value) return
+  if (!partidoSeleccionado.value || validando.value) return
 
   if (modoArbitraje.value === 'transmision') {
     const match = partidoSeleccionado.value
@@ -560,27 +565,22 @@ const handleConfirmarInicio = () => {
     return
   }
 
+  validando.value = true
+  const match = partidoSeleccionado.value
+
   emit(
     'validar-codigos',
     {
-      partidoId: partidoSeleccionado.value.partido.id,
+      partidoId: match.partido.id,
       codigo1: codigoJ1.value.trim(),
       codigo2: codigoJ2.value.trim(),
     },
     (resultado) => {
+      validando.value = false
       if (resultado.valido) {
         mensajeError.value = ''
-        const match = partidoSeleccionado.value
+        emit('iniciar-partido', { partidoArbitrable: match })
         close()
-        setTimeout(() => {
-          if (match) {
-            if (modoArbitraje.value === 'transmision') {
-              emit('iniciar-transmision', { partidoArbitrable: match })
-            } else {
-              emit('iniciar-partido', { partidoArbitrable: match })
-            }
-          }
-        }, 120)
       } else {
         mensajeError.value = resultado.mensaje
       }
