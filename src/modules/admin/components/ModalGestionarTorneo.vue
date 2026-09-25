@@ -1316,7 +1316,8 @@ import {
 import {
   calcularTablaDesdePartidos,
   generarFixtureBerger,
-  generarCodigoSeguridad
+  generarCodigoSeguridad,
+  calcularFechaLimiteHabiles,
 } from '@/services/torneoAlgoritmos'
 import type { FilaPosicionOficial } from '@/types'
 
@@ -1937,6 +1938,8 @@ const generarPartidos = async () => {
 
     // Generar fixture de enfrentamientos con Algoritmo Berger (rondas y partidos simultáneos)
     const fixtureBerger = generarFixtureBerger(participantes)
+    const ahora = Date.now()
+    const fechaLimiteInicial = calcularFechaLimiteHabiles(ahora, 48)
     const listaPartidosGenerados = fixtureBerger.map((item, idx) => {
       const numPartido = idx + 1
       const numPadded = String(numPartido).padStart(4, '0')
@@ -1964,6 +1967,10 @@ const generarPartidos = async () => {
         },
         estado: 'pendiente',
         diasRestantes: 2,
+        horasRestantes: 48,
+        fechaCreacion: ahora,
+        fechaHabilitacion: ahora,
+        fechaLimite: fechaLimiteInicial,
         marcador: null,
         marcadorDetallado: null,
         codigoJugador1: generarCodigoSeguridad(j1Id, j2Id),

@@ -362,3 +362,129 @@ export function estanJugadoresLibresParaPartido(
   return jugadorLibre(j1Id) && jugadorLibre(j2Id)
 }
 
+// ==========================================
+// CÁLCULO DE DÍAS HÁBILES Y PAUSA DE FIN DE SEMANA
+// ==========================================
+
+/**
+ * Comprueba si una fecha corresponde a sábado o domingo.
+ */
+export function esFinDeSemana(fecha: Date | number = Date.now()): boolean {
+  const d = new Date(fecha)
+  const dia = d.getDay() // 0 = Domingo, 6 = Sábado
+  return dia === 0 || dia === 6
+}
+
+/**
+ * Calcula la fecha límite sumando horas hábiles (por defecto 48h = 2 días).
+ * Salta completamente los fines de semana (sábado y domingo).
+ * Ejemplo: Viernes 10:00 AM -> Vence Martes 10:00 AM (1 día viernes + 1 día lunes).
+ */
+export function calcularFechaLimiteHabiles(
+  fechaInicioMs: number,
+  horasHabiles: number = 48,
+): number {
+  let actual = new Date(fechaInicioMs)
+  let msPorConsumir = horasHabiles * 3600 * 1000
+
+  // Si la fecha inicial cae en fin de semana, se inicia el conteo el lunes a las 00:00
+  if (actual.getDay() === 6) {
+    actual.setDate(actual.getDate() + 2)
+    actual.setHours(0, 0, 0, 0)
+  } else if (actual.getDay() === 0) {
+    actual.setDate(actual.getDate() + 1)
+    actual.setHours(0, 0, 0, 0)
+  }
+
+  while (msPorConsumir > 0) {
+    const diaSemana = actual.getDay()
+    if (diaSemana === 6) {
+      actual.setDate(actual.getDate() + 2)
+      actual.setHours(0, 0, 0, 0)
+      continue
+    }
+    if (diaSemana === 0) {
+      actual.setDate(actual.getDate() + 1)
+      actual.setHours(0, 0, 0, 0)
+      continue
+    }
+
+    const finDelDia = new Date(actual)
+    finDelDia.setHours(24, 0, 0, 0)
+    const msDisponiblesHoy = finDelDia.getTime() - actual.getTime()
+
+    if (msPorConsumir <= msDisponiblesHoy) {
+      actual = new Date(actual.getTime() + msPorConsumir)
+      msPorConsumir = 0
+    } else {
+      msPorConsumir -= msDisponiblesHoy
+      actual = finDelDia
+    }
+  }
+
+  return actual.getTime()
+}
+
+export interface ResultadoTiempoHabil {
+  msRestantes: number
+  horasRestantes: number
+  diasRestantes: number
+  esFinDeSemanaPausado: boolean
+}
+
+/**
+ * Calcula el tiempo hábil restante entre `ahora` y `fechaLimite`, congelando el conteo
+ * durante sábados y domingos para no descontar tiempo durante el fin de semana.
+ */
+export function calcularTiempoRestanteHabil(
+  fechaLimiteMs: number,
+  ahoraMs: number = Date.now(),
+): ResultadoTiempoHabil {
+  const esFinDeSemanaPausado = esFinDeSemana(ahoraMs)
+
+  if (ahoraMs >= fechaLimiteMs) {
+    return {
+      msRestantes: 0,
+      horasRestantes: 0,
+      diasRestantes: 0,
+      esFinDeSemanaPausado,
+    }
+  }
+
+  let cursor = new Date(ahoraMs)
+  const meta = new Date(fechaLimiteMs)
+  let msHabiles = 0
+
+  while (cursor.getTime() < meta.getTime()) {
+    const diaSemana = cursor.getDay()
+    if (diaSemana === 6) {
+      cursor.setDate(cursor.getDate() + 2)
+      cursor.setHours(0, 0, 0, 0)
+      if (cursor.getTime() > meta.getTime()) cursor = new Date(meta.getTime())
+      continue
+    }
+    if (diaSemana === 0) {
+      cursor.setDate(cursor.getDate() + 1)
+      cursor.setHours(0, 0, 0, 0)
+      if (cursor.getTime() > meta.getTime()) cursor = new Date(meta.getTime())
+      continue
+    }
+
+    const finDelDia = new Date(cursor)
+    finDelDia.setHours(24, 0, 0, 0)
+    const proximoPunto = finDelDia.getTime() < meta.getTime() ? finDelDia.getTime() : meta.getTime()
+    msHabiles += proximoPunto - cursor.getTime()
+    cursor = new Date(proximoPunto)
+  }
+
+  const horasRestantes = Math.max(0, Math.floor(msHabiles / (1000 * 3600)))
+  const diasRestantes = Math.max(0, Math.ceil(msHabiles / (1000 * 3600 * 24)))
+
+  return {
+    msRestantes: msHabiles,
+    horasRestantes,
+    diasRestantes,
+    esFinDeSemanaPausado,
+  }
+}
+

@@ -83,6 +83,8 @@ import { computed } from 'vue'
 import { Clock, KeyRound, Hourglass } from 'lucide-vue-next'
 import type { BurbujaRival, FilaPosicion, JugadorTorneo } from '@/types'
 
+import { sonMismoJugador, esFinDeSemana } from '@/services/torneoAlgoritmos'
+
 const props = defineProps<{
   rival: BurbujaRival | null | undefined
   tablaPosiciones?: FilaPosicion[]
@@ -90,15 +92,13 @@ const props = defineProps<{
   esVistaRival?: boolean
 }>()
 
-function sonMismoJugador(a?: string, b?: string): boolean {
-  if (!a || !b) return false
-  return a === b || a.endsWith(b) || b.endsWith(a)
-}
-
 const textoPlazoParaJugar = computed(() => {
   if (!props.rival) return ''
   if (props.rival.partido?.esWalkover) return 'Resuelto por W.O.'
   if (props.rival.rivalTienePartidosPendientes) return 'En espera (rival disputa ronda previa)'
+  if (esFinDeSemana() && props.rival.diasRestantes > 0 && props.rival.estadoPartido === 'pendiente') {
+    return props.rival.diasRestantes >= 2 ? '2 días (Pausado FDS)' : '1 día (Pausado FDS)'
+  }
   const horas = props.rival.partido?.horasRestantes
   if (horas !== undefined && horas > 0 && horas <= 24) {
     return `${horas}h restantes`
@@ -111,6 +111,9 @@ const textoPlazoParaJugar = computed(() => {
 const estiloPlazoParaJugar = computed(() => {
   if (props.rival?.rivalTienePartidosPendientes) {
     return 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+  }
+  if (esFinDeSemana() && props.rival && props.rival.diasRestantes > 0 && props.rival.estadoPartido === 'pendiente') {
+    return 'text-indigo-900 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800'
   }
   return 'text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800'
 })

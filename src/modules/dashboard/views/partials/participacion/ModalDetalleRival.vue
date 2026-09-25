@@ -59,12 +59,24 @@
               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold"
               :class="estiloFechaLimite"
             >
-              <Hourglass v-if="burbuja.rivalTienePartidosPendientes" class="w-3.5 h-3.5" />
+              <PauseCircle v-if="esFinDeSemanaActual && burbuja.diasRestantes > 0 && burbuja.partido.estado === 'pendiente'" class="w-3.5 h-3.5" />
+              <Hourglass v-else-if="burbuja.rivalTienePartidosPendientes" class="w-3.5 h-3.5" />
               <Clock v-else-if="burbuja.diasRestantes > 0" class="w-3.5 h-3.5" />
               <AlertTriangle v-else class="w-3.5 h-3.5" />
               {{ textoFechaLimite }}
             </span>
           </div>
+        </div>
+
+        <!-- Alerta informativa si es fin de semana -->
+        <div v-if="esFinDeSemanaActual && burbuja.partido.estado === 'pendiente' && !burbuja.rivalTienePartidosPendientes" class="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-[11px] text-indigo-900 dark:text-indigo-200">
+          <p class="font-bold flex items-center gap-1">
+            <PauseCircle class="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            Plazo pausado por fin de semana
+          </p>
+          <p class="text-[10px] text-indigo-800 dark:text-indigo-300 mt-0.5">
+            Los sábados y domingos no se juegan partidos. El tiempo reglamentario para disputar este partido está congelado y se reanuda el lunes.
+          </p>
         </div>
 
         <div v-if="burbuja.rivalTienePartidosPendientes && burbuja.partido.estado !== 'jugado'" class="p-2.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 text-[11px] text-sky-900 dark:text-sky-200">
@@ -284,11 +296,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Clock, AlertTriangle, Eye, KeyRound, Calendar, Hourglass, Trophy, CheckCircle2, ListOrdered } from 'lucide-vue-next'
+import { Clock, AlertTriangle, Eye, KeyRound, Calendar, Hourglass, Trophy, CheckCircle2, ListOrdered, PauseCircle } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { BurbujaRival, JugadorTorneo } from '@/types'
-import { sonMismoJugador } from '@/services/torneoAlgoritmos'
+import { sonMismoJugador, esFinDeSemana } from '@/services/torneoAlgoritmos'
+
+const esFinDeSemanaActual = computed(() => esFinDeSemana())
 
 const props = defineProps<{
   burbuja: BurbujaRival | null
@@ -354,6 +368,10 @@ const textoFechaLimite = computed(() => {
   if (props.burbuja.partido.esWalkover) return 'Finalizado por W (11-6, 11-6)'
   if (props.burbuja.partido.estado === 'jugado') return 'Partido finalizado'
   if (props.burbuja.rivalTienePartidosPendientes) return 'En espera (rival con partidos previos)'
+  if (esFinDeSemanaActual.value && props.burbuja.diasRestantes > 0 && props.burbuja.partido.estado === 'pendiente') {
+    if (props.burbuja.diasRestantes >= 2) return '2 días (Pausado FDS)'
+    return '1 día (Pausado FDS)'
+  }
   if (props.burbuja.partido.horasRestantes !== undefined && props.burbuja.partido.horasRestantes > 0 && props.burbuja.partido.horasRestantes <= 24) {
     return `${props.burbuja.partido.horasRestantes}h restantes`
   }
@@ -369,6 +387,9 @@ const estiloFechaLimite = computed(() => {
   }
   if (props.burbuja.rivalTienePartidosPendientes) {
     return 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+  }
+  if (esFinDeSemanaActual.value && props.burbuja.diasRestantes > 0 && props.burbuja.partido.estado === 'pendiente') {
+    return 'bg-indigo-100 text-indigo-900 border border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300'
   }
   if (props.burbuja.diasRestantes >= 2) return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
   if (props.burbuja.diasRestantes === 1) return 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300'

@@ -23,6 +23,17 @@
         </div>
       </div>
 
+      <!-- Banner de Pausa Fin de Semana -->
+      <div v-if="esFinDeSemanaActual" class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex items-start gap-2.5 text-xs">
+        <PauseCircle class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+        <div>
+          <p class="font-extrabold text-amber-800 dark:text-amber-300">Jornada oficial en pausa (Fin de Semana)</p>
+          <p class="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+            Los sábados y domingos no se juegan partidos oficiales. El tiempo límite de 2 días se encuentra pausado y la actividad competitiva se reanuda el lunes.
+          </p>
+        </div>
+      </div>
+
       <!-- Lista de partidos disponibles -->
       <div v-if="partidosDisponibles.length > 0" class="space-y-2.5">
         <h4 class="text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-400">
@@ -106,10 +117,12 @@
             </Button>
 
             <Button variant="emerald" size="sm"
-              class="gap-1.5 font-bold shadow-xs cursor-pointer"
+              class="gap-1.5 font-bold shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="esFinDeSemanaActual"
+              :title="esFinDeSemanaActual ? 'No se juegan partidos los fines de semana' : 'Arbitrar partido'"
               @click="seleccionarPartido(item)">
               <ShieldCheck class="w-3.5 h-3.5" />
-              <span>Arbitrar</span>
+              <span>{{ esFinDeSemanaActual ? 'Pausado (FDS)' : 'Arbitrar' }}</span>
             </Button>
           </div>
         </div>
@@ -199,6 +212,20 @@
 
       <!-- VISTA NORMAL Y TRANSMISIÓN: VALIDACIÓN DE AMBOS PINS -->
       <template v-if="modoArbitraje === 'normal' || modoArbitraje === 'transmision'">
+        <!-- Alerta de fin de semana en paso de confirmación -->
+        <div
+          v-if="esFinDeSemanaActual && modoArbitraje === 'normal'"
+          class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex items-start gap-2.5 text-xs"
+        >
+          <PauseCircle class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p class="font-extrabold text-amber-800 dark:text-amber-300">Partidos no permitidos en fin de semana</p>
+            <p class="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+              Los sábados y domingos no se juegan partidos. El cómputo reglamentario de 2 días está congelado y se reanuda el lunes.
+            </p>
+          </div>
+        </div>
+
         <div
           :class="[
             'p-3.5 rounded-xl border flex items-start gap-3',
@@ -272,12 +299,12 @@
             :variant="modoArbitraje === 'transmision' ? 'primary' : 'emerald'"
             size="sm"
             class="gap-2 font-black shadow-xs"
-            :disabled="modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5)"
+            :disabled="(esFinDeSemanaActual && modoArbitraje === 'normal') || (modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5))"
             @click="handleConfirmarInicio"
           >
             <Radio v-if="modoArbitraje === 'transmision'" class="w-4 h-4 text-white animate-pulse" />
             <Play v-else class="w-4 h-4" />
-            <span>{{ modoArbitraje === 'transmision' ? 'Iniciar Transmisión' : 'Validar e Iniciar Marcador' }}</span>
+            <span>{{ modoArbitraje === 'transmision' ? 'Iniciar Transmisión' : (esFinDeSemanaActual ? 'Jornada Pausada' : 'Validar e Iniciar Marcador') }}</span>
           </Button>
         </div>
       </template>
@@ -397,7 +424,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import {
   ShieldCheck,
   AlertCircle,
@@ -408,13 +435,16 @@ import {
   Gavel,
   Clock,
   Radio,
+  PauseCircle,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { PartidoArbitrable, JugadorTorneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
+import { esFinDeSemana } from '@/services/torneoAlgoritmos'
 
 const authStore = useAuthStore()
+const esFinDeSemanaActual = computed(() => esFinDeSemana())
 
 const props = defineProps<{
   arbitro: JugadorTorneo | null
@@ -524,6 +554,10 @@ const limpiarError = () => {
 const handleConfirmarInicio = () => {
   if (!partidoSeleccionado.value) return
 
+  if (modoArbitraje.value === 'normal' && esFinDeSemana()) {
+    mensajeError.value = 'Los sábados y domingos no se juegan partidos. El torneo se reanuda el lunes.'
+    return
+  }
   if (modoArbitraje.value === 'transmision') {
     const match = partidoSeleccionado.value
     close()
