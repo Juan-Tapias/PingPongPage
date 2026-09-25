@@ -233,7 +233,7 @@
           </p>
         </div>
 
-        <!-- Inputs de PIN para arbitraje normal -->
+        <!-- Inputs de PIN para arbitraje normal (privados de cada jugador) -->
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div class="space-y-1.5">
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -241,7 +241,8 @@
             </label>
             <input v-model="codigoJ1" type="text" maxlength="5" placeholder="5 dígitos (ej. 58214)"
               class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
-              @input="limpiarError" />
+              @input="limpiarError"
+              @keydown.enter="codigoJ1.length === 5 && codigoJ2.length === 5 && handleConfirmarInicio()" />
           </div>
 
           <div class="space-y-1.5">
@@ -250,7 +251,8 @@
             </label>
             <input v-model="codigoJ2" type="text" maxlength="5" placeholder="5 dígitos (ej. 91042)"
               class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
-              @input="limpiarError" />
+              @input="limpiarError"
+              @keydown.enter="codigoJ1.length === 5 && codigoJ2.length === 5 && handleConfirmarInicio()" />
           </div>
         </div>
 
@@ -260,15 +262,16 @@
           <span>{{ mensajeError }}</span>
         </div>
 
-        <div class="flex items-center justify-end gap-2.5 pt-2">
+        <div class="flex items-center justify-between gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
           <Button variant="ghost" size="sm" @click="paso = 'seleccion'">
-            Atrás
+            <ArrowLeft class="w-3.5 h-3.5 mr-1" />
+            <span>Volver a partidos</span>
           </Button>
 
           <Button
             :variant="modoArbitraje === 'transmision' ? 'primary' : 'emerald'"
             size="sm"
-            class="gap-2"
+            class="gap-2 font-black shadow-xs"
             :disabled="modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5)"
             @click="handleConfirmarInicio"
           >
@@ -498,17 +501,8 @@ const seleccionarPartido = (partido: PartidoArbitrable) => {
 }
 
 const seleccionarPartidoParaTransmitir = (partido: PartidoArbitrable) => {
-  // Comentado para pruebas: omitir PINs e iniciar transmisión de forma directa
   close()
   emit('iniciar-transmision', { partidoArbitrable: partido })
-  /*
-  partidoSeleccionado.value = partido
-  modoArbitraje.value = 'transmision'
-  codigoJ1.value = ''
-  codigoJ2.value = ''
-  mensajeError.value = ''
-  paso.value = 'confirmacion'
-  */
 }
 
 const seleccionarPartidoParaWO = (partido: PartidoArbitrable) => {
@@ -526,10 +520,10 @@ const limpiarError = () => {
   mensajeError.value = ''
 }
 
+
 const handleConfirmarInicio = () => {
   if (!partidoSeleccionado.value) return
 
-  // Comentado para pruebas: si es transmisión, iniciar directamente sin validar PINs
   if (modoArbitraje.value === 'transmision') {
     const match = partidoSeleccionado.value
     close()

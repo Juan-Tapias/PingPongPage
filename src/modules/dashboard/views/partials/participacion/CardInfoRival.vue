@@ -42,14 +42,19 @@
         </span>
       </div>
 
-      <div v-if="!esVistaRival && rival.codigoSeguridadPropio && rival.partido?.estado === 'pendiente'" class="flex items-center justify-between py-1 border-t border-slate-100 dark:border-slate-800">
-        <div class="flex items-center gap-1.5">
-          <KeyRound class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-          <span class="font-semibold text-slate-500 dark:text-slate-400">Tu PIN para árbitro:</span>
+      <div v-if="!esVistaRival && rival.codigoSeguridadPropio && rival.partido?.estado !== 'jugado'" class="flex flex-col gap-1 py-1.5 border-t border-slate-100 dark:border-slate-800">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <KeyRound class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span class="font-semibold text-slate-500 dark:text-slate-400">Tu PIN para árbitro:</span>
+          </div>
+          <span class="font-black font-mono tracking-widest text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 select-all">
+            {{ rival.codigoSeguridadPropio }}
+          </span>
         </div>
-        <span class="font-black font-mono tracking-widest text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 rounded-md border border-sky-200 dark:border-sky-800 select-all">
-          {{ rival.codigoSeguridadPropio }}
-        </span>
+        <p class="text-[10px] text-slate-400 dark:text-slate-500 text-right">
+          🔒 Dicta este código al árbitro en la mesa para iniciar.
+        </p>
       </div>
     </div>
 

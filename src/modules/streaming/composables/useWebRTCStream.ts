@@ -25,6 +25,7 @@ const RTC_CONFIG: RTCConfiguration = {
         'stun:stun2.l.google.com:19302',
         'stun:stun3.l.google.com:19302',
         'stun:stun4.l.google.com:19302',
+        'stun:stun.cloudflare.com:3478',
         'stun:global.stun.twilio.com:3478',
       ],
     },
@@ -94,6 +95,7 @@ export function useWebRTCStream() {
   let currentPartidoId = ''
   let currentViewerId = ''
   let heartbeatTimer: any = null
+  let viewerConnectionWatchdog: any = null
 
   // Duración máxima de la llamada / transmisión en vivo: 1 HORA (3600 segundos)
   const LIMITE_LLAMADA_SEGUNDOS = 3600
@@ -511,10 +513,11 @@ export function useWebRTCStream() {
     let updateCandidatesTimeout: any = null
     let offerPublicada = false
 
-    // Agregar tracks locales de cámara y micrófono
-    streamLocal.value.getTracks().forEach((track) => {
-      pc.addTrack(track, streamLocal.value!)
-    })
+    // Agregar tracks locales de forma determinística (primero video y luego audio) para consistencia SDP
+    const videoTracks = streamLocal.value.getVideoTracks()
+    const audioTracks = streamLocal.value.getAudioTracks()
+    videoTracks.forEach((vt) => pc.addTrack(vt, streamLocal.value!))
+    audioTracks.forEach((at) => pc.addTrack(at, streamLocal.value!))
 
     // Recolectar candidatos ICE del emisor
     pc.onicecandidate = (event) => {
@@ -804,21 +807,9 @@ export function useWebRTCStream() {
       currentViewerId = viewerUser.id
 
       // 1. Crear RTCPeerConnection para recibir el video y audio
+      // NOTA: NO agregar transceivers fijos manualmente antes de setRemoteDescription(offer),
+      // ya que un orden distinto en los m-lines de la oferta (audio vs video) provocaría colisión de tracks en WebRTC.
       pcViewer = new RTCPeerConnection(RTC_CONFIG)
-
-      // Configurar transceivers para recepción explícita de video y audio con latencia cero
-      try {
-        const vTrans = pcViewer.addTransceiver('video', { direction: 'recvonly' })
-        const aTrans = pcViewer.addTransceiver('audio', { direction: 'recvonly' })
-        if ((vTrans.receiver as any).playoutDelayHint !== undefined) {
-          ;(vTrans.receiver as any).playoutDelayHint = 0
-        }
-        if ((aTrans.receiver as any).playoutDelayHint !== undefined) {
-          ;(aTrans.receiver as any).playoutDelayHint = 0
-        }
-      } catch (errTrans) {
-        console.warn('Transceivers no soportados o ya asignados:', errTrans)
-      }
 
       const viewerCandidates: RTCIceCandidateInit[] = []
       let updateViewerCandidatesTimeout: any = null
@@ -840,9 +831,12 @@ export function useWebRTCStream() {
         if (event.streams && event.streams[0]) {
           streamRemoto.value = event.streams[0]
         } else if (event.track) {
-          const ms = streamRemoto.value ? new MediaStream(streamRemoto.value.getTracks()) : new MediaStream()
-          ms.addTrack(event.track)
-          streamRemoto.value = ms
+          if (!streamRemoto.value) {
+            streamRemoto.value = new MediaStream()
+          }
+          if (!streamRemoto.value.getTracks().some((t) => t.id === event.track.id)) {
+            streamRemoto.value.addTrack(event.track)
+          }
         }
         cargandoConexion.value = false
         conectadoComoEspectador.value = true
@@ -852,11 +846,28 @@ export function useWebRTCStream() {
         if (pcViewer && (pcViewer.iceConnectionState === 'connected' || pcViewer.iceConnectionState === 'completed')) {
           cargandoConexion.value = false
           conectadoComoEspectador.value = true
+          errorStreaming.value = null
         } else if (pcViewer && pcViewer.iceConnectionState === 'failed') {
-          errorStreaming.value = 'Conexión interrumpida con la cámara de la mesa.'
-          cargandoConexion.value = false
+          console.warn('[WebRTC Viewer] ICE failed, intentando restartIce...')
+          try {
+            if (pcViewer.restartIce) {
+              pcViewer.restartIce()
+            }
+          } catch {}
+          errorStreaming.value = 'Conexión interrumpida con la cámara de la mesa. Reintentando...'
         }
       }
+
+      // Temporizador de guardia: si después de 14s no conecta, intentar reiniciar ICE o notificar
+      if (viewerConnectionWatchdog) clearTimeout(viewerConnectionWatchdog)
+      viewerConnectionWatchdog = setTimeout(() => {
+        if (cargandoConexion.value && !streamRemoto.value && pcViewer) {
+          console.warn('[WebRTC Viewer] Conexión demorada, intentando optimizar ruta ICE...')
+          try {
+            if (pcViewer.restartIce) pcViewer.restartIce()
+          } catch {}
+        }
+      }, 14000)
 
       let ofertaRespondida = false
       let answerPublicada = false
@@ -981,6 +992,11 @@ export function useWebRTCStream() {
   const desconectarEspectador = async () => {
     conectadoComoEspectador.value = false
     cargandoConexion.value = false
+
+    if (viewerConnectionWatchdog) {
+      clearTimeout(viewerConnectionWatchdog)
+      viewerConnectionWatchdog = null
+    }
 
     if (streamRemoto.value) {
       streamRemoto.value.getTracks().forEach((t) => {

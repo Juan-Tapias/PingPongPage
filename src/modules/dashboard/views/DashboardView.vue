@@ -169,6 +169,7 @@
         <BannerSeguimientoMesas
           v-if="tabActiva === 'mis-torneos'"
           :partidos="partidosEnVivoParaBanner"
+          :partido-transmitiendo-id="partidoTransmitiendo?.id"
           @sintonizar-transmision="handleSintonizarTransmision"
           @iniciar-transmision-partido="handleIniciarTransmisionDesdeBanner"
           @abrir-transmision-general="handleAbrirTransmisionGeneral"
@@ -345,6 +346,7 @@ let unsubscribeMesasEnVivo: (() => void) | null = null
 const {
   streamLocal,
   streamRemoto,
+  transmitiendo,
   totalEspectadores,
   cargandoConexion,
   camaraTrasera,
@@ -396,6 +398,10 @@ const handleIniciarTransmisionDesdeBanner = async (partido: any) => {
 }
 
 const handleAbrirTransmisionGeneral = async () => {
+  if (transmitiendo.value && streamLocal.value) {
+    modalCamaraDashboardRef.value?.open()
+    return
+  }
   const match = partidosEnVivoParaBanner.value[0]?.partidoOriginal || partidosEnVivoParaBanner.value[0]
   if (match) {
     await handleIniciarTransmisionDesdeBanner(match)

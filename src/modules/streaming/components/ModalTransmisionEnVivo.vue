@@ -441,7 +441,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   Eye,
   X,
@@ -528,23 +528,33 @@ onUnmounted(() => {
   }
 })
 
+// Función robusta para vincular y reproducir el stream remoto de video
+const acoplarVideoRemoto = () => {
+  if (videoElementRef.value && props.streamRemoto) {
+    if (videoElementRef.value.srcObject !== props.streamRemoto) {
+      videoElementRef.value.srcObject = props.streamRemoto
+    }
+    videoElementRef.value.play().catch(() => {
+      audioSilenciadoPorNavegador.value = true
+      if (videoElementRef.value) {
+        videoElementRef.value.muted = true
+        videoElementRef.value.play().catch(() => {})
+      }
+    })
+  }
+}
+
 // Vincular el MediaStream recibido a la etiqueta <video>
 watch(
-  () => props.streamRemoto,
-  (nuevoStream) => {
-    if (videoElementRef.value && nuevoStream) {
-      videoElementRef.value.srcObject = nuevoStream
-      videoElementRef.value.play().catch(() => {
-        // El navegador requiere interacción para desmutear
-        audioSilenciadoPorNavegador.value = true
-        if (videoElementRef.value) {
-          videoElementRef.value.muted = true
-          videoElementRef.value.play().catch(() => {})
-        }
+  [videoElementRef, () => props.streamRemoto, visible],
+  ([el, nuevoStream, esVisible]) => {
+    if (el && nuevoStream && esVisible) {
+      nextTick(() => {
+        acoplarVideoRemoto()
       })
     }
   },
-  { immediate: true },
+  { immediate: true, flush: 'post' },
 )
 
 const totalEspectadoresReal = computed(() => {
@@ -867,19 +877,11 @@ onUnmounted(() => {
 const open = () => {
   visible.value = true
   mostrarControles.value = true
-  setTimeout(() => {
+  nextTick(() => {
     soportaPiP.value = 'pictureInPictureEnabled' in document
-    if (videoElementRef.value && props.streamRemoto) {
-      videoElementRef.value.srcObject = props.streamRemoto
-      videoElementRef.value.play().catch(() => {
-        audioSilenciadoPorNavegador.value = true
-        if (videoElementRef.value) {
-          videoElementRef.value.muted = true
-          videoElementRef.value.play().catch(() => {})
-        }
-      })
-    }
-  }, 100)
+    acoplarVideoRemoto()
+    setTimeout(acoplarVideoRemoto, 200)
+  })
 }
 
 const close = () => {
