@@ -207,9 +207,7 @@
       :stream-remoto="streamRemoto"
       :total-espectadores="totalEspectadores"
       :cargando-conexion="cargandoConexion"
-      :reacciones="reaccionesEnVivo"
       @cerrar="handleCerrarEspectador"
-      @enviar-reaccion="handleEnviarReaccion"
     />
 
     <!-- MODAL DE CÁMARA DE TRANSMISIÓN (EMISOR DESDE DASHBOARD / CELULAR) -->
@@ -221,12 +219,13 @@
       :camara-trasera="camaraTrasera"
       :audio-activo="audioActivo"
       :video-activo="videoActivo"
-      :reacciones="reaccionesEnVivo"
       :tiempo-formateado="tiempoTranscurridoFormateado"
+      :diagnostico="diagnosticoEmisor"
       @finalizar="handleDetenerTransmisionDashboard"
       @alternar-camara="alternarCamara"
       @alternar-audio="alternarAudio"
       @alternar-video="alternarVideo"
+      @cambiar-calidad="cambiarModoCalidad"
     />
   </div>
 </template>
@@ -250,7 +249,7 @@ import VistaParticipacionTorneo from './partials/participacion/VistaParticipacio
 import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmisionEnVivo.vue'
 import ModalCamaraTransmision from '@/modules/streaming/components/ModalCamaraTransmision.vue'
 import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
-import type { Torneo, TipoReaccionLive } from '@/types'
+import type { Torneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
   obtenerTorneosDB,
@@ -351,17 +350,17 @@ const {
   camaraTrasera,
   audioActivo,
   videoActivo,
-  reaccionesEnVivo,
   segundosTranscurridos,
   tiempoTranscurridoFormateado,
+  diagnosticoEmisor,
   iniciarTransmision,
   detenerTransmision,
   alternarCamara,
   alternarAudio,
   alternarVideo,
+  cambiarModoCalidad,
   conectarComoEspectador,
   desconectarEspectador,
-  enviarReaccion,
 } = useWebRTCStream()
 
 const modalTransmisionDashboardRef = ref<InstanceType<typeof ModalTransmisionEnVivo> | null>(null)
@@ -417,13 +416,6 @@ const handleDetenerTransmisionDashboard = async () => {
 const handleCerrarEspectador = () => {
   desconectarEspectador()
   partidoSintonizado.value = null
-}
-
-const handleEnviarReaccion = (emoji: TipoReaccionLive) => {
-  if (partidoSintonizado.value) {
-    const usuarioNombre = authStore.usuario?.nombre || 'Espectador'
-    enviarReaccion(partidoSintonizado.value.id, emoji, usuarioNombre)
-  }
 }
 
 const parseTimestampMs = (val: any): number => {

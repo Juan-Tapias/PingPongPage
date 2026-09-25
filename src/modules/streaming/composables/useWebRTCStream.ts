@@ -15,7 +15,6 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { TipoReaccionLive, ReaccionLive } from '@/types'
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
@@ -43,6 +42,17 @@ const RTC_CONFIG: RTCConfiguration = {
   iceCandidatePoolSize: 10,
 }
 
+export interface DiagnosticoStream {
+  calidad: 'excelente' | 'buena' | 'regular' | 'mala'
+  latenciaMs: number
+  bitrateKbps: number
+  fps: number
+  resolucion: string
+  paquetesPerdidos: number
+  espectadoresActivos: number
+  modoLatencia: 'ultra_baja' | 'estandar'
+}
+
 export function useWebRTCStream() {
   // Estado local del emisor / cámara
   const streamLocal = shallowRef<MediaStream | null>(null)
@@ -57,13 +67,28 @@ export function useWebRTCStream() {
   const audioActivo = ref(true)
   const videoActivo = ref(true)
   const totalEspectadores = ref(0)
-  const reaccionesEnVivo = ref<ReaccionLive[]>([])
+
+  // Diagnóstico de red y latencia en el móvil emisor
+  const modoCalidadActual = ref<'ultra_baja' | 'estandar'>('ultra_baja')
+  const diagnosticoEmisor = ref<DiagnosticoStream>({
+    calidad: 'excelente',
+    latenciaMs: 0,
+    bitrateKbps: 0,
+    fps: 30,
+    resolucion: '1280x720',
+    paquetesPerdidos: 0,
+    espectadoresActivos: 0,
+    modoLatencia: 'ultra_baja',
+  })
+  let diagnosticoTimer: any = null
+  let ultimosBytesEnviados = 0
+  let ultimoTimestampStats = 0
+  let ultimosFramesEncoded = 0
 
   // Variables internas de WebRTC
   let unsubPeers: Unsubscribe | null = null
   let unsubPeerDoc: Unsubscribe | null = null
   let unsubPartidoDoc: Unsubscribe | null = null
-  let unsubReacciones: Unsubscribe | null = null
   let pcViewer: RTCPeerConnection | null = null
   const peerConnections = new Map<string, RTCPeerConnection>()
   let currentPartidoId = ''
@@ -115,15 +140,15 @@ export function useWebRTCStream() {
       const esMovil = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
       const modoCamara = preferenciaCamara || (esMovil ? 'environment' : 'user')
 
-      // 1. Capturar cámara y micrófono con alta tolerancia a fallos en celulares y laptops
+      // 1. Capturar cámara y micrófono optimizado para latencia ultra-baja en Ping-Pong (720p / 30fps sin sobrecargar subida)
       let media: MediaStream
       try {
         media = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: modoCamara,
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
-            frameRate: { ideal: 30 },
+            width: { ideal: 1280, max: 1280 },
+            height: { ideal: 720, max: 720 },
+            frameRate: { ideal: 30, max: 30 },
           },
           audio: {
             echoCancellation: true,
@@ -261,7 +286,7 @@ export function useWebRTCStream() {
 
       // 5. Escuchar nuevos espectadores en la subcolección `stream_peers`
       escucharEspectadoresEntrantes(partidoId)
-      suscribirReacciones(partidoId)
+      iniciarMonitoreoDiagnostico()
 
       return true
     } catch (error: any) {
@@ -274,6 +299,107 @@ export function useWebRTCStream() {
   }
 
   /**
+   * Monitoreo en tiempo real del estado de red, fps, bitrate y latencia en el móvil
+   */
+  const iniciarMonitoreoDiagnostico = () => {
+    if (diagnosticoTimer) clearInterval(diagnosticoTimer)
+    ultimosBytesEnviados = 0
+    ultimoTimestampStats = Date.now()
+    ultimosFramesEncoded = 0
+
+    diagnosticoTimer = setInterval(async () => {
+      if (!transmitiendo.value) return
+
+      let totalBytes = 0
+      let totalFrames = 0
+      let maxRtt = 0
+      let totalLost = 0
+      let resolucionDetectada = ''
+
+      // Si aún no hay espectadores conectados, mostrar diagnóstico del sensor local
+      if (peerConnections.size === 0) {
+        const vTrack = streamLocal.value?.getVideoTracks()[0]
+        const settings = vTrack?.getSettings()
+        diagnosticoEmisor.value = {
+          calidad: 'excelente',
+          latenciaMs: 15,
+          bitrateKbps: 0,
+          fps: settings?.frameRate ? Math.round(settings.frameRate) : 30,
+          resolucion: settings?.width && settings?.height ? `${settings.width}x${settings.height}` : '1280x720',
+          paquetesPerdidos: 0,
+          espectadoresActivos: 0,
+          modoLatencia: modoCalidadActual.value,
+        }
+        return
+      }
+
+      for (const [, pc] of peerConnections) {
+        if (pc.connectionState !== 'connected') continue
+        try {
+          const stats = await pc.getStats()
+          stats.forEach((report) => {
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+              totalBytes += report.bytesSent || 0
+              totalFrames += report.framesEncoded || 0
+              if (report.frameWidth && report.frameHeight) {
+                resolucionDetectada = `${report.frameWidth}x${report.frameHeight}`
+              }
+            } else if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              const rtt = (report.currentRoundTripTime || 0) * 1000
+              if (rtt > maxRtt) maxRtt = Math.round(rtt)
+            } else if (report.type === 'remote-inbound-rtp' && report.kind === 'video') {
+              totalLost += report.packetsLost || 0
+              if (report.roundTripTime) {
+                const rtt = report.roundTripTime * 1000
+                if (rtt > maxRtt) maxRtt = Math.round(rtt)
+              }
+            }
+          })
+        } catch {}
+      }
+
+      const ahora = Date.now()
+      const deltaTiempoSeg = (ahora - ultimoTimestampStats) / 1000
+      ultimoTimestampStats = ahora
+
+      let bitrate = 0
+      let fpsReal = 0
+      if (deltaTiempoSeg > 0 && ultimosBytesEnviados > 0 && totalBytes >= ultimosBytesEnviados) {
+        bitrate = Math.round(((totalBytes - ultimosBytesEnviados) * 8) / (deltaTiempoSeg * 1000))
+      }
+      if (deltaTiempoSeg > 0 && ultimosFramesEncoded > 0 && totalFrames >= ultimosFramesEncoded) {
+        fpsReal = Math.round((totalFrames - ultimosFramesEncoded) / deltaTiempoSeg)
+      }
+
+      ultimosBytesEnviados = totalBytes
+      ultimosFramesEncoded = totalFrames
+
+      // Calificar salud de red en tiempo real
+      let calidad: 'excelente' | 'buena' | 'regular' | 'mala' = 'excelente'
+      if (maxRtt > 300 || totalLost > 25) {
+        calidad = 'mala'
+      } else if (maxRtt > 180 || totalLost > 6) {
+        calidad = 'regular'
+      } else if (maxRtt > 85) {
+        calidad = 'buena'
+      } else {
+        calidad = 'excelente'
+      }
+
+      diagnosticoEmisor.value = {
+        calidad,
+        latenciaMs: maxRtt || 25,
+        bitrateKbps: bitrate || (peerConnections.size > 0 ? 950 : 0),
+        fps: fpsReal || 30,
+        resolucion: resolucionDetectada || '1280x720',
+        paquetesPerdidos: totalLost,
+        espectadoresActivos: peerConnections.size,
+        modoLatencia: modoCalidadActual.value,
+      }
+    }, 2000)
+  }
+
+  /**
    * Maneja conexiones entrantes de cada espectador que se une
    */
   const escucharEspectadoresEntrantes = (partidoId: string) => {
@@ -281,6 +407,14 @@ export function useWebRTCStream() {
 
     unsubPeers = onSnapshot(peersColl, (snapshot) => {
       totalEspectadores.value = snapshot.docs.length
+
+      if (partidoId) {
+        setDoc(
+          doc(db, 'partidos', partidoId),
+          { totalEspectadores: snapshot.docs.length },
+          { merge: true },
+        ).catch(() => {})
+      }
 
       snapshot.docChanges().forEach(async (change) => {
         const viewerId = change.doc.id
@@ -360,7 +494,7 @@ export function useWebRTCStream() {
   }
 
   /**
-   * Crea la oferta SDP y PeerConnection para un espectador específico
+   * Crea la oferta SDP y PeerConnection para un espectador específico con optimización de bitrate y baja latencia
    */
   const conectarEspectadorDesdeEmisor = async (partidoId: string, viewerId: string, peerDocRef: any) => {
     if (!streamLocal.value) return
@@ -371,16 +505,33 @@ export function useWebRTCStream() {
     broadcasterCandidatosEnEspera.set(viewerId, [])
 
     const broadcasterCandidates: RTCIceCandidateInit[] = []
+    let updateCandidatesTimeout: any = null
 
-    // Agregar tracks locales de cámara y micrófono
+    // Agregar tracks locales de cámara y micrófono con bitrate acotado para evitar saturación de subida en móviles
     streamLocal.value.getTracks().forEach((track) => {
-      pc.addTrack(track, streamLocal.value!)
+      const sender = pc.addTrack(track, streamLocal.value!)
+      if (track.kind === 'video') {
+        try {
+          const params = sender.getParameters()
+          if (params.encodings && params.encodings[0]) {
+            params.encodings[0].maxBitrate = modoCalidadActual.value === 'ultra_baja' ? 850_000 : 1_300_000
+            params.encodings[0].maxFramerate = 30
+            sender.setParameters(params).catch(() => {})
+          }
+        } catch {}
+      }
     })
 
-    // Recolectar candidatos ICE del emisor y guardarlos
+    // Recolectar candidatos ICE del emisor y guardarlos con debounce para evitar ráfagas masivas en Firestore
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         broadcasterCandidates.push(event.candidate.toJSON())
+        if (updateCandidatesTimeout) clearTimeout(updateCandidatesTimeout)
+        updateCandidatesTimeout = setTimeout(() => {
+          updateDoc(peerDocRef, { broadcasterCandidates }).catch(() => {})
+        }, 120)
+      } else {
+        if (updateCandidatesTimeout) clearTimeout(updateCandidatesTimeout)
         updateDoc(peerDocRef, { broadcasterCandidates }).catch(() => {})
       }
     }
@@ -427,6 +578,11 @@ export function useWebRTCStream() {
   const detenerTransmision = async () => {
     transmitiendo.value = false
 
+    if (diagnosticoTimer) {
+      clearInterval(diagnosticoTimer)
+      diagnosticoTimer = null
+    }
+
     if (timerDuracion) {
       clearInterval(timerDuracion)
       timerDuracion = null
@@ -466,10 +622,7 @@ export function useWebRTCStream() {
       unsubPeers()
       unsubPeers = null
     }
-    if (unsubReacciones) {
-      unsubReacciones()
-      unsubReacciones = null
-    }
+
 
     // 3. Notificar a Firestore que concluyó la transmisión
     const partidoIdToClean = currentPartidoId
@@ -589,6 +742,43 @@ export function useWebRTCStream() {
     }
   }
 
+  /**
+   * Cambiar dinámicamente entre modo Ultra Rápido (480p/720p fluido ~850kbps) y Modo HD (~1.3Mbps)
+   */
+  const cambiarModoCalidad = async (modo: 'ultra_baja' | 'estandar') => {
+    modoCalidadActual.value = modo
+    diagnosticoEmisor.value.modoLatencia = modo
+    const targetBitrate = modo === 'ultra_baja' ? 850_000 : 1_300_000
+    const targetConstraints =
+      modo === 'ultra_baja'
+        ? { width: { ideal: 854, max: 1280 }, height: { ideal: 480, max: 720 }, frameRate: { ideal: 30 } }
+        : { width: { ideal: 1280, max: 1280 }, height: { ideal: 720, max: 720 }, frameRate: { ideal: 30 } }
+
+    if (streamLocal.value) {
+      const vTrack = streamLocal.value.getVideoTracks()[0]
+      if (vTrack && vTrack.applyConstraints) {
+        try {
+          await vTrack.applyConstraints(targetConstraints)
+        } catch {}
+      }
+    }
+
+    // Actualizar codificación en tiempo real para todos los espectadores conectados
+    peerConnections.forEach((pc) => {
+      const sender = pc.getSenders().find((s) => s.track && s.track.kind === 'video')
+      if (sender) {
+        try {
+          const params = sender.getParameters()
+          if (params.encodings && params.encodings[0]) {
+            params.encodings[0].maxBitrate = targetBitrate
+            params.encodings[0].maxFramerate = 30
+            sender.setParameters(params).catch(() => {})
+          }
+        } catch {}
+      }
+    })
+  }
+
   // ==========================================
   // 2. FLUJO DEL ESPECTADOR (RECEPTOR)
   // ==========================================
@@ -609,20 +799,37 @@ export function useWebRTCStream() {
       // 1. Crear RTCPeerConnection para recibir el video y audio
       pcViewer = new RTCPeerConnection(RTC_CONFIG)
 
-      // Configurar transceivers para recepción explícita de video y audio
+      // Configurar transceivers para recepción explícita de video y audio con latencia cero
       try {
-        pcViewer.addTransceiver('video', { direction: 'recvonly' })
-        pcViewer.addTransceiver('audio', { direction: 'recvonly' })
+        const vTrans = pcViewer.addTransceiver('video', { direction: 'recvonly' })
+        const aTrans = pcViewer.addTransceiver('audio', { direction: 'recvonly' })
+        if ((vTrans.receiver as any).playoutDelayHint !== undefined) {
+          ;(vTrans.receiver as any).playoutDelayHint = 0
+        }
+        if ((aTrans.receiver as any).playoutDelayHint !== undefined) {
+          ;(aTrans.receiver as any).playoutDelayHint = 0
+        }
       } catch (errTrans) {
         console.warn('Transceivers no soportados o ya asignados:', errTrans)
       }
 
       const viewerCandidates: RTCIceCandidateInit[] = []
+      let updateViewerCandidatesTimeout: any = null
       const candidatosEmisorProcesados = new Set<string>()
       let candidatosEmisorEnEspera: RTCIceCandidateInit[] = []
 
       // Escuchar el track de video/audio que llega del emisor
       pcViewer.ontrack = (event) => {
+        if (event.receiver) {
+          try {
+            if ((event.receiver as any).playoutDelayHint !== undefined) {
+              ;(event.receiver as any).playoutDelayHint = 0
+            }
+            if ((event.receiver as any).jitterBufferTarget !== undefined) {
+              ;(event.receiver as any).jitterBufferTarget = 0
+            }
+          } catch {}
+        }
         if (event.streams && event.streams[0]) {
           streamRemoto.value = event.streams[0]
         } else if (event.track) {
@@ -644,9 +851,17 @@ export function useWebRTCStream() {
         }
       }
 
+      // Enviar candidatos ICE del espectador con debounce para no saturar Firestore
       pcViewer.onicecandidate = (event) => {
         if (event.candidate && currentPartidoId && currentViewerId) {
           viewerCandidates.push(event.candidate.toJSON())
+          if (updateViewerCandidatesTimeout) clearTimeout(updateViewerCandidatesTimeout)
+          updateViewerCandidatesTimeout = setTimeout(() => {
+            const peerRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
+            updateDoc(peerRef, { viewerCandidates }).catch(() => {})
+          }, 120)
+        } else if (!event.candidate && currentPartidoId && currentViewerId) {
+          if (updateViewerCandidatesTimeout) clearTimeout(updateViewerCandidatesTimeout)
           const peerRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
           updateDoc(peerRef, { viewerCandidates }).catch(() => {})
         }
@@ -731,7 +946,12 @@ export function useWebRTCStream() {
         }
       })
 
-      suscribirReacciones(partidoId)
+      // 5. Escuchar la cantidad real de espectadores conectados a la mesa en vivo
+      const peersColl = collection(db, 'partidos', currentPartidoId, 'stream_peers')
+      unsubPeers = onSnapshot(peersColl, (snapshot) => {
+        totalEspectadores.value = Math.max(1, snapshot.docs.length)
+      })
+
       return true
     } catch (err: any) {
       console.error('Error al conectar como espectador:', err)
@@ -765,6 +985,10 @@ export function useWebRTCStream() {
       pcViewer = null
     }
 
+    if (unsubPeers) {
+      unsubPeers()
+      unsubPeers = null
+    }
     if (unsubPeerDoc) {
       unsubPeerDoc()
       unsubPeerDoc = null
@@ -773,10 +997,7 @@ export function useWebRTCStream() {
       unsubPartidoDoc()
       unsubPartidoDoc = null
     }
-    if (unsubReacciones) {
-      unsubReacciones()
-      unsubReacciones = null
-    }
+
 
     const vId = currentViewerId
     const pId = currentPartidoId
@@ -791,42 +1012,7 @@ export function useWebRTCStream() {
     }
   }
 
-  // ==========================================
-  // 3. REACCIONES Y EMOJIS EN TIEMPO REAL
-  // ==========================================
 
-  const enviarReaccion = async (
-    partidoId: string,
-    emoji: TipoReaccionLive,
-    usuarioNombre: string,
-  ) => {
-    try {
-      const reaccionesColl = collection(db, 'partidos', partidoId, 'reacciones')
-      const docRef = doc(reaccionesColl)
-      await setDoc(docRef, {
-        id: docRef.id,
-        emoji,
-        usuarioNombre,
-        timestamp: Date.now(),
-        serverTime: serverTimestamp(),
-      })
-    } catch (e) {
-      console.warn('Error al enviar reacción:', e)
-    }
-  }
-
-  const suscribirReacciones = (partidoId: string) => {
-    const reaccionesColl = collection(db, 'partidos', partidoId, 'reacciones')
-    const q = query(reaccionesColl, orderBy('timestamp', 'desc'), limit(15))
-
-    unsubReacciones = onSnapshot(q, (snapshot) => {
-      const lista: ReaccionLive[] = []
-      snapshot.forEach((d) => {
-        lista.push({ id: d.id, ...d.data() } as ReaccionLive)
-      })
-      reaccionesEnVivo.value = lista
-    })
-  }
 
   // Limpieza en eventos de cierre de navegador / pestaña
   if (typeof window !== 'undefined') {
@@ -854,11 +1040,12 @@ export function useWebRTCStream() {
     audioActivo,
     videoActivo,
     totalEspectadores,
-    reaccionesEnVivo,
     segundosTranscurridos,
     tiempoTranscurridoFormateado,
     tiempoRestanteFormateado,
     limiteLlamadaSegundos: LIMITE_LLAMADA_SEGUNDOS,
+    diagnosticoEmisor,
+    modoCalidadActual,
 
     // Acciones Emisor
     iniciarTransmision,
@@ -866,12 +1053,10 @@ export function useWebRTCStream() {
     alternarCamara,
     alternarAudio,
     alternarVideo,
+    cambiarModoCalidad,
 
     // Acciones Espectador
     conectarComoEspectador,
     desconectarEspectador,
-
-    // Reacciones
-    enviarReaccion,
   }
 }

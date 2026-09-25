@@ -425,12 +425,13 @@
       :camara-trasera="camaraTrasera"
       :audio-activo="audioActivo"
       :video-activo="videoActivo"
-      :reacciones="reaccionesEnVivo"
       :tiempo-formateado="tiempoTranscurridoFormateado"
+      :diagnostico="diagnosticoEmisor"
       @finalizar="handleDetenerTransmision"
       @alternar-camara="alternarCamara"
       @alternar-audio="alternarAudio"
       @alternar-video="alternarVideo"
+      @cambiar-calidad="cambiarModoCalidad"
     />
 
     <!-- MODAL DE REPRODUCCIÓN EN VIVO (ESPECTADORES / JUGADORES) -->
@@ -440,9 +441,7 @@
       :stream-remoto="streamRemoto"
       :total-espectadores="totalEspectadores"
       :cargando-conexion="cargandoConexion"
-      :reacciones="reaccionesEnVivo"
       @cerrar="handleCerrarEspectador"
-      @enviar-reaccion="handleEnviarReaccion"
     />
   </div>
 </template>
@@ -465,7 +464,7 @@ import CardAvanceTorneo from './CardAvanceTorneo.vue'
 import CardInfoRival from './CardInfoRival.vue'
 import { useTorneoGrupo } from '@/modules/dashboard/composables/useTorneoGrupo'
 import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
-import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido, PartidoGrupo, TipoReaccionLive, MarcadorEnVivo } from '@/types'
+import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido, PartidoGrupo, MarcadorEnVivo } from '@/types'
 
 const props = defineProps<{
   torneo: Torneo
@@ -615,16 +614,16 @@ const {
   audioActivo,
   videoActivo,
   totalEspectadores,
-  reaccionesEnVivo,
   tiempoTranscurridoFormateado,
+  diagnosticoEmisor,
   iniciarTransmision,
   detenerTransmision,
   alternarCamara,
   alternarAudio,
   alternarVideo,
+  cambiarModoCalidad,
   conectarComoEspectador,
   desconectarEspectador,
-  enviarReaccion,
 } = useWebRTCStream()
 
 const modalCamaraTransmisionRef = ref<InstanceType<typeof ModalCamaraTransmision> | null>(null)
@@ -781,13 +780,6 @@ const handleCerrarEspectador = () => {
   partidoSintonizado.value = null
 }
 
-// Enviar reacción
-const handleEnviarReaccion = (emoji: TipoReaccionLive) => {
-  if (partidoSintonizado.value) {
-    const usuarioNombre = usuarioActual?.nombre || 'Espectador'
-    enviarReaccion(partidoSintonizado.value.id, emoji, usuarioNombre)
-  }
-}
 
 // Limpieza automática al salir o cambiar de vista
 onUnmounted(() => {

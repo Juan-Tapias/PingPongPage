@@ -46,7 +46,7 @@
                 class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/60"
               >
                 <Eye class="w-3.5 h-3.5 text-sky-400" />
-                <span>{{ totalEspectadores }} {{ totalEspectadores === 1 ? 'espectador' : 'espectadores' }}</span>
+                <span>{{ totalEspectadoresReal }} {{ totalEspectadoresReal === 1 ? 'espectador' : 'espectadores' }}</span>
               </span>
 
               <!-- Duración de la llamada / transmisión (1 hora) -->
@@ -307,49 +307,6 @@
               </div>
             </div>
 
-            <!-- LLUVIA DE REACCIONES FLOTANTES (EMOJIS) -->
-            <div
-              v-if="!modoMiniplayer"
-              class="absolute right-3 sm:right-6 bottom-16 sm:bottom-20 z-20 flex flex-col items-center gap-2 pointer-events-none"
-            >
-              <TransitionGroup
-                enter-active-class="transition duration-500 ease-out"
-                enter-from-class="opacity-0 translate-y-8 scale-50"
-                enter-to-class="opacity-100 translate-y-0 scale-125"
-                leave-active-class="transition duration-1000 ease-in"
-                leave-from-class="opacity-100 translate-y-0 scale-125"
-                leave-to-class="opacity-0 -translate-y-28 scale-150"
-              >
-                <div
-                  v-for="reac in ultimasReacciones"
-                  :key="reac.id || reac.timestamp"
-                  class="text-2xl sm:text-4xl filter drop-shadow-[0_0_12px_rgba(0,0,0,0.9)] select-none animate-bounce"
-                >
-                  {{ reac.emoji }}
-                </div>
-              </TransitionGroup>
-            </div>
-
-            <!-- BARRA DE REACCIONES RÁPIDAS (ACCESIBLE CON UN SOLO TOQUE) -->
-            <div
-              v-if="!modoMiniplayer"
-              :class="[
-                'absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 flex items-center gap-1.5 sm:gap-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/15 transition-all duration-300',
-                !mostrarControles && esPantallaCompleta ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
-              ]"
-            >
-              <button
-                v-for="btn in botonesReaccion"
-                :key="btn.emoji"
-                type="button"
-                class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 active:scale-125 transition-all text-base sm:text-xl flex items-center justify-center cursor-pointer shadow-xs"
-                :title="btn.nombre"
-                @click="enviarReaccionLocal(btn.emoji)"
-              >
-                {{ btn.emoji }}
-              </button>
-            </div>
-
             <!-- CONTROLES FLOTANTES EN LA ESQUINA INFERIOR DERECHA (MODO NORMAL Y FULLSCREEN) -->
             <div
               v-if="!modoMiniplayer"
@@ -498,19 +455,17 @@ import {
 } from 'lucide-vue-next'
 import { doc, onSnapshot, type Unsubscribe } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { PartidoGrupo, ReaccionLive, TipoReaccionLive } from '@/types'
+import type { PartidoGrupo } from '@/types'
 
 const props = defineProps<{
   partido: PartidoGrupo | null
   streamRemoto: MediaStream | null
   totalEspectadores: number
   cargandoConexion: boolean
-  reacciones: ReaccionLive[]
 }>()
 
 const emit = defineEmits<{
   (e: 'cerrar'): void
-  (e: 'enviar-reaccion', emoji: TipoReaccionLive): void
 }>()
 
 const visible = ref(false)
@@ -573,13 +528,6 @@ onUnmounted(() => {
   }
 })
 
-const botonesReaccion: { emoji: TipoReaccionLive; nombre: string }[] = [
-  { emoji: '🏓', nombre: 'Punto de Ping Pong' },
-  { emoji: '🔥', nombre: '¡Gran Jugada!' },
-  { emoji: '👏', nombre: 'Aplausos' },
-  { emoji: '🏆', nombre: '¡Punto de Partido!' },
-]
-
 // Vincular el MediaStream recibido a la etiqueta <video>
 watch(
   () => props.streamRemoto,
@@ -599,8 +547,10 @@ watch(
   { immediate: true },
 )
 
-const ultimasReacciones = computed(() => {
-  return props.reacciones.slice(0, 5)
+const totalEspectadoresReal = computed(() => {
+  const deProps = Number(props.totalEspectadores || 0)
+  const dePartido = Number(partidoActivo.value?.totalEspectadores || 0)
+  return Math.max(1, Math.max(deProps, dePartido))
 })
 
 // Sincronización en tiempo real del partido y marcador en vivo
@@ -913,10 +863,6 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   if (timeoutInactividad) clearTimeout(timeoutInactividad)
 })
-
-const enviarReaccionLocal = (emoji: TipoReaccionLive) => {
-  emit('enviar-reaccion', emoji)
-}
 
 const open = () => {
   visible.value = true

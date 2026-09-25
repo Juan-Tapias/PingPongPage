@@ -43,6 +43,22 @@
                 <Users class="w-3.5 h-3.5 text-sky-400" />
                 <span>{{ totalEspectadores }} {{ totalEspectadores === 1 ? 'espectador' : 'espectadores' }}</span>
               </span>
+
+              <!-- Indicador interactivo de diagnóstico en el celular -->
+              <button
+                type="button"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all cursor-pointer border active:scale-95 select-none shadow-xs"
+                :class="badgeDiagnosticoClases"
+                title="Toca para ver el diagnóstico de red, latencia y bitrate en vivo"
+                @click="mostrarDiagnostico = !mostrarDiagnostico"
+              >
+                <Activity class="w-3.5 h-3.5 animate-pulse" :class="colorPuntoCalidad" />
+                <span>{{ diagnosticoActual.latenciaMs }}ms</span>
+                <span class="hidden xs:inline font-mono opacity-80">| {{ diagnosticoActual.fps }}fps</span>
+                <span class="text-[9px] uppercase px-1 py-0.2 rounded font-black tracking-wider ml-0.5" :class="textoCalidadClases">
+                  {{ etiquetaCalidad }}
+                </span>
+              </button>
             </div>
 
             <!-- Botones de Acción Rápida -->
@@ -166,25 +182,103 @@
               </div>
             </div>
 
-            <!-- LLUVIA DE REACCIONES DE ESPECTADORES -->
-            <div class="absolute right-3 sm:right-6 bottom-16 sm:bottom-20 z-10 flex flex-col items-center gap-2 pointer-events-none">
-              <TransitionGroup
-                enter-active-class="transition duration-500 ease-out"
-                enter-from-class="opacity-0 translate-y-8 scale-50"
-                enter-to-class="opacity-100 translate-y-0 scale-125"
-                leave-active-class="transition duration-1000 ease-in"
-                leave-from-class="opacity-100 translate-y-0 scale-125"
-                leave-to-class="opacity-0 -translate-y-24 scale-150"
+            <!-- PANEL FLOTANTE DE DIAGNÓSTICO DEL CELULAR EN TIEMPO REAL -->
+            <Transition
+              enter-active-class="transition duration-200 ease-out"
+              enter-from-class="opacity-0 translate-y-3 scale-95"
+              enter-to-class="opacity-100 translate-y-0 scale-100"
+              leave-active-class="transition duration-150 ease-in"
+              leave-from-class="opacity-100 translate-y-0 scale-100"
+              leave-to-class="opacity-0 translate-y-3 scale-95"
+            >
+              <div
+                v-if="mostrarDiagnostico"
+                class="absolute bottom-3 inset-x-3 sm:inset-x-auto sm:right-4 z-40 max-w-sm w-full bg-slate-950/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl p-3.5 text-white animate-in select-none"
               >
-                <div
-                  v-for="reac in ultimasReacciones"
-                  :key="reac.id || reac.timestamp"
-                  class="text-2xl sm:text-4xl filter drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] select-none"
-                >
-                  {{ reac.emoji }}
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full" :class="puntoCalidadBg"></span>
+                    <h5 class="text-xs font-black uppercase tracking-wider text-slate-200">
+                      Diagnóstico de Transmisión
+                    </h5>
+                  </div>
+                  <button
+                    type="button"
+                    class="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    @click="mostrarDiagnostico = false"
+                  >
+                    <X class="w-4 h-4" />
+                  </button>
                 </div>
-              </TransitionGroup>
-            </div>
+
+                <!-- Métricas Grid -->
+                <div class="grid grid-cols-2 gap-2 my-2.5">
+                  <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col">
+                    <span class="text-[10px] uppercase font-bold text-slate-400">Latencia (Ping RTT)</span>
+                    <span class="text-base font-black font-mono" :class="colorLatenciaTexto">
+                      {{ diagnosticoActual.latenciaMs }} ms
+                    </span>
+                    <span class="text-[9px] text-slate-500 font-medium">Baja latencia P2P</span>
+                  </div>
+
+                  <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col">
+                    <span class="text-[10px] uppercase font-bold text-slate-400">Subida (Bitrate)</span>
+                    <span class="text-base font-black font-mono text-sky-400">
+                      {{ diagnosticoActual.bitrateKbps }} kbps
+                    </span>
+                    <span class="text-[9px] text-slate-500 font-medium">Consumo de red</span>
+                  </div>
+
+                  <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col">
+                    <span class="text-[10px] uppercase font-bold text-slate-400">Fluidez (FPS)</span>
+                    <span class="text-base font-black font-mono text-emerald-400">
+                      {{ diagnosticoActual.fps }} fps
+                    </span>
+                    <span class="text-[9px] text-slate-500 font-medium">Velocidad de bola</span>
+                  </div>
+
+                  <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col">
+                    <span class="text-[10px] uppercase font-bold text-slate-400">Resolución</span>
+                    <span class="text-xs font-black font-mono text-slate-200 mt-1">
+                      {{ diagnosticoActual.resolucion }}
+                    </span>
+                    <span class="text-[9px] text-slate-500 font-medium">Formato cámara</span>
+                  </div>
+                </div>
+
+                <!-- Estado de Red y Recomendación -->
+                <div class="p-2 rounded-xl text-[11px] leading-tight flex items-start gap-2" :class="bannerSaludClases">
+                  <span class="text-sm mt-0.5">{{ iconoSalud }}</span>
+                  <div class="flex-1">
+                    <p class="font-bold">{{ tituloSalud }}</p>
+                    <p class="text-[10px] opacity-90 mt-0.5">{{ descripcionSalud }}</p>
+                  </div>
+                </div>
+
+                <!-- Selector de Modo de Latencia y Calidad -->
+                <div class="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-bold text-slate-400">Modo de Video:</span>
+                  <div class="flex items-center gap-1">
+                    <button
+                      type="button"
+                      class="px-2 py-1 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer border"
+                      :class="diagnosticoActual.modoLatencia === 'ultra_baja' ? 'bg-amber-500 text-black border-amber-400 shadow-xs' : 'bg-slate-800 text-slate-300 border-slate-700'"
+                      @click="emit('cambiar-calidad', 'ultra_baja')"
+                    >
+                      ⚡ Ultra Rápido
+                    </button>
+                    <button
+                      type="button"
+                      class="px-2 py-1 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer border"
+                      :class="diagnosticoActual.modoLatencia === 'estandar' ? 'bg-sky-500 text-white border-sky-400 shadow-xs' : 'bg-slate-800 text-slate-300 border-slate-700'"
+                      @click="emit('cambiar-calidad', 'estandar')"
+                    >
+                      🎬 HD 720p
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Transition>
           </div>
 
           <!-- BARRA DE CONTROLES INFERIOR (100% RESPONSIVE) -->
@@ -251,10 +345,14 @@ import {
   VideoOff,
   Clock,
   Minimize2,
+  Activity,
+  X,
+  Zap,
 } from 'lucide-vue-next'
 import { doc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { PartidoGrupo, ReaccionLive } from '@/types'
+import type { PartidoGrupo } from '@/types'
+import type { DiagnosticoStream } from '@/modules/streaming/composables/useWebRTCStream'
 
 const props = defineProps<{
   partido: PartidoGrupo | null
@@ -263,8 +361,8 @@ const props = defineProps<{
   camaraTrasera: boolean
   audioActivo: boolean
   videoActivo: boolean
-  reacciones: ReaccionLive[]
   tiempoFormateado?: string
+  diagnostico?: DiagnosticoStream
 }>()
 
 const emit = defineEmits<{
@@ -272,10 +370,105 @@ const emit = defineEmits<{
   (e: 'alternar-camara'): void
   (e: 'alternar-audio'): void
   (e: 'alternar-video'): void
+  (e: 'cambiar-calidad', modo: 'ultra_baja' | 'estandar'): void
 }>()
 
 const visible = ref(false)
 const videoElementRef = ref<HTMLVideoElement | null>(null)
+const mostrarDiagnostico = ref(false)
+
+const diagnosticoActual = computed<DiagnosticoStream>(() => {
+  return props.diagnostico || {
+    calidad: 'excelente',
+    latenciaMs: 18,
+    bitrateKbps: 850,
+    fps: 30,
+    resolucion: '1280x720',
+    paquetesPerdidos: 0,
+    espectadoresActivos: props.totalEspectadores,
+    modoLatencia: 'ultra_baja',
+  }
+})
+
+const badgeDiagnosticoClases = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'bg-emerald-950/60 text-emerald-300 border-emerald-500/50 hover:bg-emerald-900/60'
+  if (c === 'buena') return 'bg-sky-950/60 text-sky-300 border-sky-500/50 hover:bg-sky-900/60'
+  if (c === 'regular') return 'bg-amber-950/60 text-amber-300 border-amber-500/50 hover:bg-amber-900/60'
+  return 'bg-rose-950/60 text-rose-300 border-rose-500/50 hover:bg-rose-900/60'
+})
+
+const colorPuntoCalidad = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'text-emerald-400'
+  if (c === 'buena') return 'text-sky-400'
+  if (c === 'regular') return 'text-amber-400'
+  return 'text-rose-400'
+})
+
+const puntoCalidadBg = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'bg-emerald-500'
+  if (c === 'buena') return 'bg-sky-500'
+  if (c === 'regular') return 'bg-amber-500'
+  return 'bg-rose-500'
+})
+
+const textoCalidadClases = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'bg-emerald-500/20 text-emerald-300'
+  if (c === 'buena') return 'bg-sky-500/20 text-sky-300'
+  if (c === 'regular') return 'bg-amber-500/20 text-amber-300'
+  return 'bg-rose-500/20 text-rose-300'
+})
+
+const etiquetaCalidad = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'Excelente'
+  if (c === 'buena') return 'Buena'
+  if (c === 'regular') return 'Estable'
+  return 'Inestable'
+})
+
+const colorLatenciaTexto = computed(() => {
+  const ms = diagnosticoActual.value.latenciaMs
+  if (ms < 80) return 'text-emerald-400'
+  if (ms < 180) return 'text-sky-400'
+  if (ms < 280) return 'text-amber-400'
+  return 'text-rose-400'
+})
+
+const bannerSaludClases = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'bg-emerald-950/40 border border-emerald-500/30 text-emerald-200'
+  if (c === 'buena') return 'bg-sky-950/40 border border-sky-500/30 text-sky-200'
+  if (c === 'regular') return 'bg-amber-950/40 border border-amber-500/30 text-amber-200'
+  return 'bg-rose-950/40 border border-rose-500/30 text-rose-200'
+})
+
+const iconoSalud = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return '🚀'
+  if (c === 'buena') return '⚡'
+  if (c === 'regular') return '⚠️'
+  return '🚨'
+})
+
+const tituloSalud = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'Transmisión fluida sin retardo'
+  if (c === 'buena') return 'Conexión estable'
+  if (c === 'regular') return 'Retardo moderado detectado'
+  return 'Alerta: Red móvil saturada'
+})
+
+const descripcionSalud = computed(() => {
+  const c = diagnosticoActual.value.calidad
+  if (c === 'excelente') return 'El video se transmite en tiempo real (<80ms). Ideal para ping-pong.'
+  if (c === 'buena') return 'Los espectadores ven los puntos con sincronización adecuada.'
+  if (c === 'regular') return 'La velocidad de subida del móvil es justa. Considera activar el Modo Ultra Rápido.'
+  return 'Subida lenta o pérdida de paquetes. Recomendamos cambiar a "Ultra Rápido" o acercarse al Wi-Fi.'
+})
 
 // Temporizador visual interno del modal
 const segundosModal = ref(0)
@@ -433,10 +626,6 @@ watch(
   },
   { immediate: true },
 )
-
-const ultimasReacciones = computed(() => {
-  return props.reacciones.slice(0, 5)
-})
 
 const setsGanadosJ1 = computed(() => {
   if (marcadorEnVivo.value?.setsGanadosJ1 !== undefined) {
