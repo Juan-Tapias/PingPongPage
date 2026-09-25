@@ -4,7 +4,7 @@
       enter-to-class="opacity-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100"
       leave-to-class="opacity-0">
       <div v-if="visible && match"
-        class="fixed inset-0 z-50 flex items-center justify-center p-1.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
+        class="fixed inset-0 z-[60] flex items-center justify-center p-1.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
         <!-- CONTENEDOR PRINCIPAL ESTILO TABLET / MESA DE PING PONG -->
         <div
           class="w-full max-w-5xl my-auto bg-[#0096c7] p-2 sm:p-3.5 rounded-2xl sm:rounded-[36px] shadow-[0_0_50px_rgba(0,150,199,0.3)] border-2 sm:border-6 border-[#0077b6] flex flex-col gap-1.5 sm:gap-2 relative animate-in zoom-in-95 duration-200 select-none overflow-hidden max-h-[98dvh]">

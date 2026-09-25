@@ -117,12 +117,11 @@
             </Button>
 
             <Button variant="emerald" size="sm"
-              class="gap-1.5 font-bold shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="esFinDeSemanaActual"
-              :title="esFinDeSemanaActual ? 'No se juegan partidos los fines de semana' : 'Arbitrar partido'"
+              class="gap-1.5 font-bold shadow-xs cursor-pointer"
+              title="Arbitrar partido"
               @click="seleccionarPartido(item)">
               <ShieldCheck class="w-3.5 h-3.5" />
-              <span>{{ esFinDeSemanaActual ? 'Pausado (FDS)' : 'Arbitrar' }}</span>
+              <span>Arbitrar</span>
             </Button>
           </div>
         </div>
@@ -266,7 +265,7 @@
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
               PIN de {{ partidoSeleccionado.jugador1.nombre }}
             </label>
-            <input v-model="codigoJ1" type="text" maxlength="5" placeholder="5 dígitos (ej. 58214)"
+            <input v-model.trim="codigoJ1" type="text" maxlength="5" placeholder="5 dígitos (ej. 58214)"
               class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
               @input="limpiarError"
               @keydown.enter="codigoJ1.length === 5 && codigoJ2.length === 5 && handleConfirmarInicio()" />
@@ -276,7 +275,7 @@
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
               PIN de {{ partidoSeleccionado.jugador2.nombre }}
             </label>
-            <input v-model="codigoJ2" type="text" maxlength="5" placeholder="5 dígitos (ej. 91042)"
+            <input v-model.trim="codigoJ2" type="text" maxlength="5" placeholder="5 dígitos (ej. 91042)"
               class="w-full text-center tracking-widest font-mono text-base font-black px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 focus:ring-2 focus:ring-emerald-500/20 outline-hidden uppercase bg-white dark:bg-slate-800 text-slate-900 dark:text-white transition-all"
               @input="limpiarError"
               @keydown.enter="codigoJ1.length === 5 && codigoJ2.length === 5 && handleConfirmarInicio()" />
@@ -298,13 +297,13 @@
           <Button
             :variant="modoArbitraje === 'transmision' ? 'primary' : 'emerald'"
             size="sm"
-            class="gap-2 font-black shadow-xs"
-            :disabled="(esFinDeSemanaActual && modoArbitraje === 'normal') || (modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5))"
+            class="gap-2 font-black shadow-xs cursor-pointer"
+            :disabled="modoArbitraje !== 'transmision' && (codigoJ1.length !== 5 || codigoJ2.length !== 5)"
             @click="handleConfirmarInicio"
           >
             <Radio v-if="modoArbitraje === 'transmision'" class="w-4 h-4 text-white animate-pulse" />
             <Play v-else class="w-4 h-4" />
-            <span>{{ modoArbitraje === 'transmision' ? 'Iniciar Transmisión' : (esFinDeSemanaActual ? 'Jornada Pausada' : 'Validar e Iniciar Marcador') }}</span>
+            <span>{{ modoArbitraje === 'transmision' ? 'Iniciar Transmisión' : 'Validar e Iniciar Marcador' }}</span>
           </Button>
         </div>
       </template>
@@ -554,10 +553,6 @@ const limpiarError = () => {
 const handleConfirmarInicio = () => {
   if (!partidoSeleccionado.value) return
 
-  if (modoArbitraje.value === 'normal' && esFinDeSemana()) {
-    mensajeError.value = 'Los sábados y domingos no se juegan partidos. El torneo se reanuda el lunes.'
-    return
-  }
   if (modoArbitraje.value === 'transmision') {
     const match = partidoSeleccionado.value
     close()
@@ -569,21 +564,23 @@ const handleConfirmarInicio = () => {
     'validar-codigos',
     {
       partidoId: partidoSeleccionado.value.partido.id,
-      codigo1: codigoJ1.value,
-      codigo2: codigoJ2.value,
+      codigo1: codigoJ1.value.trim(),
+      codigo2: codigoJ2.value.trim(),
     },
     (resultado) => {
       if (resultado.valido) {
         mensajeError.value = ''
         const match = partidoSeleccionado.value
         close()
-        if (match) {
-          if (modoArbitraje.value === 'transmision') {
-            emit('iniciar-transmision', { partidoArbitrable: match })
-          } else {
-            emit('iniciar-partido', { partidoArbitrable: match })
+        setTimeout(() => {
+          if (match) {
+            if (modoArbitraje.value === 'transmision') {
+              emit('iniciar-transmision', { partidoArbitrable: match })
+            } else {
+              emit('iniciar-partido', { partidoArbitrable: match })
+            }
           }
-        }
+        }, 120)
       } else {
         mensajeError.value = resultado.mensaje
       }
