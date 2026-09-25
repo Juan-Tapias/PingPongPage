@@ -204,7 +204,7 @@ export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
 
 export const actualizarPartidoDB = async (partidoId: string, datos: any): Promise<void> => {
   const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
-  await updateDoc(pRef, datos)
+  await setDoc(pRef, datos, { merge: true })
 }
 
 /**
@@ -218,9 +218,13 @@ export const actualizarMarcadorEnVivoDB = async (
   try {
     const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
     if (!marcadorEnVivo) {
-      await updateDoc(pRef, {
-        marcadorEnVivo: null,
-      })
+      await setDoc(
+        pRef,
+        {
+          marcadorEnVivo: null,
+        },
+        { merge: true },
+      )
       return
     }
 
@@ -236,10 +240,14 @@ export const actualizarMarcadorEnVivoDB = async (
       actualizadoEn: Number(marcadorEnVivo.actualizadoEn) || Date.now(),
     }
 
-    await updateDoc(pRef, {
-      marcadorEnVivo: marcadorLimpio,
-      mesa: marcadorLimpio.mesa,
-    })
+    await setDoc(
+      pRef,
+      {
+        marcadorEnVivo: marcadorLimpio,
+        mesa: marcadorLimpio.mesa,
+      },
+      { merge: true },
+    )
   } catch (error) {
     console.error(`[MarcadorEnVivo] Error al actualizar en Firestore para partido ${partidoId}:`, error)
   }
@@ -254,23 +262,48 @@ export const suscribirPartidosEnVivoDB = (
 ): Unsubscribe => {
   const docsQ1 = new Map<string, any>()
   const docsQ2 = new Map<string, any>()
+  const docsQ3 = new Map<string, any>()
 
   const emitir = () => {
     const mapa = new Map<string, any>()
     docsQ1.forEach((val, key) => mapa.set(key, val))
     docsQ2.forEach((val, key) => mapa.set(key, val))
+    docsQ3.forEach((val, key) => mapa.set(key, val))
 
     const ahora = Date.now()
     const validos = Array.from(mapa.values()).filter((p: any) => {
       // Ignorar de inmediato partidos que ya fueron registrados como jugados
       if (p.estado === 'jugado') return false
 
-      // Descartar transmisiones zombis si no emitieron latido en los últimos 45 segundos
-      if (p.transmisionActiva && p.ultimaSenalEnVivo && ahora - p.ultimaSenalEnVivo > 45000) {
-        p.transmisionActiva = false
+      // Considerar transmisión viva si envió latido en los últimos 5 minutos (300,000 ms)
+      const ultimaSenal =
+        typeof p.ultimaSenalEnVivo === 'number'
+          ? p.ultimaSenalEnVivo
+          : p.ultimaSenalEnVivo?.toMillis
+            ? p.ultimaSenalEnVivo.toMillis()
+            : p.ultimaSenalEnVivo?.seconds
+              ? p.ultimaSenalEnVivo.seconds * 1000
+              : 0
+
+      const transmisionViva =
+        (p.transmisionActiva === true || p.enVivo === true) &&
+        (!ultimaSenal || ahora - ultimaSenal <= 300000)
+
+      const tienePuntosEnJuego =
+        p.marcadorEnVivo &&
+        (Number(p.marcadorEnVivo.puntosJ1 || 0) > 0 ||
+          Number(p.marcadorEnVivo.puntosJ2 || 0) > 0 ||
+          Number(p.marcadorEnVivo.setsGanadosJ1 || 0) > 0 ||
+          Number(p.marcadorEnVivo.setsGanadosJ2 || 0) > 0)
+
+      // Solo limpiar partidos si llevan más de 10 minutos inactivos sin ningún punto ni señal
+      const tiempoInactivo = ultimaSenal ? ahora - ultimaSenal : 0
+      if (p.estado === 'en_curso' && !transmisionViva && !tienePuntosEnJuego && !p.marcador && tiempoInactivo > 600000) {
+        limpiarPartidoZombiDB(p.id).catch(() => {})
+        return false
       }
 
-      return p.estado === 'en_curso' || p.transmisionActiva === true
+      return p.estado === 'en_curso' || transmisionViva === true || p.transmisionActiva === true || p.enVivo === true
     })
 
     onActualizar(validos)
@@ -278,6 +311,7 @@ export const suscribirPartidosEnVivoDB = (
 
   const q1 = query(collection(db, COLECCION_PARTIDOS), where('estado', '==', 'en_curso'))
   const q2 = query(collection(db, COLECCION_PARTIDOS), where('transmisionActiva', '==', true))
+  const q3 = query(collection(db, COLECCION_PARTIDOS), where('enVivo', '==', true))
 
   const unsub1 = onSnapshot(
     q1,
@@ -309,9 +343,45 @@ export const suscribirPartidosEnVivoDB = (
     },
   )
 
+  const unsub3 = onSnapshot(
+    q3,
+    (snap) => {
+      docsQ3.clear()
+      snap.forEach((documento) => {
+        docsQ3.set(documento.id, { id: documento.id, ...documento.data() })
+      })
+      emitir()
+    },
+    (err) => {
+      console.warn('Error en listener en tiempo real de partidos en vivo (enVivo):', err)
+      onError?.(err)
+    },
+  )
+
   return () => {
     unsub1()
     unsub2()
+    unsub3()
+  }
+}
+
+/**
+ * Limpia y reinicia un partido zombi abandonado para que no quede bloqueado en curso
+ */
+export const limpiarPartidoZombiDB = async (partidoId: string): Promise<void> => {
+  try {
+    const partidoRef = doc(db, COLECCION_PARTIDOS, partidoId)
+    await updateDoc(partidoRef, {
+      estado: 'pendiente',
+      transmisionActiva: false,
+      enVivo: false,
+      marcadorEnVivo: null,
+      ultimaSenalEnVivo: 0,
+      transmisorId: null,
+      transmisorNombre: null,
+    })
+  } catch (err) {
+    console.warn('Error al limpiar partido zombi en Firestore:', err)
   }
 }
 

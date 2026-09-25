@@ -1,7 +1,7 @@
 <template>
   <div class="w-full rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-xs overflow-hidden transition-colors duration-300">
 
-    <div v-if="partidos.length === 0" class="flex flex-col items-center justify-center py-6 text-center gap-1.5">
+    <div v-if="partidos.length === 0" class="flex flex-col items-center justify-center py-6 text-center gap-2">
       <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400">
         <span class="w-2 h-2 rounded-full bg-slate-400"></span>
         <span class="text-xs font-bold uppercase tracking-wider">Mesas de Juego</span>
@@ -13,15 +13,25 @@
       v-else-if="partidos.length === 1 && primerPartido"
       class="flex flex-col md:flex-row md:items-center justify-between gap-4"
     >
-      <div class="space-y-1 max-w-lg">
-        <div class="flex items-center gap-2">
-          <span class="relative flex h-2.5 w-2.5">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-          </span>
-          <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900 dark:text-white">
-            En vivo
-          </h2>
+      <div class="space-y-1.5 max-w-lg">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2.5 w-2.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900 dark:text-white">
+              En vivo
+            </h2>
+          </div>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer shrink-0"
+            @click="emit('abrir-transmision-general')"
+          >
+            <Radio class="w-3.5 h-3.5 animate-pulse" />
+            <span>Transmitir Mesa</span>
+          </button>
         </div>
         <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
           Consulta los marcadores y resultados de los partidos en tiempo real sincronizados con las mesas de juego.
@@ -71,9 +81,10 @@
           </div>
         </div>
 
-        <!-- Botón Ver Transmisión -->
-        <div v-if="primerPartido.transmisionActiva" class="mt-3 pt-2.5 border-t border-slate-800/80">
+        <!-- Botón Ver o Iniciar Transmisión -->
+        <div class="mt-3 pt-2.5 border-t border-slate-800/80">
           <button
+            v-if="primerPartido.transmisionActiva"
             type="button"
             class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 active:scale-98 text-white font-extrabold text-xs transition-all shadow-md shadow-rose-950/50 cursor-pointer"
             @click="emit('sintonizar-transmision', primerPartido.partidoOriginal || primerPartido)"
@@ -81,28 +92,47 @@
             <Radio class="w-3.5 h-3.5 animate-pulse text-white" />
             <span>Ver Transmisión en Vivo</span>
           </button>
+          <button
+            v-else
+            type="button"
+            class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 active:scale-98 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer border border-rose-500/30"
+            @click="emit('iniciar-transmision-partido', primerPartido.partidoOriginal || primerPartido)"
+          >
+            <Radio class="w-3.5 h-3.5" />
+            <span>Transmitir esta Mesa con tu Cámara 📹</span>
+          </button>
         </div>
       </div>
     </div>
 
     <div v-else class="space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="relative flex h-2.5 w-2.5">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </span>
-            <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900 dark:text-white">
-              En vivo
-            </h2>
-            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
-              {{ partidos.length }} en mesa
-            </span>
+        <div class="flex items-center justify-between w-full">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="relative flex h-2.5 w-2.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <h2 class="text-xl sm:text-2xl font-bold font-heading text-slate-900 dark:text-white">
+                En vivo
+              </h2>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
+                {{ partidos.length }} en mesa
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+              Consulta los marcadores y resultados de los partidos en tiempo real sincronizados con las mesas de juego.
+            </p>
           </div>
-          <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-            Consulta los marcadores y resultados de los partidos en tiempo real sincronizados con las mesas de juego.
-          </p>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer shrink-0"
+            @click="emit('abrir-transmision-general')"
+          >
+            <Radio class="w-3.5 h-3.5 animate-pulse" />
+            <span>Transmitir Mesa</span>
+          </button>
         </div>
       </div>
 
@@ -157,15 +187,25 @@
             </div>
           </div>
 
-          <!-- Botón Ver Transmisión -->
-          <div v-if="partido.transmisionActiva" class="mt-3 pt-2.5 border-t border-slate-800/80">
+          <!-- Botón Ver o Iniciar Transmisión -->
+          <div class="mt-3 pt-2.5 border-t border-slate-800/80">
             <button
+              v-if="partido.transmisionActiva"
               type="button"
               class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 active:scale-98 text-white font-extrabold text-xs transition-all shadow-md shadow-rose-950/50 cursor-pointer"
               @click="emit('sintonizar-transmision', partido.partidoOriginal || partido)"
             >
               <Radio class="w-3.5 h-3.5 animate-pulse text-white" />
               <span>Ver Transmisión en Vivo</span>
+            </button>
+            <button
+              v-else
+              type="button"
+              class="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-98 text-rose-400 font-extrabold text-xs transition-all cursor-pointer border border-slate-700/60"
+              @click="emit('iniciar-transmision-partido', partido.partidoOriginal || partido)"
+            >
+              <Radio class="w-3.5 h-3.5" />
+              <span>Transmitir esta Mesa 📹</span>
             </button>
           </div>
         </div>
@@ -205,6 +245,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'sintonizar-transmision', partido: any): void
+  (e: 'iniciar-transmision-partido', partido: any): void
+  (e: 'abrir-transmision-general'): void
 }>()
 
 const primerPartido = computed(() => props.partidos[0])

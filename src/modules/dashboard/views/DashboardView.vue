@@ -170,6 +170,8 @@
           v-if="tabActiva === 'mis-torneos'"
           :partidos="partidosEnVivoParaBanner"
           @sintonizar-transmision="handleSintonizarTransmision"
+          @iniciar-transmision-partido="handleIniciarTransmisionDesdeBanner"
+          @abrir-transmision-general="handleAbrirTransmisionGeneral"
         />
         <BannerReglamento v-else />
 
@@ -209,6 +211,23 @@
       @cerrar="handleCerrarEspectador"
       @enviar-reaccion="handleEnviarReaccion"
     />
+
+    <!-- MODAL DE CÁMARA DE TRANSMISIÓN (EMISOR DESDE DASHBOARD / CELULAR) -->
+    <ModalCamaraTransmision
+      ref="modalCamaraDashboardRef"
+      :partido="partidoTransmitiendo"
+      :stream-local="streamLocal"
+      :total-espectadores="totalEspectadores"
+      :camara-trasera="camaraTrasera"
+      :audio-activo="audioActivo"
+      :video-activo="videoActivo"
+      :reacciones="reaccionesEnVivo"
+      :tiempo-formateado="tiempoTranscurridoFormateado"
+      @finalizar="handleDetenerTransmisionDashboard"
+      @alternar-camara="alternarCamara"
+      @alternar-audio="alternarAudio"
+      @alternar-video="alternarVideo"
+    />
   </div>
 </template>
 
@@ -229,6 +248,7 @@ import ModalInscripcionTorneo from './partials/dashboard/ModalInscripcionTorneo.
 import ModalVerificacionPago from './partials/dashboard/ModalVerificacionPago.vue'
 import VistaParticipacionTorneo from './partials/participacion/VistaParticipacionTorneo.vue'
 import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmisionEnVivo.vue'
+import ModalCamaraTransmision from '@/modules/streaming/components/ModalCamaraTransmision.vue'
 import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
 import type { Torneo, TipoReaccionLive } from '@/types'
 import { useAuthStore } from '@/stores/auth'
@@ -322,19 +342,32 @@ const conteoFinalizado = computed(() => misTorneos.value.filter((t) => t.subesta
 const partidosEnVivoDB = ref<any[]>([])
 let unsubscribeMesasEnVivo: (() => void) | null = null
 
-// Transmisión WebRTC para espectadores desde el Dashboard
+// Transmisión WebRTC para espectadores y emisores desde el Dashboard
 const {
+  streamLocal,
   streamRemoto,
-  cargandoConexion,
   totalEspectadores,
+  cargandoConexion,
+  camaraTrasera,
+  audioActivo,
+  videoActivo,
   reaccionesEnVivo,
+  segundosTranscurridos,
+  tiempoTranscurridoFormateado,
+  iniciarTransmision,
+  detenerTransmision,
+  alternarCamara,
+  alternarAudio,
+  alternarVideo,
   conectarComoEspectador,
   desconectarEspectador,
   enviarReaccion,
 } = useWebRTCStream()
 
 const modalTransmisionDashboardRef = ref<InstanceType<typeof ModalTransmisionEnVivo> | null>(null)
+const modalCamaraDashboardRef = ref<InstanceType<typeof ModalCamaraTransmision> | null>(null)
 const partidoSintonizado = ref<any | null>(null)
+const partidoTransmitiendo = ref<any | null>(null)
 
 const handleSintonizarTransmision = async (partido: any) => {
   partidoSintonizado.value = partido
@@ -346,6 +379,39 @@ const handleSintonizarTransmision = async (partido: any) => {
     id: viewerId,
     nombre: viewerNombre,
   })
+}
+
+const handleIniciarTransmisionDesdeBanner = async (partido: any) => {
+  const adminNombre = authStore.usuario?.nombre || 'Árbitro'
+  const adminId = authStore.usuario?.id || 'admin'
+  partidoTransmitiendo.value = partido
+
+  const ok = await iniciarTransmision(partido.id, {
+    id: adminId,
+    nombre: adminNombre,
+  }, undefined, partido)
+
+  if (ok) {
+    modalCamaraDashboardRef.value?.open()
+  }
+}
+
+const handleAbrirTransmisionGeneral = async () => {
+  const match = partidosEnVivoParaBanner.value[0]?.partidoOriginal || partidosEnVivoParaBanner.value[0]
+  if (match) {
+    await handleIniciarTransmisionDesdeBanner(match)
+  } else {
+    const torneoEnCurso = misTorneos.value.find((t) => t.estado === 'en curso')
+    if (torneoEnCurso) {
+      handleVerTorneo(torneoEnCurso)
+    }
+  }
+}
+
+const handleDetenerTransmisionDashboard = async () => {
+  await detenerTransmision()
+  modalCamaraDashboardRef.value?.close()
+  partidoTransmitiendo.value = null
 }
 
 const handleCerrarEspectador = () => {
@@ -360,14 +426,25 @@ const handleEnviarReaccion = (emoji: TipoReaccionLive) => {
   }
 }
 
+const parseTimestampMs = (val: any): number => {
+  if (!val) return 0
+  if (typeof val === 'number') return val
+  if (typeof val.toMillis === 'function') return val.toMillis()
+  if (val.seconds) return val.seconds * 1000
+  return 0
+}
+
 const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
   const ahora = Date.now()
   return partidosEnVivoDB.value
     .filter((p) => {
       if (p.estado === 'jugado') return false
+
+      const ultimaSenal = parseTimestampMs(p.ultimaSenalEnVivo)
       const transmisionViva =
         p.transmisionActiva === true &&
-        (!p.ultimaSenalEnVivo || ahora - p.ultimaSenalEnVivo <= 45000)
+        (!ultimaSenal || ahora - ultimaSenal <= 300000)
+
       const tieneMarcadorValido =
         p.marcadorEnVivo &&
         (Number(p.marcadorEnVivo.puntosJ1 || 0) > 0 ||
@@ -375,15 +452,22 @@ const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
           Number(p.marcadorEnVivo.setsGanadosJ1 || 0) > 0 ||
           Number(p.marcadorEnVivo.setsGanadosJ2 || 0) > 0)
 
-      return p.estado === 'en_curso' || transmisionViva || tieneMarcadorValido
+      // Descartar solo si es un partido verdaderamente abandonado (más de 10 min inactivo sin transmisión ni puntos)
+      const tiempoInactivo = ultimaSenal ? ahora - ultimaSenal : 0
+      if (p.estado === 'en_curso' && !transmisionViva && !tieneMarcadorValido && !p.marcador && tiempoInactivo > 600000) {
+        return false
+      }
+
+      return p.estado === 'en_curso' || transmisionViva || tieneMarcadorValido || p.transmisionActiva === true
     })
     .map((p) => {
       const m = p.marcadorEnVivo
       const j1Nombre = p.jugador1?.nombre || 'Jugador 1'
       const j2Nombre = p.jugador2?.nombre || 'Jugador 2'
+      const ultimaSenal = parseTimestampMs(p.ultimaSenalEnVivo)
       const transmisionViva =
         p.transmisionActiva === true &&
-        (!p.ultimaSenalEnVivo || ahora - p.ultimaSenalEnVivo <= 45000)
+        (!ultimaSenal || ahora - ultimaSenal <= 300000)
 
       return {
         id: p.id,
@@ -401,18 +485,54 @@ const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
           setsGanados: m?.setsGanadosJ2,
           estaSacando: m?.servidorActual === 2,
         },
-        transmisionActiva: transmisionViva,
+        transmisionActiva: transmisionViva || p.transmisionActiva === true,
         partidoOriginal: p,
       }
     })
 })
 
+const iniciarSuscripcionMesas = () => {
+  if (unsubscribeMesasEnVivo) {
+    unsubscribeMesasEnVivo()
+    unsubscribeMesasEnVivo = null
+  }
+  unsubscribeMesasEnVivo = suscribirPartidosEnVivoDB(
+    (partidos) => {
+      partidosEnVivoDB.value = partidos
+    },
+    (err) => {
+      console.warn('[DashboardView] Error/reintentando suscripción a partidos en vivo:', err)
+      setTimeout(() => {
+        if (!unsubscribeMesasEnVivo) {
+          iniciarSuscripcionMesas()
+        }
+      }, 2000)
+    },
+  )
+}
+
+// Reconectar la suscripción en cuanto se resuelva o cambie el usuario autenticado (crucial en incógnito)
+watch(
+  () => authStore.usuario,
+  (nuevoUsuario) => {
+    if (nuevoUsuario?.id) {
+      iniciarSuscripcionMesas()
+      cargarEstadisticas()
+    }
+  },
+)
+
+onUnmounted(() => {
+  if (unsubscribeMesasEnVivo) {
+    unsubscribeMesasEnVivo()
+    unsubscribeMesasEnVivo = null
+  }
+})
+
 // Carga de torneos reales desde Firestore
 onMounted(async () => {
-  // Iniciar suscripción en tiempo real a las mesas de juego con partidos en vivo de inmediato
-  unsubscribeMesasEnVivo = suscribirPartidosEnVivoDB((partidos) => {
-    partidosEnVivoDB.value = partidos
-  })
+  // Iniciar suscripción en tiempo real a las mesas de juego con partidos en vivo
+  iniciarSuscripcionMesas()
 
   cargando.value = true
   try {

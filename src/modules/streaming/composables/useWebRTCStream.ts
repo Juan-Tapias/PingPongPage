@@ -1,4 +1,4 @@
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, computed } from 'vue'
 import {
   collection,
   doc,
@@ -70,6 +70,25 @@ export function useWebRTCStream() {
   let currentViewerId = ''
   let heartbeatTimer: any = null
 
+  // Duración máxima de la llamada / transmisión en vivo: 1 HORA (3600 segundos)
+  const LIMITE_LLAMADA_SEGUNDOS = 3600
+  const segundosTranscurridos = ref(0)
+  let timerDuracion: any = null
+  let onVisibilityChangeHandler: (() => void) | null = null
+
+  const tiempoTranscurridoFormateado = computed(() => {
+    const mins = Math.floor(segundosTranscurridos.value / 60)
+    const secs = segundosTranscurridos.value % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  })
+
+  const tiempoRestanteFormateado = computed(() => {
+    const restantes = Math.max(0, LIMITE_LLAMADA_SEGUNDOS - segundosTranscurridos.value)
+    const mins = Math.floor(restantes / 60)
+    const secs = restantes % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  })
+
   // Buffers y registros de candidatos ICE para evitar pérdidas en carreras asíncronas
   const broadcasterCandidatosProcesados = new Map<string, Set<string>>()
   const broadcasterCandidatosEnEspera = new Map<string, RTCIceCandidateInit[]>()
@@ -84,19 +103,24 @@ export function useWebRTCStream() {
   const iniciarTransmision = async (
     partidoId: string,
     adminUser: { id: string; nombre: string },
-    preferenciaCamara: 'environment' | 'user' = 'environment',
+    preferenciaCamara?: 'environment' | 'user',
+    partidoInfo?: any,
   ): Promise<boolean> => {
     try {
       errorStreaming.value = null
       cargandoConexion.value = true
       currentPartidoId = partidoId
 
-      // 1. Capturar cámara y micrófono
+      // Detectar automáticamente si es celular o PC/laptop
+      const esMovil = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      const modoCamara = preferenciaCamara || (esMovil ? 'environment' : 'user')
+
+      // 1. Capturar cámara y micrófono con alta tolerancia a fallos en celulares y laptops
       let media: MediaStream
       try {
         media = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: { ideal: preferenciaCamara },
+            facingMode: modoCamara,
             width: { ideal: 1280, max: 1920 },
             height: { ideal: 720, max: 1080 },
             frameRate: { ideal: 30 },
@@ -104,28 +128,55 @@ export function useWebRTCStream() {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
+            autoGainControl: true,
           },
         })
       } catch (errCam) {
-        console.warn('Cámara preferida no disponible, usando cualquier cámara disponible:', errCam)
-        media = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+        console.warn('Cámara/micrófono con filtros falló, intentando audio básico:', errCam)
+        try {
+          media = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          })
+        } catch (errFallback) {
+          console.warn('Fallback conjunto falló, intentando captura separada:', errFallback)
+          const videoStream = await navigator.mediaDevices.getUserMedia({ video: true })
+          try {
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const micTrack = audioStream.getAudioTracks()[0]
+            if (micTrack) {
+              videoStream.addTrack(micTrack)
+            }
+          } catch (eMic) {
+            console.warn('Micrófono no concedido:', eMic)
+          }
+          media = videoStream
+        }
+      }
+
+      // Asegurar explícitamente que los tracks de audio estén activos
+      const audioTracks = media.getAudioTracks()
+      if (audioTracks.length > 0) {
+        audioTracks.forEach((t) => {
+          t.enabled = true
         })
+        audioActivo.value = true
+      } else {
+        console.warn('No se detectó pista de micrófono en el dispositivo')
+        audioActivo.value = false
       }
 
       streamLocal.value = media
       camaraTrasera.value = preferenciaCamara === 'environment'
-      audioActivo.value = true
       videoActivo.value = true
 
-      // 2. Registrar en Firestore que el partido está transmitiéndose en vivo y en curso
+      // 2. Registrar en Firestore que el partido está transmitiéndose en vivo y en curso con setDoc (soporta creación si no existía)
       const partidoRef = doc(db, 'partidos', partidoId)
-      const partidoSnap = await getDoc(partidoRef)
-      const dataActual = partidoSnap.exists() ? partidoSnap.data() : {}
+      const partidoSnap = await getDoc(partidoRef).catch(() => null)
+      const dataActual = partidoSnap && partidoSnap.exists() ? partidoSnap.data() : {}
       const ahora = Date.now()
 
-      await updateDoc(partidoRef, {
+      const datosActualizar: any = {
         estado: 'en_curso',
         enVivo: true,
         transmisionActiva: true,
@@ -134,7 +185,7 @@ export function useWebRTCStream() {
         fechaInicioTransmision: ahora,
         ultimaSenalEnVivo: ahora,
         totalEspectadores: 0,
-        mesa: dataActual.mesa || 'Mesa 1',
+        mesa: dataActual.mesa || partidoInfo?.mesa || 'Mesa 1',
         marcadorEnVivo: dataActual.marcadorEnVivo || {
           puntosJ1: 0,
           puntosJ2: 0,
@@ -142,27 +193,73 @@ export function useWebRTCStream() {
           numeroSet: 1,
           setsGanadosJ1: 0,
           setsGanadosJ2: 0,
-          mesa: dataActual.mesa || 'Mesa 1',
+          mesa: dataActual.mesa || partidoInfo?.mesa || 'Mesa 1',
           actualizadoEn: ahora,
         },
-      })
+      }
+
+      if (partidoInfo) {
+        if (partidoInfo.jugador1) datosActualizar.jugador1 = partidoInfo.jugador1
+        if (partidoInfo.jugador2) datosActualizar.jugador2 = partidoInfo.jugador2
+        if (partidoInfo.jugador1Id) datosActualizar.jugador1Id = partidoInfo.jugador1Id
+        if (partidoInfo.jugador2Id) datosActualizar.jugador2Id = partidoInfo.jugador2Id
+        if (partidoInfo.torneoId) datosActualizar.torneoId = partidoInfo.torneoId
+        if (partidoInfo.ronda) datosActualizar.ronda = partidoInfo.ronda
+        if (partidoInfo.jornada) datosActualizar.jornada = partidoInfo.jornada
+        if (partidoInfo.numeroPartido) datosActualizar.numeroPartido = partidoInfo.numeroPartido
+      }
+
+      await setDoc(partidoRef, datosActualizar, { merge: true })
 
       transmitiendo.value = true
       cargandoConexion.value = false
 
-      // 3. Heartbeat cada 10 segundos para indicar que la transmisión sigue viva
+      // 3. Temporizador de llamada de 1 hora exacta (60 minutos)
+      segundosTranscurridos.value = 0
+      if (timerDuracion) clearInterval(timerDuracion)
+      timerDuracion = setInterval(() => {
+        segundosTranscurridos.value++
+        if (segundosTranscurridos.value >= LIMITE_LLAMADA_SEGUNDOS) {
+          console.warn('Tiempo límite de llamada alcanzado (1 hora). Finalizando transmisión.')
+          detenerTransmision()
+        }
+      }, 1000)
+
+      // 4. Heartbeat cada 5 segundos para resiliencia en conexiones móviles
       if (heartbeatTimer) clearInterval(heartbeatTimer)
       heartbeatTimer = setInterval(async () => {
         if (currentPartidoId && transmitiendo.value) {
           try {
-            await updateDoc(doc(db, 'partidos', currentPartidoId), {
-              ultimaSenalEnVivo: Date.now(),
-            })
+            await setDoc(
+              doc(db, 'partidos', currentPartidoId),
+              {
+                ultimaSenalEnVivo: Date.now(),
+                transmisionActiva: true,
+              },
+              { merge: true },
+            )
           } catch {}
         }
-      }, 10000)
+      }, 5000)
 
-      // 4. Escuchar nuevos espectadores en la subcolección `stream_peers`
+      // Emitir latido inmediato al volver a la pestaña/celular
+      if (typeof document !== 'undefined') {
+        onVisibilityChangeHandler = () => {
+          if (document.visibilityState === 'visible' && currentPartidoId && transmitiendo.value) {
+            setDoc(
+              doc(db, 'partidos', currentPartidoId),
+              {
+                ultimaSenalEnVivo: Date.now(),
+                transmisionActiva: true,
+              },
+              { merge: true },
+            ).catch(() => {})
+          }
+        }
+        document.addEventListener('visibilitychange', onVisibilityChangeHandler)
+      }
+
+      // 5. Escuchar nuevos espectadores en la subcolección `stream_peers`
       escucharEspectadoresEntrantes(partidoId)
       suscribirReacciones(partidoId)
 
@@ -330,9 +427,19 @@ export function useWebRTCStream() {
   const detenerTransmision = async () => {
     transmitiendo.value = false
 
+    if (timerDuracion) {
+      clearInterval(timerDuracion)
+      timerDuracion = null
+    }
+
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer)
       heartbeatTimer = null
+    }
+
+    if (onVisibilityChangeHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', onVisibilityChangeHandler)
+      onVisibilityChangeHandler = null
     }
 
     // 1. Detener pistas de hardware
@@ -400,7 +507,7 @@ export function useWebRTCStream() {
           }
         }
 
-        await updateDoc(partidoRef, payloadUpdate)
+        await setDoc(partidoRef, payloadUpdate, { merge: true })
 
         // Eliminar subcolección temporal de stream_peers
         const peersColl = collection(db, 'partidos', partidoIdToClean, 'stream_peers')
@@ -421,13 +528,14 @@ export function useWebRTCStream() {
     const nuevaPreferencia = camaraTrasera.value ? 'user' : 'environment'
 
     try {
+      // Capturar solo la nueva cámara de video para NO interrumpir el micrófono existente
       const nuevoStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: nuevaPreferencia },
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-        audio: audioActivo.value,
+        audio: false,
       })
 
       const nuevoVideoTrack = nuevoStream.getVideoTracks()[0]
@@ -498,8 +606,17 @@ export function useWebRTCStream() {
       currentPartidoId = partidoId
       currentViewerId = viewerUser.id
 
-      // 1. Crear RTCPeerConnection para recibir el video
+      // 1. Crear RTCPeerConnection para recibir el video y audio
       pcViewer = new RTCPeerConnection(RTC_CONFIG)
+
+      // Configurar transceivers para recepción explícita de video y audio
+      try {
+        pcViewer.addTransceiver('video', { direction: 'recvonly' })
+        pcViewer.addTransceiver('audio', { direction: 'recvonly' })
+      } catch (errTrans) {
+        console.warn('Transceivers no soportados o ya asignados:', errTrans)
+      }
+
       const viewerCandidates: RTCIceCandidateInit[] = []
       const candidatosEmisorProcesados = new Set<string>()
       let candidatosEmisorEnEspera: RTCIceCandidateInit[] = []
@@ -738,6 +855,10 @@ export function useWebRTCStream() {
     videoActivo,
     totalEspectadores,
     reaccionesEnVivo,
+    segundosTranscurridos,
+    tiempoTranscurridoFormateado,
+    tiempoRestanteFormateado,
+    limiteLlamadaSegundos: LIMITE_LLAMADA_SEGUNDOS,
 
     // Acciones Emisor
     iniciarTransmision,

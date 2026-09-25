@@ -49,7 +49,7 @@
           <span>Arbitrar un partido</span>
         </Button>
 
-        <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-x-auto w-full sm:w-auto">
+        <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden w-full sm:w-auto">
           <button
             type="button"
             :class="[
@@ -237,6 +237,7 @@
     </div>
 
     <!-- BANNER RESPONSIVE DE TRANSMISIÓN EN VIVO -->
+    <!-- BANNER DE PARTIDO EN VIVO (VISOR Y GESTOR DE CÁMARA) -->
     <div
       v-if="partidoEnTransmisionActivo"
       class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-950/90 via-slate-900 to-slate-900 border border-rose-500/50 shadow-xl text-white animate-in fade-in"
@@ -249,12 +250,18 @@
           <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
         </div>
         <div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white">
               🔴 Partido en Vivo
             </span>
             <span class="text-xs text-slate-400 font-mono">
               Ronda {{ partidoEnTransmisionActivo.ronda || 1 }}
+            </span>
+            <span
+              v-if="esMiTransmision"
+              class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white animate-pulse"
+            >
+              📹 Tu Transmisión Activa
             </span>
           </div>
           <h4 class="text-sm font-black text-white mt-0.5">
@@ -264,7 +271,31 @@
       </div>
 
       <div class="flex items-center gap-2 w-full sm:w-auto">
+        <!-- Si el usuario actual es el emisor de la transmisión -->
+        <template v-if="esMiTransmision">
+          <Button
+            variant="emerald"
+            size="sm"
+            class="gap-2 cursor-pointer w-full sm:w-auto font-black shadow-md bg-emerald-600 hover:bg-emerald-500 active:scale-95"
+            @click="abrirOCrearMiCamaraTransmision"
+          >
+            <Radio class="w-3.5 h-3.5 animate-pulse" />
+            <span>Abrir Mi Cámara</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            class="gap-1.5 cursor-pointer w-full sm:w-auto font-bold border-rose-500/60 text-rose-400 hover:bg-rose-950/40"
+            @click="handleDetenerTransmision"
+          >
+            <span>Detener</span>
+          </Button>
+        </template>
+
+        <!-- Si el usuario es un espectador -->
         <Button
+          v-else
           variant="danger"
           size="sm"
           class="gap-2 cursor-pointer w-full sm:w-auto font-black shadow-md bg-rose-600 hover:bg-rose-500 active:scale-95"
@@ -347,6 +378,7 @@
         :torneo="props.torneo"
       />
     </div>
+    </template>
 
     <ModalDetalleRival
       ref="modalDetalleRef"
@@ -394,6 +426,7 @@
       :audio-activo="audioActivo"
       :video-activo="videoActivo"
       :reacciones="reaccionesEnVivo"
+      :tiempo-formateado="tiempoTranscurridoFormateado"
       @finalizar="handleDetenerTransmision"
       @alternar-camara="alternarCamara"
       @alternar-audio="alternarAudio"
@@ -411,7 +444,6 @@
       @cerrar="handleCerrarEspectador"
       @enviar-reaccion="handleEnviarReaccion"
     />
-    </template>
   </div>
 </template>
 
@@ -578,11 +610,13 @@ const {
   transmitiendo,
   conectadoComoEspectador,
   cargandoConexion,
+  errorStreaming,
   camaraTrasera,
   audioActivo,
   videoActivo,
   totalEspectadores,
   reaccionesEnVivo,
+  tiempoTranscurridoFormateado,
   iniciarTransmision,
   detenerTransmision,
   alternarCamara,
@@ -599,31 +633,103 @@ const modalTransmisionEnVivoRef = ref<InstanceType<typeof ModalTransmisionEnVivo
 const partidoTransmitiendo = ref<PartidoGrupo | null>(null)
 const partidoSintonizado = ref<PartidoGrupo | null>(null)
 
+// Mantener reactivo el partido en transmisión cuando cambian los puntos o sets
+watch(
+  partidos,
+  (nuevosPartidos) => {
+    if (partidoTransmitiendo.value) {
+      const matchActualizado = nuevosPartidos.find((p) => p.id === partidoTransmitiendo.value?.id)
+      if (matchActualizado) {
+        partidoTransmitiendo.value = matchActualizado
+      }
+    }
+  },
+  { deep: true },
+)
+
+const abrirModalTransmisionDirecta = () => {
+  abrirModalArbitraje()
+}
+
 // Identificar si algún partido del torneo está transmitiéndose en vivo
 const partidoEnTransmisionActivo = computed(() => {
   const ahora = Date.now()
   return (
     partidos.value.find((p) => {
       if (!p.transmisionActiva || p.estado === 'jugado') return false
-      if (p.ultimaSenalEnVivo && ahora - p.ultimaSenalEnVivo > 45000) return false
+      const rawSenal = p.ultimaSenalEnVivo as any
+      const ultimaSenal = typeof rawSenal === 'number'
+        ? rawSenal
+        : rawSenal?.toMillis ? rawSenal.toMillis() : 0
+      if (ultimaSenal && ahora - ultimaSenal > 300000) return false
       return true
     }) || null
   )
 })
 
-// Iniciar transmisión desde ModalArbitraje (después de validar los PINs)
+// Determina si el usuario actual es el autor/administrador de la transmisión activa
+const esMiTransmision = computed(() => {
+  if (!partidoEnTransmisionActivo.value) return false
+  const p = partidoEnTransmisionActivo.value
+  const usuarioId = usuarioActual?.id
+  const arbitroId = arbitroActual.value?.id
+  return (
+    transmitiendo.value ||
+    (partidoTransmitiendo.value && partidoTransmitiendo.value.id === p.id) ||
+    Boolean(p.transmisorId && (p.transmisorId === usuarioId || p.transmisorId === arbitroId))
+  )
+})
+
+// Abre o reconecta la cámara del emisor
+const abrirOCrearMiCamaraTransmision = async () => {
+  const p = partidoEnTransmisionActivo.value || partidoTransmitiendo.value
+  if (p) {
+    partidoTransmitiendo.value = p
+  }
+
+  // 1. Abrir el modal DE INMEDIATO para dar feedback instantáneo al usuario
+  await nextTick()
+  modalCamaraTransmisionRef.value?.open()
+
+  // 2. Si ya tenemos stream local activo, no reiniciar
+  if (transmitiendo.value && streamLocal.value) {
+    return
+  }
+
+  // 3. Conectar cámara y señalización en segundo plano
+  if (p) {
+    const adminNombre = arbitroActual.value?.nombre || usuarioActual?.nombre || 'Administrador'
+    const adminId = arbitroActual.value?.id || usuarioActual?.id || 'admin'
+    try {
+      await iniciarTransmision(p.id, { id: adminId, nombre: adminNombre }, undefined, p)
+    } catch (err: any) {
+      console.warn('Error al iniciar cámara:', err)
+    }
+  }
+}
+
+// Iniciar transmisión desde ModalArbitraje (después de validar los PINs o selección directa)
 const handleIniciarTransmisionArbitrado = async (datos: { partidoArbitrable: PartidoArbitrable }) => {
   const adminNombre = arbitroActual.value?.nombre || usuarioActual?.nombre || 'Administrador'
   const adminId = arbitroActual.value?.id || usuarioActual?.id || 'admin'
   partidoTransmitiendo.value = datos.partidoArbitrable.partido
 
-  const ok = await iniciarTransmision(datos.partidoArbitrable.partido.id, {
-    id: adminId,
-    nombre: adminNombre,
-  })
+  try {
+    const ok = await iniciarTransmision(datos.partidoArbitrable.partido.id, {
+      id: adminId,
+      nombre: adminNombre,
+    }, undefined, datos.partidoArbitrable.partido)
 
-  if (ok) {
-    modalCamaraTransmisionRef.value?.open()
+    if (ok) {
+      await nextTick()
+      modalCamaraTransmisionRef.value?.open()
+    } else {
+      const msj = errorStreaming.value || 'No se pudo acceder a la cámara o micrófono. Por favor permite los permisos del navegador e inténtalo de nuevo.'
+      alert(`⚠️ Transmisión: ${msj}`)
+    }
+  } catch (err: any) {
+    console.error('Error al iniciar transmisión:', err)
+    alert(`⚠️ Error al iniciar la cámara: ${err?.message || 'Permiso denegado o dispositivo ocupado.'}`)
   }
 }
 
@@ -633,13 +739,20 @@ const handleIniciarTransmisionDesdeMarcador = async (match: PartidoArbitrable) =
   const adminId = arbitroActual.value?.id || usuarioActual?.id || 'arbitro'
   partidoTransmitiendo.value = match.partido
 
-  const ok = await iniciarTransmision(match.partido.id, {
-    id: adminId,
-    nombre: adminNombre,
-  })
+  try {
+    const ok = await iniciarTransmision(match.partido.id, {
+      id: adminId,
+      nombre: adminNombre,
+    }, undefined, match.partido)
 
-  if (ok) {
-    modalCamaraTransmisionRef.value?.open()
+    if (ok) {
+      await nextTick()
+      modalCamaraTransmisionRef.value?.open()
+    } else {
+      alert(`⚠️ Transmisión: ${errorStreaming.value || 'No se pudo acceder a la cámara o micrófono.'}`)
+    }
+  } catch (err: any) {
+    alert(`⚠️ Error al iniciar cámara: ${err?.message || 'Permiso denegado'}`)
   }
 }
 

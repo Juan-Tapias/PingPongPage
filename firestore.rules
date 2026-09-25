@@ -57,26 +57,18 @@ service cloud.firestore {
 
     // Reglas para la colección 'partidos'
     match /partidos/{partidoId} {
-      allow read: if isAuthenticated();
-      // Cualquier autenticado puede actualizar un partido (ej. arbitraje), pero admins tienen control total
-      allow create: if isAdmin();
-      // Idealmente, validaríamos que el usuario autenticado NO sea jugador1 ni jugador2 en el partido,
-      // pero para mantener la flexibilidad (como el árbitro que no pite su propio partido),
-      // lo validamos también desde el cliente. Para mayor seguridad:
-      allow update: if isAuthenticated() && (isAdmin() || (
-        request.auth.uid != resource.data.jugador1Id && 
-        request.auth.uid != resource.data.jugador2Id
-      ));
+      allow read: if true;
+      allow create, update: if isAuthenticated();
       allow delete: if isAdmin();
 
       // Subcolección para señalización WebRTC P2P de transmisiones en vivo
       match /stream_peers/{peerId} {
-        allow read, write: if isAuthenticated();
+        allow read, write: if true;
       }
 
       // Subcolección para reacciones en vivo
       match /reacciones/{reacId} {
-        allow read, write: if isAuthenticated();
+        allow read, write: if true;
       }
     }
 

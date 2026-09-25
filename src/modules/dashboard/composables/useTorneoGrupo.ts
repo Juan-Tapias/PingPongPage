@@ -238,7 +238,7 @@ export function useTorneoGrupo(torneo: Torneo) {
                 plazos.estado !== 'jugado' &&
                 p.estado !== 'jugado' &&
                 p.transmisionActiva === true &&
-                (!p.ultimaSenalEnVivo || Date.now() - p.ultimaSenalEnVivo <= 45000),
+                (!p.ultimaSenalEnVivo || Date.now() - p.ultimaSenalEnVivo <= 300000),
               transmisorId: p.transmisorId,
               transmisorNombre: p.transmisorNombre,
               fechaInicioTransmision: p.fechaInicioTransmision,

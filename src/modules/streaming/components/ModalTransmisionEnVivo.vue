@@ -49,6 +49,16 @@
                 <span>{{ totalEspectadores }} {{ totalEspectadores === 1 ? 'espectador' : 'espectadores' }}</span>
               </span>
 
+              <!-- Duración de la llamada / transmisión (1 hora) -->
+              <span
+                v-if="partido?.fechaInicioTransmision"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-mono font-bold text-amber-300 bg-amber-950/60 border border-amber-500/40"
+                title="Límite máximo de llamada: 1 hora (60 minutos)"
+              >
+                <Clock class="w-3.5 h-3.5 text-amber-400" />
+                <span>{{ tiempoTranscurridoViewer }} / 60:00</span>
+              </span>
+
               <span
                 v-if="partido?.transmisorNombre"
                 class="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium"
@@ -232,7 +242,7 @@
 
             <!-- MARCADOR DEPORTIVO SUPERPUESTO (HUD OFICIAL ESTILO TV DEPORTIVA) -->
             <div
-              v-if="partido && !modoMiniplayer"
+              v-if="partidoActivo && !modoMiniplayer"
               :class="[
                 'absolute top-2 left-2 sm:top-4 sm:left-4 z-20 flex flex-col gap-1 transition-all duration-300 pointer-events-none drop-shadow-2xl max-w-[88%] sm:max-w-md',
                 esPantallaCompleta ? 'top-12 sm:top-14 scale-90 sm:scale-100 origin-top-left' : '',
@@ -245,12 +255,13 @@
                 <!-- Jugador 1 -->
                 <div
                   class="flex items-center justify-between px-2.5 sm:px-3.5 py-1.5 border-b border-white/10 gap-3"
-                  :class="{ 'bg-emerald-500/20': partido.marcador && Number(puntosJ1) > Number(puntosJ2) }"
+                  :class="{ 'bg-emerald-500/20': Number(puntosJ1) > Number(puntosJ2) }"
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                    <span v-if="servidorActual === 1" class="text-[11px]" title="Al Saque">🏓</span>
                     <span class="text-xs sm:text-sm font-black truncate max-w-28 sm:max-w-44">
-                      {{ partido.jugador1?.nombre || 'Jugador 1' }}
+                      {{ partidoActivo.jugador1?.nombre || 'Jugador 1' }}
                     </span>
                   </div>
                   <div class="flex items-center gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
@@ -264,12 +275,13 @@
                 <!-- Jugador 2 -->
                 <div
                   class="flex items-center justify-between px-2.5 sm:px-3.5 py-1.5 gap-3"
-                  :class="{ 'bg-sky-500/20': partido.marcador && Number(puntosJ2) > Number(puntosJ1) }"
+                  :class="{ 'bg-sky-500/20': Number(puntosJ2) > Number(puntosJ1) }"
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+                    <span v-if="servidorActual === 2" class="text-[11px]" title="Al Saque">🏓</span>
                     <span class="text-xs sm:text-sm font-black truncate max-w-28 sm:max-w-44">
-                      {{ partido.jugador2?.nombre || 'Jugador 2' }}
+                      {{ partidoActivo.jugador2?.nombre || 'Jugador 2' }}
                     </span>
                   </div>
                   <div class="flex items-center gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
@@ -281,13 +293,16 @@
                 </div>
               </div>
 
-              <!-- Badge de Ronda / Estado -->
+              <!-- Badge de Ronda / Estado / Mesa -->
               <div class="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase text-white/90">
-                <span class="px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
-                  Ronda {{ partido.ronda || partido.jornada || 1 }}
+                <span class="px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10 text-emerald-400 font-bold">
+                  {{ marcadorEnVivo?.setActual || 'Set 1' }}
                 </span>
                 <span class="px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
-                  SpinApp Torneo Live
+                  {{ marcadorEnVivo?.mesa || partidoActivo.mesa || 'Mesa 1' }}
+                </span>
+                <span class="px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
+                  Ronda {{ partidoActivo.ronda || partidoActivo.jornada || 1 }}
                 </span>
               </div>
             </div>
@@ -479,7 +494,10 @@ import {
   PictureInPicture2,
   Maximize,
   Minimize,
+  Clock,
 } from 'lucide-vue-next'
+import { doc, onSnapshot, type Unsubscribe } from 'firebase/firestore'
+import { db } from '@/services/firebase'
 import type { PartidoGrupo, ReaccionLive, TipoReaccionLive } from '@/types'
 
 const props = defineProps<{
@@ -530,6 +548,31 @@ const mostrarControles = ref(true)
 let timeoutInactividad: any = null
 let ultimoToque = 0
 
+const tiempoTranscurridoViewer = ref('00:00')
+let timerViewer: any = null
+
+const actualizarTiempoViewer = () => {
+  if (props.partido?.fechaInicioTransmision) {
+    const elapsedSecs = Math.max(0, Math.floor((Date.now() - props.partido.fechaInicioTransmision) / 1000))
+    const capped = Math.min(3600, elapsedSecs)
+    const mins = Math.floor(capped / 60)
+    const secs = capped % 60
+    tiempoTranscurridoViewer.value = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+}
+
+onMounted(() => {
+  actualizarTiempoViewer()
+  timerViewer = setInterval(actualizarTiempoViewer, 1000)
+})
+
+onUnmounted(() => {
+  if (timerViewer) {
+    clearInterval(timerViewer)
+    timerViewer = null
+  }
+})
+
 const botonesReaccion: { emoji: TipoReaccionLive; nombre: string }[] = [
   { emoji: '🏓', nombre: 'Punto de Ping Pong' },
   { emoji: '🔥', nombre: '¡Gran Jugada!' },
@@ -560,34 +603,110 @@ const ultimasReacciones = computed(() => {
   return props.reacciones.slice(0, 5)
 })
 
+// Sincronización en tiempo real del partido y marcador en vivo
+const partidoRealTime = ref<any>(null)
+let unsubPartido: Unsubscribe | null = null
+
+const iniciarSuscripcionPartido = (id: string) => {
+  if (unsubPartido) {
+    unsubPartido()
+    unsubPartido = null
+  }
+  if (!id) {
+    partidoRealTime.value = null
+    return
+  }
+  unsubPartido = onSnapshot(
+    doc(db, 'partidos', id),
+    (docSnap) => {
+      if (docSnap.exists()) {
+        partidoRealTime.value = { id: docSnap.id, ...docSnap.data() }
+      }
+    },
+    (err) => {
+      console.warn('[ModalTransmisionEnVivo] Error en suscripción a partido en vivo:', err)
+    },
+  )
+}
+
+watch(
+  () => props.partido?.id,
+  (nuevoId) => {
+    if (nuevoId) {
+      partidoRealTime.value = props.partido
+      iniciarSuscripcionPartido(nuevoId)
+    } else {
+      if (unsubPartido) {
+        unsubPartido()
+        unsubPartido = null
+      }
+      partidoRealTime.value = null
+    }
+  },
+  { immediate: true },
+)
+
+onUnmounted(() => {
+  if (unsubPartido) {
+    unsubPartido()
+    unsubPartido = null
+  }
+})
+
+const partidoActivo = computed(() => partidoRealTime.value || props.partido)
+const marcadorEnVivo = computed(() => partidoActivo.value?.marcadorEnVivo)
+
 const setsGanadosJ1 = computed(() => {
-  if (!props.partido?.sets) return 0
-  return props.partido.sets.filter((s) => s.ganadorId === props.partido?.jugador1Id).length
+  if (marcadorEnVivo.value?.setsGanadosJ1 !== undefined) {
+    return Number(marcadorEnVivo.value.setsGanadosJ1)
+  }
+  if (partidoActivo.value?.sets) {
+    return partidoActivo.value.sets.filter((s: any) => s.ganadorId === partidoActivo.value?.jugador1Id).length
+  }
+  return 0
 })
 
 const setsGanadosJ2 = computed(() => {
-  if (!props.partido?.sets) return 0
-  return props.partido.sets.filter((s) => s.ganadorId === props.partido?.jugador2Id).length
+  if (marcadorEnVivo.value?.setsGanadosJ2 !== undefined) {
+    return Number(marcadorEnVivo.value.setsGanadosJ2)
+  }
+  if (partidoActivo.value?.sets) {
+    return partidoActivo.value.sets.filter((s: any) => s.ganadorId === partidoActivo.value?.jugador2Id).length
+  }
+  return 0
 })
 
 const setActual = computed(() => {
-  if (!props.partido?.sets || props.partido.sets.length === 0) return null
-  return props.partido.sets[props.partido.sets.length - 1]
+  if (!partidoActivo.value?.sets || partidoActivo.value.sets.length === 0) return null
+  return partidoActivo.value.sets[partidoActivo.value.sets.length - 1]
 })
 
 const puntosJ1 = computed(() => {
-  if (setActual.value) return setActual.value.puntosJugador1
+  if (marcadorEnVivo.value?.puntosJ1 !== undefined) {
+    return Number(marcadorEnVivo.value.puntosJ1)
+  }
+  if (setActual.value?.puntosJugador1 !== undefined) {
+    return Number(setActual.value.puntosJugador1)
+  }
   return 0
 })
 
 const puntosJ2 = computed(() => {
-  if (setActual.value) return setActual.value.puntosJugador2
+  if (marcadorEnVivo.value?.puntosJ2 !== undefined) {
+    return Number(marcadorEnVivo.value.puntosJ2)
+  }
+  if (setActual.value?.puntosJugador2 !== undefined) {
+    return Number(setActual.value.puntosJugador2)
+  }
   return 0
 })
+
+const servidorActual = computed(() => marcadorEnVivo.value?.servidorActual || 1)
 
 const activarAudioNativo = () => {
   if (videoElementRef.value) {
     videoElementRef.value.muted = false
+    videoElementRef.value.volume = 1.0
     audioMuteado.value = false
     audioSilenciadoPorNavegador.value = false
     videoElementRef.value.play().catch(() => {})
@@ -597,7 +716,12 @@ const activarAudioNativo = () => {
 const alternarSonido = () => {
   if (videoElementRef.value) {
     videoElementRef.value.muted = !videoElementRef.value.muted
+    videoElementRef.value.volume = 1.0
     audioMuteado.value = videoElementRef.value.muted
+    if (!videoElementRef.value.muted) {
+      audioSilenciadoPorNavegador.value = false
+      videoElementRef.value.play().catch(() => {})
+    }
   }
 }
 
@@ -636,6 +760,9 @@ const resetearInactividad = () => {
 
 const handleTouchVideo = () => {
   resetearInactividad()
+  if (audioSilenciadoPorNavegador.value || audioMuteado.value) {
+    activarAudioNativo()
+  }
   const ahora = Date.now()
   if (ahora - ultimoToque < 320) {
     alternarPantallaCompleta()
