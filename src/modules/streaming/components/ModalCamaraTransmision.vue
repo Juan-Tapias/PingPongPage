@@ -10,62 +10,85 @@
     >
       <div
         v-if="visible"
-        class="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md select-none overflow-y-auto"
+        ref="modalContenedorRef"
+        :class="[
+          'fixed inset-0 z-[70] flex items-center justify-center select-none overflow-y-auto transition-all',
+          esPantallaCompleta ? 'p-0 bg-black' : 'p-2 sm:p-4 bg-black/90 backdrop-blur-md'
+        ]"
       >
         <div
-          class="relative w-full max-w-4xl bg-slate-950 border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[96dvh]"
+          :class="[
+            'relative w-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden flex flex-col transition-all',
+            esPantallaCompleta
+              ? 'w-screen h-[100dvh] max-w-none max-h-none rounded-none border-none bg-black flex flex-col'
+              : `w-full ${mostrarChat ? 'max-w-6xl xl:max-w-7xl' : 'max-w-5xl'} rounded-none sm:rounded-2xl lg:rounded-3xl border-0 sm:border border-slate-800 shadow-2xl h-[100dvh] sm:h-[86vh] lg:h-[88vh] sm:max-h-[880px] flex flex-col transition-all duration-300 overflow-hidden`
+          ]"
         >
           <!-- CABECERA DE TRANSMISIÓN -->
           <div
-            class="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3.5 bg-slate-900/90 border-b border-slate-800/80 z-20"
+            class="flex items-center justify-between px-2.5 sm:px-5 py-2 sm:py-3.5 bg-slate-900/90 border-b border-slate-800/80 z-20 gap-1.5"
           >
             <!-- Badge En Vivo, Temporizador 1 Hora y Espectadores -->
-            <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div class="flex items-center gap-1.5 sm:gap-3 flex-wrap min-w-0">
               <span
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-xs"
+                class="flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-xs shrink-0"
               >
                 <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                Transmitiendo en Vivo
+                <span class="hidden xs:inline">Transmitiendo </span>En Vivo
               </span>
 
               <!-- Límite de llamada: 1 hora -->
               <span
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-mono font-bold text-amber-300 bg-amber-950/60 border border-amber-500/40"
+                class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono font-bold text-amber-300 bg-amber-950/60 border border-amber-500/40 shrink-0"
                 title="Límite máximo de llamada: 1 hora (60 minutos)"
               >
-                <Clock class="w-3.5 h-3.5 text-amber-400" />
-                <span>{{ tiempoTranscurridoInterno || tiempoFormateado || '00:00' }} / 60:00</span>
+                <Clock class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+                <span>{{ tiempoTranscurridoInterno || tiempoFormateado || '00:00' }}</span>
+                <span class="hidden sm:inline"> / 60:00</span>
               </span>
 
               <span
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/60"
+                class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/60 shrink-0"
               >
-                <Users class="w-3.5 h-3.5 text-sky-400" />
-                <span>{{ totalEspectadores }} {{ totalEspectadores === 1 ? 'espectador' : 'espectadores' }}</span>
+                <Users class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-400" />
+                <span>{{ totalEspectadores }}</span>
+                <span class="hidden xs:inline"> {{ totalEspectadores === 1 ? 'espectador' : 'espectadores' }}</span>
               </span>
 
               <!-- Indicador interactivo de diagnóstico en el celular -->
               <button
                 type="button"
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all cursor-pointer border active:scale-95 select-none shadow-xs"
+                class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all cursor-pointer border active:scale-95 select-none shadow-xs shrink-0"
                 :class="badgeDiagnosticoClases"
                 title="Toca para ver el diagnóstico de red, latencia y bitrate en vivo"
                 @click="mostrarDiagnostico = !mostrarDiagnostico"
               >
-                <Activity class="w-3.5 h-3.5 animate-pulse" :class="colorPuntoCalidad" />
+                <Activity class="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-pulse" :class="colorPuntoCalidad" />
                 <span>{{ diagnosticoActual.latenciaMs }}ms</span>
-                <span class="hidden xs:inline font-mono opacity-80">| {{ diagnosticoActual.fps }}fps</span>
-                <span class="text-[9px] uppercase px-1 py-0.2 rounded font-black tracking-wider ml-0.5" :class="textoCalidadClases">
+                <span class="hidden sm:inline font-mono opacity-80">| {{ diagnosticoActual.fps }}fps</span>
+                <span class="text-[9px] uppercase px-1 py-0.2 rounded font-black tracking-wider ml-0.5 hidden xs:inline" :class="textoCalidadClases">
                   {{ etiquetaCalidad }}
                 </span>
               </button>
             </div>
 
             <!-- Botones de Acción Rápida -->
-            <div class="flex items-center gap-1.5 sm:gap-2">
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+              <!-- Botón Pantalla Completa en Celular -->
               <button
                 type="button"
-                class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-extrabold text-xs transition-all flex items-center gap-1.5 border border-slate-700 cursor-pointer"
+                class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white font-extrabold text-xs transition-all flex items-center gap-1.5 border border-slate-700 cursor-pointer"
+                :title="esPantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa para el celular'"
+                @click="alternarPantallaCompleta"
+              >
+                <Minimize v-if="esPantallaCompleta" class="w-3.5 h-3.5" />
+                <Maximize v-else class="w-3.5 h-3.5" />
+                <span class="hidden md:inline">{{ esPantallaCompleta ? 'Reducir' : 'Completa' }}</span>
+              </button>
+
+              <button
+                type="button"
+                class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 font-extrabold text-xs transition-all flex items-center gap-1.5 border border-slate-700 cursor-pointer"
                 title="Minimizar cámara (seguirás transmitiendo en segundo plano)"
                 @click="visible = false"
               >
@@ -75,17 +98,27 @@
 
               <button
                 type="button"
-                class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                class="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-extrabold text-xs transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
                 @click="confirmarFinalizarTransmision"
               >
                 <Square class="w-3 h-3 fill-current" />
-                <span class="hidden sm:inline">Finalizar</span>
+                <span class="hidden xs:inline">Finalizar</span>
               </button>
             </div>
           </div>
 
-          <!-- ÁREA DE VIDEO / CÁMARA LOCAL -->
-          <div class="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+          <!-- CONTENEDOR FLEX: CÁMARA LOCAL + CHAT LATERAL (DESKTOP) / INFERIOR (MÓVIL) -->
+          <div class="relative flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 w-full">
+            <!-- ÁREA DE VIDEO / CÁMARA LOCAL -->
+            <div
+              :class="[
+                'relative w-full bg-black flex items-center justify-center overflow-hidden group select-none min-h-0 min-w-0 transition-all',
+                esPantallaCompleta
+                  ? 'flex-1 h-full'
+                  : 'w-full shrink-0 aspect-video max-h-[38vh] sm:max-h-[46vh] lg:max-h-none lg:aspect-auto lg:flex-1 lg:h-full'
+              ]"
+              @dblclick="alternarPantallaCompleta"
+            >
             <!-- Video en tiempo real del emisor -->
             <video
               ref="videoElementRef"
@@ -119,6 +152,24 @@
               <p class="text-xs font-bold uppercase tracking-wider">Cámara en Pausa</p>
             </div>
 
+            <!-- AVISO FLOTANTE DE CAPTURA DE CLIP -->
+            <Transition
+              enter-active-class="transition duration-300 ease-out"
+              enter-from-class="opacity-0 -translate-y-2 scale-95"
+              enter-to-class="opacity-100 translate-y-0 scale-100"
+              leave-active-class="transition duration-200 ease-in"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 -translate-y-2 scale-95"
+            >
+              <div
+                v-if="feedbackClip"
+                class="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-3.5 py-2 rounded-full bg-slate-950/95 backdrop-blur-md border border-amber-500/40 text-white shadow-2xl text-xs font-bold flex items-center gap-2 pointer-events-auto"
+              >
+                <Film class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{{ feedbackClip }}</span>
+              </div>
+            </Transition>
+
             <!-- MARCADOR DEPORTIVO SUPERPUESTO (HUD OFICIAL DE TV) -->
             <div
               v-if="partidoActivo"
@@ -129,19 +180,19 @@
               >
                 <!-- Jugador 1 -->
                 <div
-                  class="flex items-center justify-between px-2.5 sm:px-3.5 py-1.5 border-b border-white/10 gap-3"
+                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 border-b border-white/10 gap-2 sm:gap-3"
                   :class="{ 'bg-emerald-500/20': Number(puntosJ1) > Number(puntosJ2) }"
                 >
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span v-if="servidorActual === 1" class="text-[11px]" title="Al Saque">🏓</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-28 sm:max-w-44">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                    <span v-if="servidorActual === 1" class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
+                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
                       {{ partidoActivo.jugador1?.nombre || 'Jugador 1' }}
                     </span>
                   </div>
-                  <div class="flex items-center gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
                     <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ1 }})</span>
-                    <span class="px-2 py-0.5 rounded bg-white/10 text-white min-w-6 text-center">
+                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
                       {{ puntosJ1 }}
                     </span>
                   </div>
@@ -149,19 +200,19 @@
 
                 <!-- Jugador 2 -->
                 <div
-                  class="flex items-center justify-between px-2.5 sm:px-3.5 py-1.5 gap-3"
+                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 gap-2 sm:gap-3"
                   :class="{ 'bg-sky-500/20': Number(puntosJ2) > Number(puntosJ1) }"
                 >
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-                    <span v-if="servidorActual === 2" class="text-[11px]" title="Al Saque">🏓</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-28 sm:max-w-44">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                    <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+                    <span v-if="servidorActual === 2" class="text-[8px] sm:text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
+                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
                       {{ partidoActivo.jugador2?.nombre || 'Jugador 2' }}
                     </span>
                   </div>
-                  <div class="flex items-center gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
                     <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ2 }})</span>
-                    <span class="px-2 py-0.5 rounded bg-white/10 text-white min-w-6 text-center">
+                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
                       {{ puntosJ2 }}
                     </span>
                   </div>
@@ -279,6 +330,16 @@
                 </div>
               </div>
             </Transition>
+            </div>
+
+            <!-- CHAT EN VIVO PARA EL TRANSMISOR (INTEGRADO EN LAYOUT RESPONSIVE) -->
+            <ChatTransmisionEnVivo
+              v-if="mostrarChat"
+              :partido-id="partidoActivo?.id || (partidoActivo as any)?.partidoId || partido?.id || (partido as any)?.partidoId"
+              :partido="partidoActivo || partido"
+              :es-pantalla-completa="esPantallaCompleta"
+              @cerrar-chat="mostrarChat = false"
+            />
           </div>
 
           <!-- BARRA DE CONTROLES INFERIOR (100% RESPONSIVE) -->
@@ -321,11 +382,91 @@
                 <VideoOff v-else class="w-4 h-4 text-rose-400" />
                 <span class="hidden sm:inline">{{ videoActivo ? 'Cámara ON' : 'Cámara OFF' }}</span>
               </button>
+
+              <!-- Ver / Ocultar Chat en Vivo del Partido -->
+              <button
+                type="button"
+                class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer border shadow-xs"
+                :class="mostrarChat ? 'bg-sky-500/20 text-sky-300 border-sky-500/40 shadow-xs' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700/60'"
+                title="Ver mensajes de espectadores en vivo"
+                @click="mostrarChat = !mostrarChat"
+              >
+                <MessageSquare class="w-4 h-4 text-sky-400" />
+                <span>Chat</span>
+              </button>
+
+              <!-- Capturar Clip de 15s para la Biblioteca -->
+              <button
+                type="button"
+                class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer border shadow-xs select-none"
+                :class="estaGrabandoClip ? 'bg-rose-600 text-white border-rose-400 animate-pulse' : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700/60'"
+                :title="estaGrabandoClip ? 'Grabando clip... clic para terminar ahora' : 'Grabar clip destacado (15s)'"
+                @click="alternarCapturaClip"
+              >
+                <span v-if="estaGrabandoClip" class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                <Scissors v-else class="w-4 h-4 text-amber-400" />
+                <span v-if="estaGrabandoClip" class="font-mono text-white">{{ segundosGrabadosClip }}s REC</span>
+                <span v-else class="hidden xs:inline">Grabar Clip</span>
+              </button>
             </div>
 
             <p class="text-[11px] text-slate-400 font-medium text-right hidden md:block">
               Consejo: Ubica el celular en posición horizontal apuntando a la mesa de ping pong.
             </p>
+          </div>
+
+        </div>
+      </div>
+    </Transition>
+
+    <!-- MODAL DE CONFIRMACIÓN ELEGANTE: FINALIZAR TRANSMISIÓN -->
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="mostrarModalConfirmacion"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+        @click.self="mostrarModalConfirmacion = false"
+      >
+        <div
+          class="w-full max-w-sm sm:max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-[0_25px_60px_rgba(0,0,0,0.85)] ring-1 ring-white/10 text-white flex flex-col gap-4 text-center select-none"
+        >
+          <!-- Ícono de alerta en vivo -->
+          <div class="mx-auto w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-950/40">
+            <Square class="w-5 h-5 fill-current" />
+          </div>
+
+          <!-- Textos -->
+          <div class="space-y-1.5">
+            <h3 class="text-base sm:text-lg font-black tracking-tight text-white">
+              ¿Finalizar transmisión en vivo?
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-400 font-medium leading-relaxed">
+              La señal de video y audio se cerrará para todos los espectadores conectados a esta mesa.
+            </p>
+          </div>
+
+          <!-- Botones de Acción -->
+          <div class="flex items-center gap-2.5 pt-1.5">
+            <button
+              type="button"
+              class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white font-bold text-xs transition-all cursor-pointer border border-slate-700"
+              @click="mostrarModalConfirmacion = false"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-black text-xs transition-all cursor-pointer shadow-lg shadow-rose-950/40 border border-rose-500/50"
+              @click="ejecutarFinalizarTransmision"
+            >
+              Sí, Finalizar
+            </button>
           </div>
         </div>
       </div>
@@ -345,14 +486,21 @@ import {
   VideoOff,
   Clock,
   Minimize2,
+  Maximize,
+  Minimize,
   Activity,
   X,
   Zap,
+  MessageSquare,
+  Scissors,
+  Film,
 } from 'lucide-vue-next'
 import { doc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import type { PartidoGrupo } from '@/types'
 import type { DiagnosticoStream } from '@/modules/streaming/composables/useWebRTCStream'
+import { useGrabadorClips } from '../composables/useGrabadorClips'
+import ChatTransmisionEnVivo from './ChatTransmisionEnVivo.vue'
 
 const props = defineProps<{
   partido: PartidoGrupo | null
@@ -374,8 +522,42 @@ const emit = defineEmits<{
 }>()
 
 const visible = ref(false)
+const modalContenedorRef = ref<HTMLDivElement | null>(null)
 const videoElementRef = ref<HTMLVideoElement | null>(null)
 const mostrarDiagnostico = ref(false)
+const esPantallaCompleta = ref(false)
+const mostrarChat = ref(false)
+
+// Screen Wake Lock API: Mantiene la pantalla encendida en teléfonos móviles sobre trípode
+let wakeLockSentinel: any = null
+
+const solicitarWakeLock = async () => {
+  try {
+    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+      wakeLockSentinel = await (navigator as any).wakeLock.request('screen')
+      wakeLockSentinel.addEventListener('release', () => {
+        wakeLockSentinel = null
+      })
+    }
+  } catch (err) {
+    console.warn('[ModalCamaraTransmision] WakeLock no disponible o bloqueado:', err)
+  }
+}
+
+const liberarWakeLock = async () => {
+  if (wakeLockSentinel) {
+    try {
+      await wakeLockSentinel.release()
+    } catch {}
+    wakeLockSentinel = null
+  }
+}
+
+const handleVisibilityChangeWakeLock = () => {
+  if (document.visibilityState === 'visible' && visible.value) {
+    solicitarWakeLock()
+  }
+}
 
 const diagnosticoActual = computed<DiagnosticoStream>(() => {
   return props.diagnostico || {
@@ -511,8 +693,14 @@ const sincronizarEstadoTransmisionEnFirestore = async () => {
 
   try {
     await setDoc(doc(db, 'partidos', p.id), payload, { merge: true })
-  } catch (err) {
+  } catch (err: any) {
     console.warn('[ModalCamaraTransmision] Error al registrar partido activo en Firestore:', err)
+    if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota exceeded')) {
+      if (syncBroadcastTimer) {
+        clearInterval(syncBroadcastTimer)
+        syncBroadcastTimer = null
+      }
+    }
   }
 }
 
@@ -535,7 +723,7 @@ watch(
       }, 1000)
 
       sincronizarEstadoTransmisionEnFirestore()
-      syncBroadcastTimer = setInterval(sincronizarEstadoTransmisionEnFirestore, 4000)
+      syncBroadcastTimer = setInterval(sincronizarEstadoTransmisionEnFirestore, 15000)
     }
   },
   { immediate: true },
@@ -678,15 +866,141 @@ const alternarCamara = () => emit('alternar-camara')
 const alternarAudio = () => emit('alternar-audio')
 const alternarVideo = () => emit('alternar-video')
 
+// Grabador de Clips en vivo para la Biblioteca
+const {
+  estaGrabando: estaGrabandoClip,
+  segundosGrabados: segundosGrabadosClip,
+  feedbackClip,
+  iniciarGrabacionClip,
+  detenerGrabacionClip,
+} = useGrabadorClips()
+
+const alternarCapturaClip = () => {
+  if (estaGrabandoClip.value) {
+    detenerGrabacionClip()
+    return
+  }
+
+  const stream =
+    props.streamLocal ||
+    (videoElementRef.value?.srcObject as MediaStream)
+
+  if (!stream) return
+
+  const p = partidoRealTime.value || props.partido
+  const j1Nombre = p?.jugador1?.nombre || 'Jugador 1'
+  const j2Nombre = p?.jugador2?.nombre || 'Jugador 2'
+
+  iniciarGrabacionClip(
+    stream,
+    videoElementRef.value,
+    {
+      torneoId: p?.torneoId,
+      torneoNombre: (p as any)?.torneoNombre || 'Torneo Tenis de Mesa',
+      partidoId: p?.id,
+      mesa: marcadorEnVivo.value?.mesa || p?.mesa || 'Mesa 1',
+      jugador1: {
+        id: p?.jugador1Id || 'j1',
+        nombre: j1Nombre,
+      },
+      jugador2: {
+        id: p?.jugador2Id || 'j2',
+        nombre: j2Nombre,
+      },
+      marcadorMomento: `${puntosJ1.value} - ${puntosJ2.value}`,
+      titulo: `Clip Destacado: ${j1Nombre} vs ${j2Nombre}`,
+      tipo: 'mejor_jugada',
+    },
+    15,
+  )
+}
+
+const mostrarModalConfirmacion = ref(false)
+
 const confirmarFinalizarTransmision = () => {
-  if (window.confirm('¿Seguro que deseas finalizar la transmisión en vivo para todos los espectadores?')) {
-    visible.value = false
-    emit('finalizar')
+  mostrarModalConfirmacion.value = true
+}
+
+const ejecutarFinalizarTransmision = () => {
+  mostrarModalConfirmacion.value = false
+  visible.value = false
+  emit('finalizar')
+}
+
+const alternarPantallaCompleta = async () => {
+  const container = modalContenedorRef.value
+  const video = videoElementRef.value
+
+  // Salir de pantalla completa si ya está activa
+  if (esPantallaCompleta.value || document.fullscreenElement || (document as any).webkitFullscreenElement) {
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen()
+      } else if ((document as any).webkitExitFullscreen) {
+        await (document as any).webkitExitFullscreen()
+      }
+    } catch (e) {
+      console.warn('Error al salir de fullscreen nativo:', e)
+    }
+
+    try {
+      if (screen.orientation && 'unlock' in screen.orientation) {
+        (screen.orientation as any).unlock()
+      }
+    } catch {}
+
+    esPantallaCompleta.value = false
+    return
+  }
+
+  // Activar pantalla completa
+  let nativoExitoso = false
+  if (container) {
+    try {
+      if (container.requestFullscreen) {
+        await container.requestFullscreen()
+        nativoExitoso = true
+      } else if ((container as any).webkitRequestFullscreen) {
+        await (container as any).webkitRequestFullscreen()
+        nativoExitoso = true
+      }
+    } catch (e) {
+      console.warn('requestFullscreen en container no disponible:', e)
+    }
+  }
+
+  if (!nativoExitoso && video && (video as any).webkitEnterFullscreen) {
+    try {
+      (video as any).webkitEnterFullscreen()
+      nativoExitoso = true
+    } catch {}
+  }
+
+  // En celulares, sugerir orientación horizontal al poner pantalla completa
+  try {
+    if (screen.orientation && 'lock' in screen.orientation) {
+      await (screen.orientation as any).lock('landscape').catch(() => {})
+    }
+  } catch {}
+
+  esPantallaCompleta.value = true
+}
+
+const handleFullscreenChange = () => {
+  const isFs = Boolean(
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).mozFullScreenElement ||
+    (document as any).msFullscreenElement
+  )
+  if (!isFs && esPantallaCompleta.value) {
+    esPantallaCompleta.value = false
   }
 }
 
 const open = () => {
   visible.value = true
+  solicitarWakeLock()
   nextTick(() => {
     acoplarVideoLocal()
     setTimeout(acoplarVideoLocal, 150)
@@ -695,12 +1009,27 @@ const open = () => {
 
 const close = () => {
   visible.value = false
+  liberarWakeLock()
+  if (esPantallaCompleta.value) {
+    alternarPantallaCompleta().catch(() => {})
+  }
 }
 
 onMounted(() => {
   if (visible.value) {
     acoplarVideoLocal()
+    solicitarWakeLock()
   }
+  document.addEventListener('visibilitychange', handleVisibilityChangeWakeLock)
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+})
+
+onUnmounted(() => {
+  liberarWakeLock()
+  document.removeEventListener('visibilitychange', handleVisibilityChangeWakeLock)
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
 })
 
 defineExpose({

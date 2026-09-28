@@ -26,6 +26,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/modules/admin/views/AdminDashboardView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  {
+    path: '/biblioteca',
+    name: 'biblioteca',
+    component: () => import('@/modules/biblioteca/views/BibliotecaView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

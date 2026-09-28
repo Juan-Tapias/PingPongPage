@@ -228,6 +228,12 @@
       @alternar-video="alternarVideo"
       @cambiar-calidad="cambiarModoCalidad"
     />
+
+    <!-- MODAL DE VINCULACIÓN DE CÁMARA CON CÓDIGO (TRÍPODE DESDE DASHBOARD) -->
+    <ModalVincularCamara
+      ref="modalVincularDashboardRef"
+      @vincular-exito="handleCamaraVinculadaDashboardExito"
+    />
   </div>
 </template>
 
@@ -249,6 +255,7 @@ import ModalVerificacionPago from './partials/dashboard/ModalVerificacionPago.vu
 import VistaParticipacionTorneo from './partials/participacion/VistaParticipacionTorneo.vue'
 import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmisionEnVivo.vue'
 import ModalCamaraTransmision from '@/modules/streaming/components/ModalCamaraTransmision.vue'
+import ModalVincularCamara from '@/modules/streaming/components/ModalVincularCamara.vue'
 import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
 import type { Torneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
@@ -367,6 +374,7 @@ const {
 
 const modalTransmisionDashboardRef = ref<InstanceType<typeof ModalTransmisionEnVivo> | null>(null)
 const modalCamaraDashboardRef = ref<InstanceType<typeof ModalCamaraTransmision> | null>(null)
+const modalVincularDashboardRef = ref<InstanceType<typeof ModalVincularCamara> | null>(null)
 const partidoSintonizado = ref<any | null>(null)
 const partidoTransmitiendo = ref<any | null>(null)
 
@@ -382,15 +390,20 @@ const handleSintonizarTransmision = async (partido: any) => {
   })
 }
 
-const handleIniciarTransmisionDesdeBanner = async (partido: any) => {
-  const adminNombre = authStore.usuario?.nombre || 'Árbitro'
-  const adminId = authStore.usuario?.id || 'admin'
-  partidoTransmitiendo.value = partido
+const handleIniciarTransmisionDesdeBanner = (partido: any) => {
+  // Abre el modal para ingresar el código de 4 dígitos de la cámara de esa mesa
+  modalVincularDashboardRef.value?.open(partido)
+}
 
-  const ok = await iniciarTransmision(partido.id, {
-    id: adminId,
-    nombre: adminNombre,
-  }, undefined, partido)
+const handleCamaraVinculadaDashboardExito = async (payload: { partido: any; codigo: string }) => {
+  partidoTransmitiendo.value = payload.partido
+  const camNombre = 'Cámara ' + (payload.partido.mesa || 'Mesa')
+  const camId = 'cam_' + Date.now()
+
+  const ok = await iniciarTransmision(payload.partido.id, {
+    id: camId,
+    nombre: camNombre,
+  }, 'environment', payload.partido)
 
   if (ok) {
     modalCamaraDashboardRef.value?.open()
@@ -547,7 +560,8 @@ onMounted(async () => {
         estaInscrito = inscripciones.some((ins: any) => ins.jugadorId === userId || ins.id === userId)
       }
 
-      if (estaInscrito) {
+      // Si el usuario está inscrito o es administrador del torneo, incluir en misTorneos
+      if (estaInscrito || authStore.esAdmin) {
         inscritos.push({ ...t, estaInscrito: true })
       } else {
         disponibles.push({ ...t, estaInscrito: false })

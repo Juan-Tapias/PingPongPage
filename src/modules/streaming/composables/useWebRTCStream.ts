@@ -29,18 +29,108 @@ const RTC_CONFIG: RTCConfiguration = {
         'stun:global.stun.twilio.com:3478',
       ],
     },
-    {
-      urls: [
-        'stun:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp',
-      ],
-      username: 'openrelay',
-      credential: 'openrelay',
-    },
   ],
   iceCandidatePoolSize: 10,
+}
+
+// IP local descubierta en la red privada para acelerar emparejamiento directo en LAN
+let ipLocalDetectada = ''
+
+/**
+ * Expande candidatos ICE para resolver la anonimización mDNS de Chromium (.local)
+ * y asegurar conectividad inmediata en localhost (127.0.0.1) y en la red local (LAN)
+ */
+function expandirCandidatosIce(cand: RTCIceCandidateInit | RTCIceCandidate): RTCIceCandidateInit[] {
+  if (!cand || !cand.candidate) return cand ? [cand as RTCIceCandidateInit] : []
+  const resultado: RTCIceCandidateInit[] = [cand as RTCIceCandidateInit]
+  const str = cand.candidate
+  const partes = str.trim().split(/\s+/)
+  if (partes.length < 8) return resultado
+
+  const hostOIp = partes[4] || ''
+  const puerto = partes[5] || ''
+  if (!hostOIp || !puerto) return resultado
+
+  const esHost = partes[7] === 'host'
+  const esLocal = hostOIp.endsWith('.local')
+
+  // Extraer IP privada real si el candidato es srflx (STUN descubre raddr)
+  const raddrIdx = partes.indexOf('raddr')
+  const rportIdx = partes.indexOf('rport')
+  const ipPrivada = raddrIdx !== -1 && partes[raddrIdx + 1] ? (partes[raddrIdx + 1] as string) : ''
+  const puertoPrivado = rportIdx !== -1 && partes[rportIdx + 1] ? (partes[rportIdx + 1] as string) : puerto
+
+  if (ipPrivada) {
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ipPrivada)) {
+      ipLocalDetectada = ipPrivada
+    }
+
+    // Crear un candidato 'typ host' con la IP privada y puerto del socket local
+    const hostCandStr = str
+      .replace(new RegExp(`\\b${hostOIp.replace(/\./g, '\\.')}\\b`), ipPrivada)
+      .replace(new RegExp(`\\b${puerto}\\b`), puertoPrivado)
+      .replace(/typ srflx/, 'typ host')
+
+    resultado.push({
+      candidate: hostCandStr,
+      sdpMid: cand.sdpMid,
+      sdpMLineIndex: cand.sdpMLineIndex,
+      usernameFragment: cand.usernameFragment,
+    })
+  }
+
+  // Lista de direcciones locales directas para evitar fallos de mDNS entre navegadores
+  const ipsDirectas: string[] = ['127.0.0.1']
+  if (ipLocalDetectada && !ipsDirectas.includes(ipLocalDetectada)) {
+    ipsDirectas.push(ipLocalDetectada)
+  }
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const h = window.location.hostname
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h) && !ipsDirectas.includes(h)) {
+      ipsDirectas.push(h)
+    }
+  }
+
+  // Si el candidato es host o mDNS (.local), generar variantes con 127.0.0.1 e IPs locales
+  if (esHost || esLocal) {
+    for (const ip of ipsDirectas) {
+      if (ip === hostOIp) continue
+      const nuevaLinea = str.replace(new RegExp(`\\b${hostOIp.replace(/\./g, '\\.')}\\b`), ip)
+      resultado.push({
+        candidate: nuevaLinea,
+        sdpMid: cand.sdpMid,
+        sdpMLineIndex: cand.sdpMLineIndex,
+        usernameFragment: cand.usernameFragment,
+      })
+    }
+  }
+
+  return resultado
+}
+
+/**
+ * Espera a que el navegador recolecte los candidatos ICE para incrustarlos
+ * directamente en el SDP (Vanilla ICE), eliminando condiciones de carrera.
+ */
+function esperarRecoleccionIce(pc: RTCPeerConnection, maxMs = 500): Promise<void> {
+  return new Promise((resolve) => {
+    if (pc.iceGatheringState === 'complete') {
+      resolve()
+      return
+    }
+    const timer = setTimeout(() => {
+      resolve()
+    }, maxMs)
+
+    const check = () => {
+      if (pc.iceGatheringState === 'complete') {
+        clearTimeout(timer)
+        pc.removeEventListener('icegatheringstatechange', check)
+        resolve()
+      }
+    }
+    pc.addEventListener('icegatheringstatechange', check)
+  })
 }
 
 export interface DiagnosticoStream {
@@ -181,7 +271,15 @@ export function useWebRTCStream() {
         }
       }
 
-      // Asegurar explícitamente que los tracks de audio estén activos
+      // Asegurar explícitamente que los tracks de audio y video estén activos
+      const videoTracks = media.getVideoTracks()
+      if (videoTracks.length > 0) {
+        videoTracks.forEach((t) => {
+          t.enabled = true
+        })
+        videoActivo.value = true
+      }
+
       const audioTracks = media.getAudioTracks()
       if (audioTracks.length > 0) {
         audioTracks.forEach((t) => {
@@ -253,7 +351,7 @@ export function useWebRTCStream() {
         }
       }, 1000)
 
-      // 4. Heartbeat cada 5 segundos para resiliencia en conexiones móviles
+      // 4. Heartbeat periódico para resiliencia sin agotar cuotas de Firestore
       if (heartbeatTimer) clearInterval(heartbeatTimer)
       heartbeatTimer = setInterval(async () => {
         if (currentPartidoId && transmitiendo.value) {
@@ -267,9 +365,16 @@ export function useWebRTCStream() {
               },
               { merge: true },
             )
-          } catch {}
+          } catch (err: any) {
+            if (err?.code === 'resource-exhausted' || err?.message?.includes('Quota exceeded')) {
+              if (heartbeatTimer) {
+                clearInterval(heartbeatTimer)
+                heartbeatTimer = null
+              }
+            }
+          }
         }
-      }, 4000)
+      }, 15000)
 
       // Emitir latido inmediato al volver a la pestaña/celular
       if (typeof document !== 'undefined') {
@@ -409,6 +514,8 @@ export function useWebRTCStream() {
   const escucharEspectadoresEntrantes = (partidoId: string) => {
     const peersColl = collection(db, 'partidos', partidoId, 'stream_peers')
 
+    const procesandoAnswer = new Set<string>()
+
     unsubPeers = onSnapshot(peersColl, (snapshot) => {
       totalEspectadores.value = snapshot.docs.length
 
@@ -434,19 +541,36 @@ export function useWebRTCStream() {
           const pc = peerConnections.get(viewerId)
           if (!pc) return
 
-          // 1. Establecer SDP Answer si el espectador respondió
-          if (peerData.answer && pc.signalingState === 'have-local-offer') {
+          // 1. Establecer SDP Answer si el espectador respondió (evitar colisión si ya se está resolviendo)
+          if (peerData.answer && pc.signalingState === 'have-local-offer' && !procesandoAnswer.has(viewerId)) {
+            procesandoAnswer.add(viewerId)
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(peerData.answer))
+
+              // Configurar parámetros de codificación de bitrate tras acordar la sesión
+              const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video')
+              if (videoSender) {
+                try {
+                  const params = videoSender.getParameters()
+                  if (params && params.encodings && params.encodings[0]) {
+                    params.encodings[0].maxBitrate = modoCalidadActual.value === 'ultra_baja' ? 850_000 : 1_300_000
+                    params.encodings[0].maxFramerate = 30
+                    videoSender.setParameters(params).catch(() => {})
+                  }
+                } catch {}
+              }
 
               // Procesar candidatos acumulados en espera antes de tener la descripción remota
               const enEspera = broadcasterCandidatosEnEspera.get(viewerId)
               if (enEspera && enEspera.length > 0) {
-                await procesarCandidatosEspectador(viewerId, enEspera)
+                const copia = [...enEspera]
                 broadcasterCandidatosEnEspera.delete(viewerId)
+                await procesarCandidatosEspectador(viewerId, copia)
               }
             } catch (err) {
               console.warn(`Error al establecer Remote Description para ${viewerId}:`, err)
+            } finally {
+              procesandoAnswer.delete(viewerId)
             }
           }
 
@@ -484,15 +608,20 @@ export function useWebRTCStream() {
       broadcasterCandidatosProcesados.set(viewerId, procesados)
     }
 
-    for (const cand of candidates) {
-      if (!cand || !cand.candidate) continue
-      const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
-      if (!procesados.has(key)) {
-        procesados.add(key)
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(cand))
-        } catch (e) {
-          // Candidato redundante
+    for (const rawCand of candidates) {
+      if (!rawCand || !rawCand.candidate) continue
+      const variantes = expandirCandidatosIce(rawCand)
+      for (const cand of variantes) {
+        if (!cand || !cand.candidate) continue
+        const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
+        if (!procesados.has(key)) {
+          procesados.add(key)
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(cand))
+            console.log(`[WebRTC Broadcaster] ICE Candidate agregado para ${viewerId}:`, cand.candidate.slice(0, 60))
+          } catch (e) {
+            // Candidato redundante
+          }
         }
       }
     }
@@ -519,50 +648,48 @@ export function useWebRTCStream() {
     videoTracks.forEach((vt) => pc.addTrack(vt, streamLocal.value!))
     audioTracks.forEach((at) => pc.addTrack(at, streamLocal.value!))
 
-    // Recolectar candidatos ICE del emisor
+    // Recolectar candidatos ICE del emisor y expandir variantes locales/LAN
     pc.onicecandidate = (event) => {
       if (event.candidate && event.candidate.candidate) {
-        broadcasterCandidates.push(event.candidate.toJSON())
+        const expandidos = expandirCandidatosIce(event.candidate.toJSON())
+        expandidos.forEach((c) => broadcasterCandidates.push(c))
         if (offerPublicada) {
           if (updateCandidatesTimeout) clearTimeout(updateCandidatesTimeout)
           updateCandidatesTimeout = setTimeout(() => {
-            updateDoc(peerDocRef, { broadcasterCandidates }).catch(() => {})
-          }, 150)
+            setDoc(peerDocRef, { broadcasterCandidates }, { merge: true }).catch(() => {})
+          }, 80)
         }
       }
     }
 
     pc.oniceconnectionstatechange = () => {
+      console.log(`[WebRTC Broadcaster] ICE connection state con ${viewerId}:`, pc.iceConnectionState)
       if (pc.iceConnectionState === 'failed') {
-        cerrarPeer(viewerId)
+        console.warn(`[WebRTC Broadcaster] ICE reportó failed con ${viewerId}, esperando posible reconexión...`)
       }
     }
 
-    // Crear oferta SDP
+    // Crear oferta SDP con candidatos ICE incrustados (Vanilla ICE híbrido)
     try {
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
+      // Esperar brevemente recolección ICE para que los candidatos estén ya en el SDP
+      await esperarRecoleccionIce(pc, 500)
 
-      const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video')
-      if (videoSender) {
-        try {
-          const params = videoSender.getParameters()
-          if (params && params.encodings && params.encodings[0]) {
-            params.encodings[0].maxBitrate = modoCalidadActual.value === 'ultra_baja' ? 850_000 : 1_300_000
-            params.encodings[0].maxFramerate = 30
-            videoSender.setParameters(params).catch(() => {})
-          }
-        } catch {}
-      }
+      console.log(`[WebRTC Broadcaster] Oferta SDP generada para ${viewerId}, con candidatos incrustados:`, pc.localDescription?.sdp.includes('a=candidate'))
 
-      await updateDoc(peerDocRef, {
-        offer: {
-          type: offer.type,
-          sdp: offer.sdp,
+      await setDoc(
+        peerDocRef,
+        {
+          offer: {
+            type: offer.type,
+            sdp: pc.localDescription?.sdp || offer.sdp,
+          },
+          estado: 'ofertado',
+          broadcasterCandidates,
         },
-        estado: 'ofertado',
-        broadcasterCandidates,
-      })
+        { merge: true },
+      )
       offerPublicada = true
     } catch (err) {
       console.error(`Error al crear oferta SDP para ${viewerId}:`, err)
@@ -801,15 +928,22 @@ export function useWebRTCStream() {
     viewerUser: { id: string; nombre: string },
   ): Promise<boolean> => {
     try {
+      // Si el espectador ya estaba conectado a otra mesa/partido, cerrar la anterior limpiamente
+      if (pcViewer || conectadoComoEspectador.value || unsubPeers || unsubPartidoDoc) {
+        await desconectarEspectador()
+      }
+
       errorStreaming.value = null
       cargandoConexion.value = true
       currentPartidoId = partidoId
       currentViewerId = viewerUser.id
 
       // 1. Crear RTCPeerConnection para recibir el video y audio
-      // NOTA: NO agregar transceivers fijos manualmente antes de setRemoteDescription(offer),
-      // ya que un orden distinto en los m-lines de la oferta (audio vs video) provocaría colisión de tracks en WebRTC.
       pcViewer = new RTCPeerConnection(RTC_CONFIG)
+
+      // El stream remoto debe iniciar como null hasta que ontrack reciba las pistas reales
+      streamRemoto.value = null
+      let remoteStreamInstance: MediaStream | null = null
 
       const viewerCandidates: RTCIceCandidateInit[] = []
       let updateViewerCandidatesTimeout: any = null
@@ -818,31 +952,42 @@ export function useWebRTCStream() {
 
       // Escuchar el track de video/audio que llega del emisor
       pcViewer.ontrack = (event) => {
-        if (event.receiver) {
-          try {
-            if ((event.receiver as any).playoutDelayHint !== undefined) {
-              ;(event.receiver as any).playoutDelayHint = 0
-            }
-            if ((event.receiver as any).jitterBufferTarget !== undefined) {
-              ;(event.receiver as any).jitterBufferTarget = 0
-            }
-          } catch {}
+        console.log('[WebRTC Viewer] Track entrante recibido:', event.track.kind, event.track.id, 'muted:', event.track.muted)
+        
+        const stream = event.streams?.[0] || remoteStreamInstance || new MediaStream()
+        remoteStreamInstance = stream
+
+        if (!stream.getTracks().some((t) => t.id === event.track.id)) {
+          stream.addTrack(event.track)
         }
-        if (event.streams && event.streams[0]) {
-          streamRemoto.value = event.streams[0]
-        } else if (event.track) {
-          if (!streamRemoto.value) {
-            streamRemoto.value = new MediaStream()
-          }
-          if (!streamRemoto.value.getTracks().some((t) => t.id === event.track.id)) {
-            streamRemoto.value.addTrack(event.track)
-          }
-        }
+        event.track.enabled = true
+
+        streamRemoto.value = stream
         cargandoConexion.value = false
         conectadoComoEspectador.value = true
+
+        event.track.onunmute = () => {
+          console.log('[WebRTC Viewer] Track desenmudecido (paquetes RTP recibidos):', event.track.kind)
+          event.track.enabled = true
+          if (remoteStreamInstance) {
+            streamRemoto.value = remoteStreamInstance
+          }
+        }
+      }
+
+      pcViewer.onconnectionstatechange = () => {
+        console.log('[WebRTC Viewer] ConnectionState:', pcViewer?.connectionState)
+        if (pcViewer?.connectionState === 'connected') {
+          cargandoConexion.value = false
+          conectadoComoEspectador.value = true
+          errorStreaming.value = null
+        } else if (pcViewer?.connectionState === 'failed') {
+          errorStreaming.value = 'Conexión interrumpida con la cámara de la mesa. Reintentando...'
+        }
       }
 
       pcViewer.oniceconnectionstatechange = () => {
+        console.log('[WebRTC Viewer] IceConnectionState:', pcViewer?.iceConnectionState)
         if (pcViewer && (pcViewer.iceConnectionState === 'connected' || pcViewer.iceConnectionState === 'completed')) {
           cargandoConexion.value = false
           conectadoComoEspectador.value = true
@@ -872,35 +1017,41 @@ export function useWebRTCStream() {
       let ofertaRespondida = false
       let answerPublicada = false
 
-      // Enviar candidatos ICE del espectador
+      // Enviar candidatos ICE del espectador expandiendo variantes directas de localhost/LAN
       pcViewer.onicecandidate = (event) => {
         if (event.candidate && event.candidate.candidate && currentPartidoId && currentViewerId) {
-          viewerCandidates.push(event.candidate.toJSON())
+          const expandidos = expandirCandidatosIce(event.candidate.toJSON())
+          expandidos.forEach((c) => viewerCandidates.push(c))
           if (answerPublicada) {
             if (updateViewerCandidatesTimeout) clearTimeout(updateViewerCandidatesTimeout)
             updateViewerCandidatesTimeout = setTimeout(() => {
               const pRef = doc(db, 'partidos', currentPartidoId, 'stream_peers', currentViewerId)
-              updateDoc(pRef, { viewerCandidates }).catch(() => {})
-            }, 150)
+              setDoc(pRef, { viewerCandidates }, { merge: true }).catch(() => {})
+            }, 80)
           }
         }
       }
 
-      // Procesar candidatos del emisor con control de buffer
+      // Procesar candidatos del emisor con control de buffer y expansión de IPs locales
       const procesarCandidatosEmisor = async (candidates: RTCIceCandidateInit[]) => {
         if (!pcViewer || !pcViewer.remoteDescription) {
           candidatosEmisorEnEspera.push(...candidates)
           return
         }
 
-        for (const cand of candidates) {
-          if (!cand || !cand.candidate) continue
-          const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
-          if (!candidatosEmisorProcesados.has(key)) {
-            candidatosEmisorProcesados.add(key)
-            try {
-              await pcViewer.addIceCandidate(new RTCIceCandidate(cand))
-            } catch (e) {}
+        for (const rawCand of candidates) {
+          if (!rawCand || !rawCand.candidate) continue
+          const variantes = expandirCandidatosIce(rawCand)
+          for (const cand of variantes) {
+            if (!cand || !cand.candidate) continue
+            const key = `${cand.candidate}_${cand.sdpMid}_${cand.sdpMLineIndex}`
+            if (!candidatosEmisorProcesados.has(key)) {
+              candidatosEmisorProcesados.add(key)
+              try {
+                await pcViewer.addIceCandidate(new RTCIceCandidate(cand))
+                console.log('[WebRTC Viewer] ICE Candidate del emisor agregado:', cand.candidate.slice(0, 60))
+              } catch (e) {}
+            }
           }
         }
       }
@@ -928,24 +1079,34 @@ export function useWebRTCStream() {
         if (data.offer && !ofertaRespondida && pcViewer) {
           ofertaRespondida = true
           try {
+            console.log('[WebRTC Viewer] Recibida oferta SDP del emisor. Estableciendo descripción remota...')
             await pcViewer.setRemoteDescription(new RTCSessionDescription(data.offer))
             const answer = await pcViewer.createAnswer()
             await pcViewer.setLocalDescription(answer)
+            // Esperar recolección ICE para que los candidatos estén ya incrustados en la respuesta SDP
+            await esperarRecoleccionIce(pcViewer, 500)
 
-            await updateDoc(peerRef, {
-              answer: {
-                type: answer.type,
-                sdp: answer.sdp,
+            console.log('[WebRTC Viewer] Respuesta SDP generada, candidatos incrustados:', pcViewer.localDescription?.sdp.includes('a=candidate'))
+
+            await setDoc(
+              peerRef,
+              {
+                answer: {
+                  type: answer.type,
+                  sdp: pcViewer.localDescription?.sdp || answer.sdp,
+                },
+                estado: 'conectado',
+                viewerCandidates,
               },
-              estado: 'conectado',
-              viewerCandidates,
-            })
+              { merge: true },
+            )
             answerPublicada = true
 
             // Procesar candidatos acumulados en espera
             if (candidatosEmisorEnEspera.length > 0) {
-              await procesarCandidatosEmisor(candidatosEmisorEnEspera)
+              const copia = [...candidatosEmisorEnEspera]
               candidatosEmisorEnEspera = []
+              await procesarCandidatosEmisor(copia)
             }
           } catch (err) {
             console.error('Error al responder oferta SDP como espectador:', err)

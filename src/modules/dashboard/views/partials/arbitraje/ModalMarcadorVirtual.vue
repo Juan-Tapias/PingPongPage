@@ -41,15 +41,21 @@
             </div>
 
             <div class="flex items-center gap-2">
-              <!-- Botón Transmitir en Vivo -->
+              <!-- Estado y Código de Cámara de Mesa (Trípode) -->
               <button
                 type="button"
-                class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-[11px] sm:text-xs font-black shadow-md transition-all cursor-pointer border border-rose-400/50"
-                title="Transmitir este partido en vivo con tu cámara"
-                @click="handleIniciarTransmision"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-black shadow-md transition-all cursor-pointer border select-none"
+                :class="camaraTransmitiendo ? 'bg-rose-950/80 hover:bg-rose-900 border-rose-500/60 text-rose-200' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'"
+                title="Toca para ver el código de vinculación para el celular en trípode"
+                @click="mostrarModalCodigoCamara = true"
               >
-                <Radio class="w-3.5 h-3.5 animate-pulse" />
-                <span>Transmitir</span>
+                <Radio class="w-3.5 h-3.5" :class="camaraTransmitiendo ? 'text-rose-400 animate-pulse' : 'text-slate-400'" />
+                <span v-if="camaraTransmitiendo" class="flex items-center gap-1">
+                  🔴 En Vivo • Trípode
+                </span>
+                <span v-else class="flex items-center gap-1">
+                  📹 Trípode: <span class="font-mono text-amber-300 font-black ml-0.5 tracking-wider">{{ codigoCamaraActual }}</span>
+                </span>
               </button>
 
               <span class="text-[11px] font-bold bg-black/30 px-2.5 py-0.5 rounded-full text-sky-100 hidden sm:inline">
@@ -107,8 +113,7 @@
               <div class="w-full pt-1 flex items-center justify-center sm:justify-start">
                 <div v-if="ladoAEstaSacando"
                   class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-[10px] sm:text-xs font-black animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.3)]">
-                  <span>🏓</span>
-                  <span>AL SAQUE</span>
+                  <span>SAQUE</span>
                   <span class="text-[9px] sm:text-[10px] font-mono opacity-90">
                     {{ esDeuce ? '(1 de 1)' : `(${numeroSaqueTurno} de 2)` }}
                   </span>
@@ -296,8 +301,7 @@
               <div class="w-full pt-1 flex items-center justify-center sm:justify-start">
                 <div v-if="ladoBEstaSacando"
                   class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-[10px] sm:text-xs font-black animate-pulse shadow-[0_0_12px_rgba(52,211,153,0.3)]">
-                  <span>🏓</span>
-                  <span>AL SAQUE</span>
+                  <span>SAQUE</span>
                   <span class="text-[9px] sm:text-[10px] font-mono opacity-90">
                     {{ esDeuce ? '(1 de 1)' : `(${numeroSaqueTurno} de 2)` }}
                   </span>
@@ -622,6 +626,64 @@
       </div>
     </div>
   </Modal>
+
+  <!-- MODAL INFORMATIVO DE CÓDIGO DE CÁMARA PARA EL ÁRBITRO -->
+  <Modal
+    ref="modalCodigoCamaraRef"
+    :model-value="mostrarModalCodigoCamara"
+    title="Cámara de Mesa (Trípode)"
+    sub-title="Transmite este partido desde otro celular sin interrumpir tu arbitraje"
+    width="md"
+    :footer="false"
+    @update:model-value="mostrarModalCodigoCamara = $event"
+  >
+    <div class="space-y-4 py-2">
+      <div class="text-center p-4 rounded-2xl bg-slate-900 text-white border border-slate-800 space-y-2">
+        <p class="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+          Código de Vinculación para la Cámara
+        </p>
+        <div class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-black border-2 border-amber-500/40 shadow-inner">
+          <span class="font-mono font-black text-3xl sm:text-4xl text-amber-400 tracking-[0.3em]">
+            {{ codigoCamaraActual }}
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 max-w-xs mx-auto">
+          Coloca el otro teléfono en el trípode apuntando a la mesa, pulsa <strong>"Transmitir"</strong> y escribe este código.
+        </p>
+      </div>
+
+      <!-- Estado de la Cámara -->
+      <div
+        class="p-3 rounded-xl border flex items-center gap-3"
+        :class="camaraTransmitiendo ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200' : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'"
+      >
+        <span class="w-3 h-3 rounded-full shrink-0" :class="camaraTransmitiendo ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'"></span>
+        <div class="text-xs">
+          <p class="font-black">
+            {{ camaraTransmitiendo ? 'Cámara Conectada y Transmitiendo' : 'Esperando Conexión de Cámara' }}
+          </p>
+          <p class="text-[11px] opacity-80">
+            {{ camaraTransmitiendo ? 'El video de la mesa está saliendo en vivo a los espectadores con tu marcador.' : 'El partido se puede jugar normalmente mientras se conecta la cámara.' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+        <!-- Opción alternativa por si este mismo árbitro quisiera transmitir -->
+        <button
+          type="button"
+          class="text-[11px] text-slate-500 dark:text-slate-400 hover:text-rose-500 underline cursor-pointer"
+          @click="handleIniciarTransmisionDesdeEsteDispositivo"
+        >
+          Transmitir usando este mismo celular
+        </button>
+
+        <Button variant="ghost" size="sm" @click="mostrarModalCodigoCamara = false">
+          Entendido
+        </Button>
+      </div>
+    </div>
+  </Modal>
 </template>
 
 <script setup lang="ts">
@@ -644,6 +706,7 @@ import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
 import type { PartidoArbitrable, SetPartido, JugadorTorneo, MarcadorEnVivo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
+import { actualizarPartidoDB } from '@/services/torneoDatabaseService'
 
 const authStore = useAuthStore()
 
@@ -653,6 +716,12 @@ const props = defineProps<{
 
 const matchInterno = ref<PartidoArbitrable | null>(null)
 const matchActual = computed(() => matchInterno.value || props.match)
+
+// Estado de cámara de mesa (trípode)
+const mostrarModalCodigoCamara = ref(false)
+const modalCodigoCamaraRef = ref<InstanceType<typeof Modal> | null>(null)
+const codigoCamaraActual = computed(() => matchActual.value?.partido.codigoCamara || '----')
+const camaraTransmitiendo = computed(() => Boolean(matchActual.value?.partido.transmisionActiva))
 
 watch(
   () => props.match,
@@ -691,6 +760,11 @@ const handleIniciarTransmision = () => {
   if (matchActual.value) {
     emit('iniciar-transmision-marcador', matchActual.value)
   }
+}
+
+const handleIniciarTransmisionDesdeEsteDispositivo = () => {
+  mostrarModalCodigoCamara.value = false
+  handleIniciarTransmision()
 }
 
 const visible = ref(false)
@@ -1092,6 +1166,13 @@ const open = (partidoDirecto?: PartidoArbitrable) => {
   } else {
     ganadorBola.value = null
     mostrarDisputaBola.value = true
+  }
+
+  // Asegurar que el partido tenga su código de cámara de 4 dígitos generado
+  if (matchActual.value?.partido && !matchActual.value.partido.codigoCamara) {
+    const pin = Math.floor(1000 + Math.random() * 9000).toString()
+    matchActual.value.partido.codigoCamara = pin
+    actualizarPartidoDB(matchActual.value.partido.id, { codigoCamara: pin }).catch(() => {})
   }
 
   visible.value = true

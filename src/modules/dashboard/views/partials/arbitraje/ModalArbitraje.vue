@@ -439,7 +439,7 @@ import {
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
-import type { PartidoArbitrable, JugadorTorneo } from '@/types'
+import type { PartidoArbitrable, JugadorTorneo, PartidoGrupo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import { esFinDeSemana } from '@/services/torneoAlgoritmos'
 
@@ -491,6 +491,7 @@ const emit = defineEmits<{
     },
   ): void
   (e: 'cambiar-arbitro', jugador: JugadorTorneo): void
+  (e: 'abrir-vincular-camara', partido: PartidoGrupo): void
 }>()
 
 const modalRef = ref<InstanceType<typeof Modal> | null>(null)
@@ -535,7 +536,7 @@ const seleccionarPartido = (partido: PartidoArbitrable) => {
 
 const seleccionarPartidoParaTransmitir = (partido: PartidoArbitrable) => {
   close()
-  emit('iniciar-transmision', { partidoArbitrable: partido })
+  emit('abrir-vincular-camara', partido.partido)
 }
 
 const seleccionarPartidoParaWO = (partido: PartidoArbitrable) => {
@@ -553,7 +554,6 @@ const seleccionarPartidoParaWO = (partido: PartidoArbitrable) => {
 const limpiarError = () => {
   mensajeError.value = ''
 }
-
 
 const handleConfirmarInicio = () => {
   if (!partidoSeleccionado.value || validando.value) return
@@ -579,8 +579,8 @@ const handleConfirmarInicio = () => {
       validando.value = false
       if (resultado.valido) {
         mensajeError.value = ''
-        emit('iniciar-partido', { partidoArbitrable: match })
         close()
+        emit('iniciar-partido', { partidoArbitrable: match })
       } else {
         mensajeError.value = resultado.mensaje
       }

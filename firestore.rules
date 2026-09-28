@@ -66,6 +66,11 @@ service cloud.firestore {
         allow read, write: if true;
       }
 
+      // Subcolección para chat en tiempo real del stream
+      match /stream_chat/{chatId} {
+        allow read, write: if true;
+      }
+
       // Subcolección para reacciones en vivo
       match /reacciones/{reacId} {
         allow read, write: if true;
@@ -76,6 +81,12 @@ service cloud.firestore {
     match /tablas_posiciones/{tablaId} {
       allow read: if isAuthenticated();
       // Las posiciones pueden actualizarse como resultado de un partido
+      allow write: if isAuthenticated();
+    }
+
+    // Reglas para la colección 'biblioteca_videos' (Grabaciones, Repeticiones y Clips)
+    match /biblioteca_videos/{videoId} {
+      allow read: if true;
       allow write: if isAuthenticated();
     }
   }

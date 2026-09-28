@@ -26,7 +26,7 @@
           <div
             v-if="!modoMiniplayer"
             :class="[
-              'flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3.5 z-30 transition-all duration-300',
+              'flex items-center justify-between px-2.5 sm:px-5 py-2 sm:py-3.5 z-30 transition-all duration-300 gap-1.5',
               esPantallaCompleta
                 ? 'absolute top-0 inset-x-0 bg-gradient-to-b from-black/90 via-black/50 to-transparent'
                 : 'bg-slate-900/95 border-b border-slate-800/80',
@@ -34,45 +34,59 @@
             ]"
           >
             <!-- Badge En Vivo y Espectadores -->
-            <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div class="flex items-center gap-1.5 sm:gap-3 flex-wrap min-w-0">
               <span
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-xs"
+                class="flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-xs shrink-0"
               >
                 <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
                 En Vivo
               </span>
 
               <span
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/60"
+                class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/60 shrink-0"
               >
-                <Eye class="w-3.5 h-3.5 text-sky-400" />
-                <span>{{ totalEspectadoresReal }} {{ totalEspectadoresReal === 1 ? 'espectador' : 'espectadores' }}</span>
+                <Eye class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-400" />
+                <span>{{ totalEspectadoresReal }}</span>
+                <span class="hidden xs:inline"> {{ totalEspectadoresReal === 1 ? 'espectador' : 'espectadores' }}</span>
               </span>
 
               <!-- Duración de la llamada / transmisión (1 hora) -->
               <span
                 v-if="partido?.fechaInicioTransmision"
-                class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-mono font-bold text-amber-300 bg-amber-950/60 border border-amber-500/40"
+                class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono font-bold text-amber-300 bg-amber-950/60 border border-amber-500/40 shrink-0"
                 title="Límite máximo de llamada: 1 hora (60 minutos)"
               >
-                <Clock class="w-3.5 h-3.5 text-amber-400" />
-                <span>{{ tiempoTranscurridoViewer }} / 60:00</span>
+                <Clock class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+                <span>{{ tiempoTranscurridoViewer }}</span>
+                <span class="hidden sm:inline"> / 60:00</span>
               </span>
 
               <span
                 v-if="partido?.transmisorNombre"
-                class="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium"
+                class="hidden md:inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium"
               >
                 Árbitro: <strong class="text-white font-bold">{{ partido.transmisorNombre }}</strong>
               </span>
             </div>
 
             <!-- Botones de Navegación y Cierre -->
-            <div class="flex items-center gap-1.5 sm:gap-2">
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+              <!-- Botón Chat en Cabecera -->
+              <button
+                type="button"
+                class="p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all border"
+                :class="mostrarChat ? 'bg-white/20 text-white border-white/30 shadow-xs' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border-white/5'"
+                :title="mostrarChat ? 'Ocultar chat (c)' : 'Mostrar chat (c)'"
+                @click="alternarChat"
+              >
+                <MessageSquare class="w-3.5 h-3.5 text-white/90" />
+                <span class="hidden md:inline">Chat</span>
+              </button>
+
               <!-- Botón Minirreproductor en Cabecera -->
               <button
                 type="button"
-                class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                class="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                 title="Minirreproductor flotante (i)"
                 @click="alternarMiniplayer"
               >
@@ -88,7 +102,7 @@
               <button
                 v-if="esPantallaCompleta"
                 type="button"
-                class="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                class="p-1.5 sm:px-2.5 sm:py-1 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                 title="Salir de pantalla completa (f)"
                 @click="alternarPantallaCompleta"
               >
@@ -98,53 +112,61 @@
 
               <button
                 type="button"
-                class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
                 title="Cerrar transmisión"
                 @click="close"
               >
-                <X class="w-4 h-4" />
+                <X class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
 
-          <!-- ÁREA DE VIDEO PRINCIPAL (RESPONSIVE & FLOTANTE) -->
-          <div
-            ref="videoContainerRef"
-            :class="[
-              'relative w-full bg-black flex items-center justify-center overflow-hidden group select-none',
-              modoMiniplayer
-                ? 'aspect-video cursor-pointer'
-                : esPantallaCompleta
-                  ? 'flex-1 h-full'
-                  : 'aspect-video flex-1 sm:flex-initial'
-            ]"
-            @mousemove="resetearInactividad"
-            @touchstart="handleTouchVideo"
-            @dblclick="modoMiniplayer ? alternarMiniplayer() : alternarPantallaCompleta()"
-            @click="modoMiniplayer ? alternarMiniplayer() : undefined"
-          >
+          <!-- CONTENEDOR FLEX: VIDEO PRINCIPAL + CHAT LATERAL (DESKTOP) / INFERIOR (MÓVIL) -->
+          <div class="relative flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 w-full">
+            <!-- ÁREA DE VIDEO PRINCIPAL (RESPONSIVE & FLOTANTE) -->
+            <div
+              ref="videoContainerRef"
+              :class="[
+                'relative w-full bg-black flex items-center justify-center overflow-hidden group select-none min-h-0 min-w-0',
+                modoMiniplayer
+                  ? 'aspect-video cursor-pointer'
+                  : esPantallaCompleta
+                    ? 'flex-1 h-full'
+                    : 'w-full shrink-0 aspect-video max-h-[38vh] sm:max-h-[46vh] lg:max-h-none lg:aspect-auto lg:flex-1 lg:h-full'
+              ]"
+              @mousemove="resetearInactividad"
+              @touchstart="handleTouchVideo"
+              @dblclick="modoMiniplayer ? alternarMiniplayer() : alternarPantallaCompleta()"
+              @click="modoMiniplayer ? alternarMiniplayer() : undefined"
+            >
             <!-- Elemento de Video WebRTC Remoto -->
             <video
               ref="videoElementRef"
               autoplay
               playsinline
+              :muted="audioMuteado"
               :class="[
                 'w-full h-full transition-all duration-300',
                 ajusteVideo === 'contain' ? 'object-contain' : 'object-cover'
               ]"
+              @loadedmetadata="acoplarVideoRemoto"
+              @loadeddata="tieneVideoRecibido = true"
+              @canplay="tieneVideoRecibido = true; videoElementRef?.play().catch(() => {})"
+              @playing="tieneVideoRecibido = true"
+              @timeupdate="tieneVideoRecibido = true"
               @volumechange="handleVolumeChange"
             ></video>
 
             <!-- ESTADO DE CARGA / CONECTANDO -->
             <div
-              v-if="cargandoConexion && !streamRemoto"
-              class="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center gap-3 text-white z-10 p-4 text-center"
+              v-if="!tieneVideoRecibido"
+              class="absolute inset-0 bg-slate-950/90 backdrop-blur-xs flex flex-col items-center justify-center gap-3 text-white z-10 p-4 text-center pointer-events-none"
             >
               <div class="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin"></div>
-              <p class="text-xs sm:text-sm font-extrabold uppercase tracking-wide">
-                Conectando con la cámara de la mesa...
+              <p class="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-sky-400">
+                Sintonizando transmisión de la mesa...
               </p>
-              <span class="text-[11px] text-slate-400">Latencia ultra-baja WebRTC P2P</span>
+              <span class="text-[11px] text-slate-400">Conectando video y audio WebRTC en tiempo real</span>
             </div>
 
             <!-- ALERTA SI LA TRANSMISIÓN NO ESTÁ DISPONIBLE -->
@@ -161,16 +183,64 @@
               </span>
             </div>
 
-            <!-- OVERLAY DE AUDIO SILENCIADO (POLÍTICA AUTOPLAY DEL NAVEGADOR) -->
-            <button
-              v-if="audioSilenciadoPorNavegador && !modoMiniplayer"
-              type="button"
-              class="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-sky-500 hover:bg-sky-400 text-white font-extrabold text-xs shadow-2xl flex items-center gap-2 cursor-pointer transition-all animate-bounce"
-              @click.stop="activarAudioNativo"
+            <!-- BANNER FLOTANTE TÁCTIL PARA ACTIVAR AUDIO INICIAL (SOLO AUTOPLAY) -->
+            <Transition
+              enter-active-class="transition duration-300 ease-out"
+              enter-from-class="opacity-0 translate-y-3 scale-95"
+              enter-to-class="opacity-100 translate-y-0 scale-100"
+              leave-active-class="transition duration-200 ease-in"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 scale-95"
             >
-              <VolumeX class="w-4 h-4" />
-              <span>Toca aquí para activar el sonido 🔊</span>
-            </button>
+              <div
+                v-if="tieneVideoRecibido && audioMuteado && !modoMiniplayer && avisoAutoplaySonido"
+                class="absolute bottom-16 sm:bottom-20 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-slate-950/90 backdrop-blur-md text-white border border-white/20 shadow-2xl flex items-center gap-2 text-xs font-bold select-none pointer-events-auto animate-in fade-in"
+              >
+                <button
+                  type="button"
+                  class="flex items-center gap-2 hover:text-sky-300 cursor-pointer transition-colors"
+                  title="Toca para activar el sonido del partido"
+                  @click.stop="activarSonidoInicial"
+                >
+                  <Volume2 class="w-4 h-4 text-white/90" />
+                  <span>Activar sonido</span>
+                </button>
+                <button
+                  type="button"
+                  class="ml-1 text-white/50 hover:text-white p-0.5 cursor-pointer text-sm leading-none"
+                  title="Cerrar aviso"
+                  @click.stop="avisoAutoplaySonido = false"
+                >
+                  ×
+                </button>
+              </div>
+            </Transition>
+
+            <!-- AVISO FLOTANTE DE CAPTURA DE CLIP -->
+            <Transition
+              enter-active-class="transition duration-300 ease-out"
+              enter-from-class="opacity-0 -translate-y-2 scale-95"
+              enter-to-class="opacity-100 translate-y-0 scale-100"
+              leave-active-class="transition duration-200 ease-in"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 -translate-y-2 scale-95"
+            >
+              <div
+                v-if="feedbackClip"
+                class="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-3.5 py-2 rounded-full bg-slate-950/95 backdrop-blur-md border border-amber-500/40 text-white shadow-2xl text-xs font-bold flex items-center gap-2 pointer-events-auto"
+              >
+                <Film class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{{ feedbackClip }}</span>
+                <RouterLink
+                  v-if="feedbackClip.includes('guardado exitosamente')"
+                  to="/biblioteca"
+                  class="ml-1 px-2.5 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] transition-colors shadow-xs"
+                  @click="close"
+                >
+                  Ver en Biblioteca
+                </RouterLink>
+              </div>
+            </Transition>
 
             <!-- OVERLAY HOVER DEL MINIREPRODUCTOR (ESTILO YOUTUBE) -->
             <div
@@ -254,19 +324,19 @@
               >
                 <!-- Jugador 1 -->
                 <div
-                  class="flex items-center justify-between px-2.5 sm:px-3.5 py-1.5 border-b border-white/10 gap-3"
+                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 border-b border-white/10 gap-2 sm:gap-3"
                   :class="{ 'bg-emerald-500/20': Number(puntosJ1) > Number(puntosJ2) }"
                 >
-                  <div class="flex items-center gap-2 min-w-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                    <span v-if="servidorActual === 1" class="text-[11px]" title="Al Saque">🏓</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-28 sm:max-w-44">
+                    <span v-if="servidorActual === 1" class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
+                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
                       {{ partidoActivo.jugador1?.nombre || 'Jugador 1' }}
                     </span>
                   </div>
-                  <div class="flex items-center gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
                     <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ1 }})</span>
-                    <span class="px-2 py-0.5 rounded bg-white/10 text-white min-w-6 text-center">
+                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
                       {{ puntosJ1 }}
                     </span>
                   </div>
@@ -274,19 +344,19 @@
 
                 <!-- Jugador 2 -->
                 <div
-                  class="flex items-center justify-between px-2.5 sm:px-3.5 py-1.5 gap-3"
+                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 gap-2 sm:gap-3"
                   :class="{ 'bg-sky-500/20': Number(puntosJ2) > Number(puntosJ1) }"
                 >
-                  <div class="flex items-center gap-2 min-w-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
                     <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
-                    <span v-if="servidorActual === 2" class="text-[11px]" title="Al Saque">🏓</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-28 sm:max-w-44">
+                    <span v-if="servidorActual === 2" class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
+                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
                       {{ partidoActivo.jugador2?.nombre || 'Jugador 2' }}
                     </span>
                   </div>
-                  <div class="flex items-center gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
+                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
                     <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ2 }})</span>
-                    <span class="px-2 py-0.5 rounded bg-white/10 text-white min-w-6 text-center">
+                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
                       {{ puntosJ2 }}
                     </span>
                   </div>
@@ -294,14 +364,14 @@
               </div>
 
               <!-- Badge de Ronda / Estado / Mesa -->
-              <div class="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase text-white/90">
-                <span class="px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10 text-emerald-400 font-bold">
+              <div class="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-black uppercase text-white/90">
+                <span class="px-1.5 sm:px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10 text-emerald-400 font-bold">
                   {{ marcadorEnVivo?.setActual || 'Set 1' }}
                 </span>
-                <span class="px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
+                <span class="px-1.5 sm:px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
                   {{ marcadorEnVivo?.mesa || partidoActivo.mesa || 'Mesa 1' }}
                 </span>
-                <span class="px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
+                <span class="px-1.5 sm:px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
                   Ronda {{ partidoActivo.ronda || partidoActivo.jornada || 1 }}
                 </span>
               </div>
@@ -310,33 +380,52 @@
             <!-- CONTROLES FLOTANTES EN LA ESQUINA INFERIOR DERECHA (MODO NORMAL Y FULLSCREEN) -->
             <div
               v-if="!modoMiniplayer"
+              @click.stop
               :class="[
-                'absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/15 transition-all duration-300',
+                'absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-20 flex items-center gap-1 sm:gap-1.5 bg-black/75 backdrop-blur-xl p-1 sm:p-1.5 rounded-full border border-white/15 transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.7)] max-w-[calc(100vw-20px)]',
                 !mostrarControles && esPantallaCompleta ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
               ]"
             >
-              <!-- Silenciar / Activar Sonido -->
-              <button
-                type="button"
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
-                :title="audioMuteado ? 'Activar sonido (m)' : 'Silenciar sonido (m)'"
-                @click="alternarSonido"
-              >
-                <VolumeX v-if="audioMuteado" class="w-4 h-4 text-rose-400" />
-                <Volume2 v-else class="w-4 h-4 text-emerald-400" />
-              </button>
+              <!-- Control de Audio con Barra de Sonido Real Monocromática -->
+              <div class="group/vol flex items-center bg-white/10 hover:bg-white/15 rounded-full px-2 py-1 transition-all duration-200 border border-white/5">
+                <button
+                  type="button"
+                  class="text-white/80 hover:text-white transition-colors cursor-pointer flex items-center justify-center p-0.5"
+                  :title="audioMuteado || volumen === 0 ? 'Activar sonido (m)' : 'Silenciar sonido (m)'"
+                  @click.stop="alternarSonido"
+                >
+                  <VolumeX v-if="audioMuteado || volumen === 0" class="w-4 h-4 text-white/50" />
+                  <Volume1 v-else-if="volumen < 0.5" class="w-4 h-4 text-white/90" />
+                  <Volume2 v-else class="w-4 h-4 text-white/90" />
+                </button>
+
+                <!-- Barra deslizante de volumen horizontal -->
+                <div class="w-0 group-hover/vol:w-16 sm:w-16 transition-all duration-300 overflow-hidden flex items-center pl-1.5 pr-0.5">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    :value="audioMuteado ? 0 : volumen"
+                    class="w-full h-1 bg-white/20 hover:bg-white/30 rounded-full appearance-none cursor-pointer accent-white"
+                    title="Control de volumen"
+                    @input="handleCambiarVolumen(($event.target as HTMLInputElement).valueAsNumber)"
+                  />
+                </div>
+              </div>
 
               <!-- Ajustar al marco / Llenar pantalla (Fit/Fill) -->
               <button
                 type="button"
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                class="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full flex items-center justify-center transition-all cursor-pointer border"
+                :class="ajusteVideo === 'cover' ? 'bg-white/25 text-white border-white/30 shadow-xs' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border-white/5'"
                 :title="ajusteVideo === 'contain' ? 'Llenar pantalla' : 'Ajustar al marco'"
                 @click="alternarAjusteVideo"
               >
-                <svg v-if="ajusteVideo === 'contain'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-if="ajusteVideo === 'contain'" class="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                 </svg>
-                <svg v-else class="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-else class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect width="18" height="18" x="3" y="3" rx="2"/>
                   <path d="M9 3v18M15 3v18"/>
                 </svg>
@@ -345,11 +434,11 @@
               <!-- Minirreproductor Flotante en Página (Estilo YouTube) -->
               <button
                 type="button"
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                class="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/5"
                 title="Minirreproductor (i)"
                 @click="alternarMiniplayer"
               >
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="w-4 h-4 text-white/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="4" width="18" height="15" rx="2" />
                   <rect x="6" y="7" width="5" height="4" rx="0.5" fill="currentColor" fill-opacity="0.25" />
                   <line x1="12" y1="12" x2="16.5" y2="16.5" />
@@ -357,29 +446,64 @@
                 </svg>
               </button>
 
+              <!-- Capturar Clip de 15s para la Biblioteca -->
+              <button
+                type="button"
+                class="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-full flex items-center gap-1.5 transition-all cursor-pointer border text-xs font-bold shadow-xs select-none"
+                :class="estaGrabandoClip ? 'bg-rose-600 text-white border-rose-400 animate-pulse' : 'bg-white/10 hover:bg-white/20 text-white/90 hover:text-white border-white/5'"
+                :title="estaGrabandoClip ? 'Grabando clip... clic para terminar ahora' : 'Capturar clip de 15 segundos'"
+                @click="alternarCapturaClip"
+              >
+                <span v-if="estaGrabandoClip" class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                <Scissors v-else class="w-3.5 h-3.5 text-amber-400" />
+                <span v-if="estaGrabandoClip" class="font-mono text-[11px]">{{ segundosGrabadosClip }}s REC</span>
+                <span v-else class="hidden xs:inline">Clip</span>
+              </button>
+
               <!-- Picture-in-Picture Nativo Externo (PiP) -->
               <button
                 v-if="soportaPiP"
                 type="button"
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                class="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/5"
                 title="Ventana externa fuera del navegador (PiP)"
                 @click="alternarPiP"
               >
-                <PictureInPicture2 class="w-4 h-4 text-sky-400" />
+                <PictureInPicture2 class="w-4 h-4 text-white/90" />
+              </button>
+
+              <!-- Alternar Chat del Stream -->
+              <button
+                type="button"
+                class="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full flex items-center justify-center transition-all cursor-pointer border"
+                :class="mostrarChat ? 'bg-white/25 text-white border-white/30 shadow-xs' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border-white/5'"
+                :title="mostrarChat ? 'Ocultar chat del stream (c)' : 'Mostrar chat del stream (c)'"
+                @click="alternarChat"
+              >
+                <MessageSquare class="w-4 h-4" />
               </button>
 
               <!-- Pantalla Completa (Mobile & PC) -->
               <button
                 type="button"
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                class="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/5"
                 :title="esPantallaCompleta ? 'Salir de pantalla completa (f)' : 'Pantalla completa (f)'"
                 @click="alternarPantallaCompleta"
               >
-                <Maximize v-if="!esPantallaCompleta" class="w-4 h-4 text-white" />
-                <Minimize v-else class="w-4 h-4 text-white" />
+                <Maximize v-if="!esPantallaCompleta" class="w-4 h-4 text-white/90" />
+                <Minimize v-else class="w-4 h-4 text-white/90" />
               </button>
             </div>
           </div>
+
+          <!-- COMPONENTE DE CHAT EN VIVO ESTILO TWITCH -->
+          <ChatTransmisionEnVivo
+            v-if="mostrarChat && !modoMiniplayer"
+            :partido-id="partidoActivo?.id || (partidoActivo as any)?.partidoId || partido?.id || (partido as any)?.partidoId"
+            :partido="partidoActivo || partido"
+            :es-pantalla-completa="esPantallaCompleta"
+            @cerrar-chat="mostrarChat = false"
+          />
+        </div>
 
           <!-- BARRA INFERIOR DEL MINIREPRODUCTOR FLOTANTE -->
           <div
@@ -447,15 +571,22 @@ import {
   X,
   VideoOff,
   Volume2,
+  Volume1,
   VolumeX,
   PictureInPicture2,
   Maximize,
   Minimize,
   Clock,
+  MessageSquare,
+  Scissors,
+  Film,
 } from 'lucide-vue-next'
 import { doc, onSnapshot, type Unsubscribe } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import type { PartidoGrupo } from '@/types'
+import { RouterLink } from 'vue-router'
+import { useGrabadorClips } from '../composables/useGrabadorClips'
+import ChatTransmisionEnVivo from './ChatTransmisionEnVivo.vue'
 
 const props = defineProps<{
   partido: PartidoGrupo | null
@@ -472,10 +603,16 @@ const visible = ref(false)
 const modalContainerRef = ref<HTMLDivElement | null>(null)
 const videoContainerRef = ref<HTMLDivElement | null>(null)
 const videoElementRef = ref<HTMLVideoElement | null>(null)
-const audioMuteado = ref(false)
-const audioSilenciadoPorNavegador = ref(false)
+const audioMuteado = ref(true)
+const volumen = ref(0.8)
+let ultimoVolumen = 0.8
 const esPantallaCompleta = ref(false)
 const modoMiniplayer = ref(false)
+const mostrarChat = ref(true)
+
+const alternarChat = () => {
+  mostrarChat.value = !mostrarChat.value
+}
 
 const contenedorModalClases = computed(() => {
   if (modoMiniplayer.value) {
@@ -494,10 +631,11 @@ const tarjetaModalClases = computed(() => {
   if (esPantallaCompleta.value) {
     return 'w-screen h-[100dvh] max-w-none max-h-none rounded-none border-none bg-black'
   }
-  return 'w-full max-w-5xl rounded-none sm:rounded-3xl border-0 sm:border border-slate-800 shadow-2xl h-[100dvh] sm:h-auto sm:max-h-[94dvh] bg-slate-950'
+  return `w-full ${mostrarChat.value ? 'max-w-6xl xl:max-w-7xl' : 'max-w-5xl'} rounded-none sm:rounded-2xl lg:rounded-3xl border-0 sm:border border-slate-800 shadow-2xl h-[100dvh] sm:h-[86vh] lg:h-[88vh] sm:max-h-[880px] bg-slate-950 flex flex-col transition-all duration-300 overflow-hidden`
 })
 
 const ajusteVideo = ref<'contain' | 'cover'>('contain')
+const tieneVideoRecibido = ref(false)
 const soportaPiP = ref(false)
 const mostrarControles = ref(true)
 let timeoutInactividad: any = null
@@ -516,9 +654,38 @@ const actualizarTiempoViewer = () => {
   }
 }
 
+let timerVerificacionReproduccion: any = null
+
 onMounted(() => {
   actualizarTiempoViewer()
   timerViewer = setInterval(actualizarTiempoViewer, 1000)
+
+  // Guardia de reproducción activa: asegura que si el stream tiene tracks, el video comience a reproducir
+  timerVerificacionReproduccion = setInterval(() => {
+    const el = videoElementRef.value
+    const stream = props.streamRemoto
+    if (!el || !stream || !visible.value) return
+
+    if (el.srcObject !== stream) {
+      el.srcObject = stream
+    }
+
+    if (stream.getTracks().length > 0) {
+      if (el.paused) {
+        el.play()
+          .then(() => {
+            tieneVideoRecibido.value = true
+          })
+          .catch(() => {})
+      }
+      if (el.videoWidth > 0 && el.videoHeight > 0) {
+        tieneVideoRecibido.value = true
+      }
+      if (el.currentTime > 0 || el.readyState >= 2) {
+        tieneVideoRecibido.value = true
+      }
+    }
+  }, 250)
 })
 
 onUnmounted(() => {
@@ -526,22 +693,76 @@ onUnmounted(() => {
     clearInterval(timerViewer)
     timerViewer = null
   }
+  if (timerVerificacionReproduccion) {
+    clearInterval(timerVerificacionReproduccion)
+    timerVerificacionReproduccion = null
+  }
 })
 
 // Función robusta para vincular y reproducir el stream remoto de video
 const acoplarVideoRemoto = () => {
-  if (videoElementRef.value && props.streamRemoto) {
-    if (videoElementRef.value.srcObject !== props.streamRemoto) {
-      videoElementRef.value.srcObject = props.streamRemoto
-    }
-    videoElementRef.value.play().catch(() => {
-      audioSilenciadoPorNavegador.value = true
-      if (videoElementRef.value) {
-        videoElementRef.value.muted = true
-        videoElementRef.value.play().catch(() => {})
-      }
-    })
+  const el = videoElementRef.value
+  const stream = props.streamRemoto
+  if (!el || !stream) return
+
+  // Asegurar que todas las pistas (video y audio) estén activas
+  stream.getTracks().forEach((t) => {
+    t.enabled = true
+  })
+
+  // Asignar el stream al elemento video siempre que difiera
+  if (el.srcObject !== stream) {
+    el.srcObject = stream
   }
+
+  // Escuchar si se añade una pista dinámicamente en este stream
+  stream.onaddtrack = (e) => {
+    console.log('[ModalTransmisionEnVivo] Pista agregada a stream remoto:', e.track.kind)
+    e.track.enabled = true
+    if (el.srcObject !== stream) {
+      el.srcObject = stream
+    }
+    el.play()
+      .then(() => {
+        tieneVideoRecibido.value = true
+      })
+      .catch(() => {})
+  }
+
+  // Escuchar cuando el track comience a recibir paquetes reales de red
+  stream.getTracks().forEach((track) => {
+    track.onunmute = () => {
+      console.log('[ModalTransmisionEnVivo] Pista desenmudecida, reproduciendo:', track.kind)
+      tieneVideoRecibido.value = true
+      el.play().catch(() => {})
+    }
+  })
+
+  el.muted = audioMuteado.value
+  el.volume = audioMuteado.value ? 0 : volumen.value
+
+  const intentarReproducir = () => {
+    const playPromise = el.play()
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          tieneVideoRecibido.value = true
+        })
+        .catch((err) => {
+          if (err.name === 'AbortError') return
+          console.warn('[ModalTransmisionEnVivo] Autoplay fallback:', err)
+          el.muted = true
+          audioMuteado.value = true
+          el.play()
+            .then(() => {
+              tieneVideoRecibido.value = true
+            })
+            .catch(() => {})
+        })
+    }
+  }
+
+  intentarReproducir()
 }
 
 // Vincular el MediaStream recibido a la etiqueta <video>
@@ -663,31 +884,58 @@ const puntosJ2 = computed(() => {
 
 const servidorActual = computed(() => marcadorEnVivo.value?.servidorActual || 1)
 
-const activarAudioNativo = () => {
-  if (videoElementRef.value) {
-    videoElementRef.value.muted = false
-    videoElementRef.value.volume = 1.0
-    audioMuteado.value = false
-    audioSilenciadoPorNavegador.value = false
-    videoElementRef.value.play().catch(() => {})
-  }
+const avisoAutoplaySonido = ref(true)
+
+const activarSonidoInicial = () => {
+  avisoAutoplaySonido.value = false
+  alternarSonido()
 }
 
 const alternarSonido = () => {
-  if (videoElementRef.value) {
-    videoElementRef.value.muted = !videoElementRef.value.muted
-    videoElementRef.value.volume = 1.0
-    audioMuteado.value = videoElementRef.value.muted
-    if (!videoElementRef.value.muted) {
-      audioSilenciadoPorNavegador.value = false
-      videoElementRef.value.play().catch(() => {})
-    }
+  avisoAutoplaySonido.value = false
+  const el = videoElementRef.value
+  if (!el) return
+
+  if (audioMuteado.value) {
+    audioMuteado.value = false
+    const targetVol = ultimoVolumen > 0.05 ? ultimoVolumen : 0.8
+    volumen.value = targetVol
+    el.muted = false
+    el.volume = targetVol
+    el.play().catch(() => {})
+  } else {
+    ultimoVolumen = volumen.value > 0.05 ? volumen.value : 0.8
+    audioMuteado.value = true
+    el.muted = true
+  }
+}
+
+const handleCambiarVolumen = (nuevoVol: number) => {
+  avisoAutoplaySonido.value = false
+  const clamped = Math.max(0, Math.min(1, nuevoVol))
+  volumen.value = clamped
+  const el = videoElementRef.value
+  if (!el) return
+
+  if (clamped <= 0) {
+    audioMuteado.value = true
+    el.muted = true
+    el.volume = 0
+  } else {
+    audioMuteado.value = false
+    el.muted = false
+    el.volume = clamped
+    ultimoVolumen = clamped
+    el.play().catch(() => {})
   }
 }
 
 const handleVolumeChange = () => {
   if (videoElementRef.value) {
     audioMuteado.value = videoElementRef.value.muted
+    if (!videoElementRef.value.muted) {
+      volumen.value = videoElementRef.value.volume
+    }
   }
 }
 
@@ -708,6 +956,63 @@ const alternarPiP = async () => {
   }
 }
 
+// Grabador de Clips en vivo para la Biblioteca
+const {
+  estaGrabando: estaGrabandoClip,
+  segundosGrabados: segundosGrabadosClip,
+  feedbackClip,
+  iniciarGrabacionClip,
+  detenerGrabacionClip,
+} = useGrabadorClips()
+
+const alternarCapturaClip = () => {
+  if (estaGrabandoClip.value) {
+    detenerGrabacionClip()
+    return
+  }
+
+  const stream =
+    props.streamRemoto ||
+    (videoElementRef.value?.srcObject as MediaStream) ||
+    ((videoElementRef.value as any)?.captureStream?.() as MediaStream)
+
+  if (!stream) {
+    return
+  }
+
+  const j1Nombre =
+    partidoActivo.value?.jugador1?.nombre ||
+    props.partido?.jugador1?.nombre ||
+    'Jugador 1'
+  const j2Nombre =
+    partidoActivo.value?.jugador2?.nombre ||
+    props.partido?.jugador2?.nombre ||
+    'Jugador 2'
+
+  iniciarGrabacionClip(
+    stream,
+    videoElementRef.value,
+    {
+      torneoId: (partidoActivo.value as any)?.torneoId || (props.partido as any)?.torneoId,
+      torneoNombre: (partidoActivo.value as any)?.torneoNombre || (props.partido as any)?.torneoNombre || 'Torneo Tenis de Mesa',
+      partidoId: partidoActivo.value?.id || props.partido?.id,
+      mesa: marcadorEnVivo.value?.mesa || partidoActivo.value?.mesa || props.partido?.mesa || 'Mesa 1',
+      jugador1: {
+        id: partidoActivo.value?.jugador1Id || props.partido?.jugador1Id || 'j1',
+        nombre: j1Nombre,
+      },
+      jugador2: {
+        id: partidoActivo.value?.jugador2Id || props.partido?.jugador2Id || 'j2',
+        nombre: j2Nombre,
+      },
+      marcadorMomento: `${puntosJ1.value} - ${puntosJ2.value}`,
+      titulo: `Clip Destacado: ${j1Nombre} vs ${j2Nombre}`,
+      tipo: 'mejor_jugada',
+    },
+    15,
+  )
+}
+
 const resetearInactividad = () => {
   mostrarControles.value = true
   if (timeoutInactividad) clearTimeout(timeoutInactividad)
@@ -720,9 +1025,6 @@ const resetearInactividad = () => {
 
 const handleTouchVideo = () => {
   resetearInactividad()
-  if (audioSilenciadoPorNavegador.value || audioMuteado.value) {
-    activarAudioNativo()
-  }
   const ahora = Date.now()
   if (ahora - ultimoToque < 320) {
     alternarPantallaCompleta()
@@ -850,6 +1152,9 @@ const handleKeydown = (e: KeyboardEvent) => {
   } else if (e.key === 'm' || e.key === 'M') {
     e.preventDefault()
     alternarSonido()
+  } else if (e.key === 'c' || e.key === 'C') {
+    e.preventDefault()
+    alternarChat()
   } else if (e.key === 'Escape') {
     if (esPantallaCompleta.value) {
       e.preventDefault()
@@ -875,12 +1180,12 @@ onUnmounted(() => {
 })
 
 const open = () => {
+  tieneVideoRecibido.value = false
   visible.value = true
   mostrarControles.value = true
   nextTick(() => {
     soportaPiP.value = 'pictureInPictureEnabled' in document
     acoplarVideoRemoto()
-    setTimeout(acoplarVideoRemoto, 200)
   })
 }
 
@@ -890,6 +1195,7 @@ const close = () => {
   }
   modoMiniplayer.value = false
   visible.value = false
+  tieneVideoRecibido.value = false
   emit('cerrar')
 }
 

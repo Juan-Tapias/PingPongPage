@@ -31,6 +31,16 @@
           <span class="hidden sm:inline">Panel Admin</span>
         </RouterLink>
 
+        <!-- Enlace a Biblioteca de Videos y Clips -->
+        <RouterLink
+          to="/biblioteca"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 transition-colors"
+          title="Biblioteca de Videos y Repeticiones"
+        >
+          <Film class="w-3.5 h-3.5 text-orange-500" />
+          <span class="hidden sm:inline">Biblioteca</span>
+        </RouterLink>
+
         <!-- Botón Especial de Modo Oscuro / Claro con Pelota Rebotando sobre la Mesa -->
         <ThemeTogglePingPong />
 
@@ -201,6 +211,7 @@ import {
   BookOpen,
   GraduationCap,
   Briefcase,
+  Film,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useReglamento } from '@/composables/useReglamento'

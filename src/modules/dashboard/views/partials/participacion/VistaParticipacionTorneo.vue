@@ -49,6 +49,18 @@
           <span>Arbitrar un partido</span>
         </Button>
 
+        <!-- Botón para que un celular en trípode vincule la cámara con el código -->
+        <Button
+          variant="outline"
+          size="sm"
+          class="gap-1.5 border-rose-500/60 dark:border-rose-500/50 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer font-bold w-full sm:w-auto justify-center shadow-xs"
+          title="Coloca este celular en un trípode para transmitir una mesa con código"
+          @click="handleAbrirVincularCamaraGeneral"
+        >
+          <Radio class="w-4 h-4 text-rose-600 dark:text-rose-400 animate-pulse" />
+          <span>Transmitir Mesa</span>
+        </Button>
+
         <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden w-full sm:w-auto">
           <button
             type="button"
@@ -240,70 +252,98 @@
     <!-- BANNER DE PARTIDO EN VIVO (VISOR Y GESTOR DE CÁMARA) -->
     <div
       v-if="partidoEnTransmisionActivo"
-      class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-950/90 via-slate-900 to-slate-900 border border-rose-500/50 shadow-xl text-white animate-in fade-in"
+      class="flex flex-col gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-950/90 via-slate-900 to-slate-900 border border-rose-500/50 shadow-xl text-white animate-in fade-in"
     >
-      <div class="flex items-center gap-3">
-        <div class="relative flex items-center justify-center">
-          <span class="w-10 h-10 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center text-rose-400">
-            <Radio class="w-5 h-5 animate-pulse" />
-          </span>
-          <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
-        </div>
-        <div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white">
-              🔴 Partido en Vivo
-            </span>
-            <span class="text-xs text-slate-400 font-mono">
-              Ronda {{ partidoEnTransmisionActivo.ronda || 1 }}
-            </span>
-            <span
-              v-if="esMiTransmision"
-              class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white animate-pulse"
-            >
-              📹 Tu Transmisión Activa
-            </span>
-          </div>
-          <h4 class="text-sm font-black text-white mt-0.5">
-            {{ partidoEnTransmisionActivo.jugador1?.nombre || 'Jugador 1' }} vs {{ partidoEnTransmisionActivo.jugador2?.nombre || 'Jugador 2' }}
-          </h4>
-        </div>
+      <!-- Selector de mesas si hay múltiples transmisiones activas simultáneamente -->
+      <div
+        v-if="partidosEnTransmisionActivos.length > 1"
+        class="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/10 no-scrollbar"
+      >
+        <span class="text-[10px] uppercase font-black tracking-wider text-rose-400 shrink-0 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+          Mesas en Vivo ({{ partidosEnTransmisionActivos.length }}):
+        </span>
+        <button
+          v-for="pActivo in partidosEnTransmisionActivos"
+          :key="pActivo.id"
+          type="button"
+          class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 border"
+          :class="partidoEnTransmisionActivo.id === pActivo.id
+            ? 'bg-rose-600 text-white border-rose-400 shadow-md scale-102'
+            : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60'"
+          @click="partidoSeleccionadoTransmisionId = pActivo.id"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+          <span>{{ pActivo.mesa || 'Mesa' }}</span>
+          <span class="text-[10px] opacity-80 font-normal">({{ pActivo.jugador1?.nombre?.split(' ')[0] || 'J1' }} vs {{ pActivo.jugador2?.nombre?.split(' ')[0] || 'J2' }})</span>
+        </button>
       </div>
 
-      <div class="flex items-center gap-2 w-full sm:w-auto">
-        <!-- Si el usuario actual es el emisor de la transmisión -->
-        <template v-if="esMiTransmision">
-          <Button
-            variant="emerald"
-            size="sm"
-            class="gap-2 cursor-pointer w-full sm:w-auto font-black shadow-md bg-emerald-600 hover:bg-emerald-500 active:scale-95"
-            @click="abrirOCrearMiCamaraTransmision"
-          >
-            <Radio class="w-3.5 h-3.5 animate-pulse" />
-            <span>Abrir Mi Cámara</span>
-          </Button>
+      <!-- Detalle del partido seleccionado -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="relative flex items-center justify-center">
+            <span class="w-10 h-10 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center text-rose-400">
+              <Radio class="w-5 h-5 animate-pulse" />
+            </span>
+            <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-rose-500 text-white">
+                🔴 {{ partidoEnTransmisionActivo.mesa || 'Mesa' }} en Vivo
+              </span>
+              <span class="text-xs text-slate-400 font-mono">
+                Ronda {{ partidoEnTransmisionActivo.ronda || 1 }}
+              </span>
+              <span
+                v-if="esMiTransmision"
+                class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-600 text-white animate-pulse"
+              >
+                📹 Tu Transmisión Activa
+              </span>
+            </div>
+            <h4 class="text-sm font-black text-white mt-0.5">
+              {{ partidoEnTransmisionActivo.jugador1?.nombre || 'Jugador 1' }} vs {{ partidoEnTransmisionActivo.jugador2?.nombre || 'Jugador 2' }}
+            </h4>
+          </div>
+        </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            class="gap-1.5 cursor-pointer w-full sm:w-auto font-bold border-rose-500/60 text-rose-400 hover:bg-rose-950/40"
-            @click="handleDetenerTransmision"
-          >
-            <span>Detener</span>
-          </Button>
-        </template>
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <!-- Si el usuario actual es el emisor de la transmisión -->
+          <template v-if="esMiTransmision">
+            <Button
+              variant="emerald"
+              size="sm"
+              class="gap-2 cursor-pointer w-full sm:w-auto font-black shadow-md bg-emerald-600 hover:bg-emerald-500 active:scale-95"
+              @click="abrirOCrearMiCamaraTransmision"
+            >
+              <Radio class="w-3.5 h-3.5 animate-pulse" />
+              <span>Abrir Mi Cámara</span>
+            </Button>
 
-        <!-- Si el usuario es un espectador -->
-        <Button
-          v-else
-          variant="danger"
-          size="sm"
-          class="gap-2 cursor-pointer w-full sm:w-auto font-black shadow-md bg-rose-600 hover:bg-rose-500 active:scale-95"
-          @click="sintonizarTransmision(partidoEnTransmisionActivo)"
-        >
-          <Play class="w-3.5 h-3.5 fill-current" />
-          <span>Sintonizar Partido</span>
-        </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              class="gap-1.5 cursor-pointer w-full sm:w-auto font-bold border-rose-500/60 text-rose-400 hover:bg-rose-950/40"
+              @click="handleDetenerTransmision"
+            >
+              <span>Detener</span>
+            </Button>
+          </template>
+
+          <!-- Si el usuario es un espectador -->
+          <Button
+            v-else
+            variant="danger"
+            size="sm"
+            class="gap-2 cursor-pointer w-full sm:w-auto font-black shadow-md bg-rose-600 hover:bg-rose-500 active:scale-95"
+            @click="sintonizarTransmision(partidoEnTransmisionActivo)"
+          >
+            <Play class="w-3.5 h-3.5 fill-current" />
+            <span>Sintonizar {{ partidoEnTransmisionActivo.mesa || 'Partido' }}</span>
+          </Button>
+        </div>
       </div>
     </div>
 
@@ -403,6 +443,7 @@
       @validar-codigos="handleValidarCodigos"
       @iniciar-partido="handleIniciarPartidoArbitrado"
       @iniciar-transmision="handleIniciarTransmisionArbitrado"
+      @abrir-vincular-camara="handleAbrirVincularCamara"
       @declarar-walkover="handleDeclararWalkover"
       @prorrogar-partido="handleProrrogarPartido"
     />
@@ -416,7 +457,7 @@
       @iniciar-transmision-marcador="handleIniciarTransmisionDesdeMarcador"
     />
 
-    <!-- MODAL DE TRANSMISIÓN DE CÁMARA (EMISOR: ADMIN / ÁRBITRO) -->
+    <!-- MODAL DE TRANSMISIÓN DE CÁMARA (EMISOR: ADMIN / ÁRBITRO / TRÍPODE) -->
     <ModalCamaraTransmision
       ref="modalCamaraTransmisionRef"
       :partido="partidoTransmitiendo"
@@ -443,6 +484,40 @@
       :cargando-conexion="cargandoConexion"
       @cerrar="handleCerrarEspectador"
     />
+
+    <!-- MODAL PARA VINCULAR CÁMARA DE TRÍPODE CON CÓDIGO -->
+    <ModalVincularCamara
+      ref="modalVincularCamaraRef"
+      :partidos-en-curso="partidosEnCursoTorneo"
+      @vincular-exito="handleCamaraVinculadaExito"
+    />
+
+    <!-- TOAST NOTIFICACIÓN ELEGANTE EN LUGAR DE ALERT NATIVO -->
+    <Transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-4 scale-95"
+      enter-to-class="opacity-100 translate-y-0 scale-100"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 -translate-y-4 scale-95"
+    >
+      <div
+        v-if="errorAlertaToast"
+        class="fixed top-5 left-1/2 -translate-x-1/2 z-[110] max-w-md w-[90%] px-4 py-3 rounded-2xl bg-slate-900/95 border border-rose-500/50 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 text-white text-xs select-none"
+      >
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 animate-ping"></span>
+          <p class="font-bold text-rose-200 truncate">{{ errorAlertaToast }}</p>
+        </div>
+        <button
+          type="button"
+          class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+          @click="errorAlertaToast = ''"
+        >
+          ✕
+        </button>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -460,6 +535,7 @@ import ModalArbitraje from '../arbitraje/ModalArbitraje.vue'
 import ModalMarcadorVirtual from '../arbitraje/ModalMarcadorVirtual.vue'
 import ModalCamaraTransmision from '@/modules/streaming/components/ModalCamaraTransmision.vue'
 import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmisionEnVivo.vue'
+import ModalVincularCamara from '@/modules/streaming/components/ModalVincularCamara.vue'
 import CardAvanceTorneo from './CardAvanceTorneo.vue'
 import CardInfoRival from './CardInfoRival.vue'
 import { useTorneoGrupo } from '@/modules/dashboard/composables/useTorneoGrupo'
@@ -633,9 +709,63 @@ const {
 
 const modalCamaraTransmisionRef = ref<InstanceType<typeof ModalCamaraTransmision> | null>(null)
 const modalTransmisionEnVivoRef = ref<InstanceType<typeof ModalTransmisionEnVivo> | null>(null)
+const modalVincularCamaraRef = ref<InstanceType<typeof ModalVincularCamara> | null>(null)
+
+const errorAlertaToast = ref('')
+let timerToast: any = null
+
+const mostrarAlertaElegante = (msj: string) => {
+  errorAlertaToast.value = msj
+  if (timerToast) clearTimeout(timerToast)
+  timerToast = setTimeout(() => {
+    errorAlertaToast.value = ''
+  }, 5000)
+}
 
 const partidoTransmitiendo = ref<PartidoGrupo | null>(null)
 const partidoSintonizado = ref<PartidoGrupo | null>(null)
+
+// Partidos en curso del torneo para vincular trípode
+const partidosEnCursoTorneo = computed(() => {
+  return partidos.value.filter((p) => p.estado === 'en_curso')
+})
+
+const handleAbrirVincularCamara = (partido?: PartidoGrupo) => {
+  modalVincularCamaraRef.value?.open(partido)
+}
+
+const handleAbrirVincularCamaraGeneral = () => {
+  modalVincularCamaraRef.value?.open()
+}
+
+const handleCamaraVinculadaExito = async (payload: { partido: PartidoGrupo; codigo: string }) => {
+  partidoTransmitiendo.value = payload.partido
+  const camNombre = 'Cámara ' + (payload.partido.mesa || 'Mesa')
+  const camId = 'cam_' + Date.now()
+
+  try {
+    const ok = await iniciarTransmision(
+      payload.partido.id,
+      {
+        id: camId,
+        nombre: camNombre,
+      },
+      'environment',
+      { ...payload.partido, torneoId: props.torneo.id },
+    )
+
+    if (ok) {
+      await nextTick()
+      modalCamaraTransmisionRef.value?.open()
+    } else {
+      const msj = errorStreaming.value || 'No se pudo acceder a la cámara o micrófono. Permite los permisos del navegador e inténtalo de nuevo.'
+      mostrarAlertaElegante(`Transmisión: ${msj}`)
+    }
+  } catch (err: any) {
+    console.error('Error al iniciar transmisión como cámara de mesa:', err)
+    mostrarAlertaElegante(`Error al iniciar cámara: ${err?.message || 'Permiso denegado'}`)
+  }
+}
 
 // Mantener reactivo el partido en transmisión cuando cambian los puntos o sets
 watch(
@@ -655,23 +785,40 @@ const abrirModalTransmisionDirecta = () => {
   abrirModalArbitraje()
 }
 
-// Identificar si algún partido del torneo está transmitiéndose en vivo
-const partidoEnTransmisionActivo = computed(() => {
-  if (transmitiendo.value && partidoTransmitiendo.value) {
-    return partidoTransmitiendo.value
-  }
+// Identificar todos los partidos del torneo que están transmitiéndose en vivo simultáneamente
+const partidoSeleccionadoTransmisionId = ref<string | null>(null)
+
+const partidosEnTransmisionActivos = computed<PartidoGrupo[]>(() => {
   const ahora = Date.now()
-  return (
-    partidos.value.find((p) => {
-      if ((!p.transmisionActiva && !p.enVivo) || p.estado === 'jugado') return false
-      const rawSenal = p.ultimaSenalEnVivo as any
-      const ultimaSenal = typeof rawSenal === 'number'
-        ? rawSenal
-        : rawSenal?.toMillis ? rawSenal.toMillis() : 0
-      if (ultimaSenal && ahora - ultimaSenal > 300000) return false
-      return true
-    }) || null
-  )
+  const mapPartidos = new Map<string, PartidoGrupo>()
+
+  // Si el usuario actual está transmitiendo, incluir su partido primero
+  if (transmitiendo.value && partidoTransmitiendo.value) {
+    mapPartidos.set(partidoTransmitiendo.value.id, partidoTransmitiendo.value)
+  }
+
+  partidos.value.forEach((p) => {
+    if ((!p.transmisionActiva && !p.enVivo) || p.estado === 'jugado') return
+    const rawSenal = p.ultimaSenalEnVivo as any
+    const ultimaSenal = typeof rawSenal === 'number'
+      ? rawSenal
+      : rawSenal?.toMillis ? rawSenal.toMillis() : 0
+    if (ultimaSenal && ahora - ultimaSenal > 300000) return
+    if (!mapPartidos.has(p.id)) {
+      mapPartidos.set(p.id, p)
+    }
+  })
+
+  return Array.from(mapPartidos.values())
+})
+
+// Partido activo enfocado en el banner
+const partidoEnTransmisionActivo = computed<PartidoGrupo | null>(() => {
+  if (partidoSeleccionadoTransmisionId.value) {
+    const encontrado = partidosEnTransmisionActivos.value.find((p) => p.id === partidoSeleccionadoTransmisionId.value)
+    if (encontrado) return encontrado
+  }
+  return partidosEnTransmisionActivos.value[0] || null
 })
 
 // Determina si el usuario actual es el autor/administrador de la transmisión activa
@@ -732,11 +879,11 @@ const handleIniciarTransmisionArbitrado = async (datos: { partidoArbitrable: Par
       modalCamaraTransmisionRef.value?.open()
     } else {
       const msj = errorStreaming.value || 'No se pudo acceder a la cámara o micrófono. Por favor permite los permisos del navegador e inténtalo de nuevo.'
-      alert(`⚠️ Transmisión: ${msj}`)
+      mostrarAlertaElegante(`Transmisión: ${msj}`)
     }
   } catch (err: any) {
     console.error('Error al iniciar transmisión:', err)
-    alert(`⚠️ Error al iniciar la cámara: ${err?.message || 'Permiso denegado o dispositivo ocupado.'}`)
+    mostrarAlertaElegante(`Error al iniciar la cámara: ${err?.message || 'Permiso denegado o dispositivo ocupado.'}`)
   }
 }
 
@@ -756,10 +903,10 @@ const handleIniciarTransmisionDesdeMarcador = async (match: PartidoArbitrable) =
       await nextTick()
       modalCamaraTransmisionRef.value?.open()
     } else {
-      alert(`⚠️ Transmisión: ${errorStreaming.value || 'No se pudo acceder a la cámara o micrófono.'}`)
+      mostrarAlertaElegante(`Transmisión: ${errorStreaming.value || 'No se pudo acceder a la cámara o micrófono.'}`)
     }
   } catch (err: any) {
-    alert(`⚠️ Error al iniciar cámara: ${err?.message || 'Permiso denegado'}`)
+    mostrarAlertaElegante(`Error al iniciar cámara: ${err?.message || 'Permiso denegado'}`)
   }
 }
 

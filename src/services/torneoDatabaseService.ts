@@ -10,10 +10,11 @@ import {
   orderBy,
   where,
   onSnapshot,
+  limit,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Torneo, EstadoTorneo, Usuario, FilaPosicionOficial, TablaPosicionesTorneo, MarcadorEnVivo } from '@/types'
+import type { Torneo, EstadoTorneo, Usuario, FilaPosicionOficial, TablaPosicionesTorneo, MarcadorEnVivo, PartidoGrupo } from '@/types'
 
 const COLECCION_TORNEOS = 'torneos'
 const COLECCION_PARTIDOS = 'partidos'
@@ -21,9 +22,29 @@ const COLECCION_INSCRIPCIONES = 'inscripciones'
 export const COLECCION_TABLAS_POSICIONES = 'tablas_posiciones'
 
 /**
- * Obtiene todos los torneos registrados en la base de datos
+ * Auxiliares de almacenamiento local seguro para contingencia ante caídas de red o cuota excedida
+ */
+const leerCacheLocal = <T>(clave: string): T | null => {
+  try {
+    const raw = localStorage.getItem(clave)
+    return raw ? (JSON.parse(raw) as T) : null
+  } catch {
+    return null
+  }
+}
+
+const guardarCacheLocal = (clave: string, valor: any): void => {
+  try {
+    localStorage.setItem(clave, JSON.stringify(valor))
+  } catch {}
+}
+
+/**
+ * Obtiene todos los torneos registrados en la base de datos con respaldo de caché local
  */
 export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
+  const torneosCache = leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
+
   try {
     const q = query(collection(db, COLECCION_TORNEOS), orderBy('fechaInicio', 'desc'))
     const querySnapshot = await getDocs(q)
@@ -31,7 +52,11 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
     querySnapshot.forEach((documento) => {
       torneos.push({ id: documento.id, ...documento.data() } as Torneo)
     })
-    return torneos
+    if (torneos.length > 0) {
+      guardarCacheLocal('spinapp_torneos_cache', torneos)
+      return torneos
+    }
+    return torneosCache.length > 0 ? torneosCache : torneos
   } catch {
     try {
       const snap = await getDocs(collection(db, COLECCION_TORNEOS))
@@ -39,42 +64,75 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
       snap.forEach((documento) => {
         torneos.push({ id: documento.id, ...documento.data() } as Torneo)
       })
-      return torneos
+      if (torneos.length > 0) {
+        guardarCacheLocal('spinapp_torneos_cache', torneos)
+        return torneos
+      }
+      return torneosCache
     } catch (e) {
-      console.warn('Base de datos inicial o sin torneos aún:', e)
-      return []
+      console.warn('Base de datos inaccesible o cuota de Firestore excedida, usando caché de torneos:', e)
+      return torneosCache
     }
   }
 }
 
 /**
- * Guarda un nuevo torneo creado en Firestore
+ * Guarda un nuevo torneo creado en Firestore y en caché local
  */
 export const guardarTorneoDB = async (torneo: Torneo): Promise<void> => {
-  const torneoRef = doc(db, COLECCION_TORNEOS, torneo.id)
-  await setDoc(torneoRef, torneo)
+  try {
+    const torneoRef = doc(db, COLECCION_TORNEOS, torneo.id)
+    await setDoc(torneoRef, torneo)
+  } catch (e) {
+    console.warn('Advertencia al guardar torneo en Firestore (posible cuota):', e)
+  }
+
+  const lista = leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
+  const idx = lista.findIndex((t) => t.id === torneo.id)
+  if (idx >= 0) lista[idx] = torneo
+  else lista.unshift(torneo)
+  guardarCacheLocal('spinapp_torneos_cache', lista)
 }
 
 /**
  * Actualiza el estado oficial de un torneo (por iniciar, en curso, finalizado)
  */
 export const actualizarEstadoTorneoDB = async (id: string, nuevoEstado: EstadoTorneo): Promise<void> => {
-  const torneoRef = doc(db, COLECCION_TORNEOS, id)
-  await updateDoc(torneoRef, { estado: nuevoEstado })
+  try {
+    const torneoRef = doc(db, COLECCION_TORNEOS, id)
+    await updateDoc(torneoRef, { estado: nuevoEstado })
+  } catch {}
+
+  const lista = leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
+  const t = lista.find((item) => item.id === id)
+  if (t) {
+    t.estado = nuevoEstado
+    guardarCacheLocal('spinapp_torneos_cache', lista)
+  }
 }
 
 /**
  * Elimina un torneo de la base de datos
  */
 export const eliminarTorneoDB = async (id: string): Promise<void> => {
-  const torneoRef = doc(db, COLECCION_TORNEOS, id)
-  await deleteDoc(torneoRef)
+  try {
+    const torneoRef = doc(db, COLECCION_TORNEOS, id)
+    await deleteDoc(torneoRef)
+  } catch {}
+
+  const lista = leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
+  guardarCacheLocal(
+    'spinapp_torneos_cache',
+    lista.filter((t) => t.id !== id),
+  )
 }
 
 /**
- * Obtiene las inscripciones de un torneo
+ * Obtiene las inscripciones de un torneo con respaldo de caché local
  */
 export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> => {
+  const inscripcionesCache = leerCacheLocal<any[]>(`spinapp_inscripciones_${torneoId}`) || []
+
   try {
     const q = query(collection(db, COLECCION_INSCRIPCIONES), where('torneoId', '==', torneoId))
     const snap = await getDocs(q)
@@ -82,15 +140,19 @@ export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> =
     snap.forEach((documento) => {
       inscripciones.push({ id: documento.id, ...documento.data() })
     })
-    return inscripciones
+    if (inscripciones.length > 0) {
+      guardarCacheLocal(`spinapp_inscripciones_${torneoId}`, inscripciones)
+      return inscripciones
+    }
+    return inscripcionesCache.length > 0 ? inscripcionesCache : inscripciones
   } catch (error) {
-    console.warn('Error al obtener inscripciones:', error)
-    return []
+    console.warn('Error al obtener inscripciones de Firestore (posible cuota):', error)
+    return inscripcionesCache
   }
 }
 
 /**
- * Guarda o actualiza la inscripción de un jugador a un torneo en Firestore
+ * Guarda o actualiza la inscripción de un jugador a un torneo en Firestore y en caché
  */
 export const guardarInscripcionDB = async (inscripcion: {
   id?: string
@@ -105,8 +167,22 @@ export const guardarInscripcionDB = async (inscripcion: {
   fechaInscripcion?: string
 }): Promise<void> => {
   const docId = inscripcion.id || `${inscripcion.torneoId}_${inscripcion.jugadorId}`
-  const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, docId)
-  await setDoc(inscripcionRef, { ...inscripcion, id: docId })
+  const payload = { ...inscripcion, id: docId }
+
+  try {
+    const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, docId)
+    await setDoc(inscripcionRef, payload)
+  } catch (e) {
+    console.warn('Error al guardar inscripción en Firestore (posible cuota):', e)
+  }
+
+  const lista = leerCacheLocal<any[]>(`spinapp_inscripciones_${inscripcion.torneoId}`) || []
+  const idx = lista.findIndex(
+    (i) => i.id === docId || (i.jugadorId === inscripcion.jugadorId && i.torneoId === inscripcion.torneoId),
+  )
+  if (idx >= 0) lista[idx] = payload
+  else lista.push(payload)
+  guardarCacheLocal(`spinapp_inscripciones_${inscripcion.torneoId}`, lista)
 }
 
 export const actualizarEstadoInscripcionDB = async (
@@ -153,6 +229,8 @@ export const ordenarPartidosNumerico = (partidos: any[]): any[] => {
 }
 
 export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
+  const cachePartidos = leerCacheLocal<any[]>(`spinapp_partidos_${torneoId}`) || []
+
   try {
     const q = query(collection(db, COLECCION_PARTIDOS), where('torneoId', '==', torneoId))
     const snap = await getDocs(q)
@@ -160,21 +238,32 @@ export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
     snap.forEach((documento) => {
       partidos.push({ id: documento.id, ...documento.data() })
     })
-    return ordenarPartidosNumerico(partidos)
+    if (partidos.length > 0) {
+      const ordenados = ordenarPartidosNumerico(partidos)
+      guardarCacheLocal(`spinapp_partidos_${torneoId}`, ordenados)
+      return ordenados
+    }
+    return cachePartidos.length > 0 ? cachePartidos : partidos
   } catch (error) {
-    console.warn('Error al obtener partidos:', error)
-    return []
+    console.warn('Error al obtener partidos de Firestore (posible cuota):', error)
+    return cachePartidos
   }
 }
 
 /**
- * Escucha en tiempo real los cambios en los partidos de un torneo
+ * Escucha en tiempo real los cambios en los partidos de un torneo con respaldo de caché
  */
 export const suscribirPartidosDB = (
   torneoId: string,
   onActualizar: (partidos: any[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe => {
+  // Emitir inmediatamente la caché local disponible si existe
+  const cachePartidos = leerCacheLocal<any[]>(`spinapp_partidos_${torneoId}`) || []
+  if (cachePartidos.length > 0) {
+    onActualizar(cachePartidos)
+  }
+
   const q = query(collection(db, COLECCION_PARTIDOS), where('torneoId', '==', torneoId))
   return onSnapshot(
     q,
@@ -183,10 +272,18 @@ export const suscribirPartidosDB = (
       snap.forEach((documento) => {
         partidos.push({ id: documento.id, ...documento.data() })
       })
-      onActualizar(ordenarPartidosNumerico(partidos))
+      const ordenados = ordenarPartidosNumerico(partidos)
+      if (ordenados.length > 0) {
+        guardarCacheLocal(`spinapp_partidos_${torneoId}`, ordenados)
+      }
+      onActualizar(ordenados)
     },
     (err) => {
-      console.warn('Error en listener en tiempo real de partidos:', err)
+      console.warn('Error en listener en tiempo real de partidos (posible cuota):', err)
+      const cached = leerCacheLocal<any[]>(`spinapp_partidos_${torneoId}`) || []
+      if (cached.length > 0) {
+        onActualizar(cached)
+      }
       onError?.(err)
     }
   )
@@ -197,14 +294,29 @@ export const suscribirPartidosDB = (
  */
 export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
   for (const partido of partidos) {
-    const pRef = doc(db, COLECCION_PARTIDOS, partido.id)
-    await setDoc(pRef, partido)
+    try {
+      const pRef = doc(db, COLECCION_PARTIDOS, partido.id)
+      await setDoc(pRef, partido)
+    } catch {}
+  }
+  if (partidos.length > 0 && partidos[0].torneoId) {
+    guardarCacheLocal(`spinapp_partidos_${partidos[0].torneoId}`, partidos)
   }
 }
 
 export const actualizarPartidoDB = async (partidoId: string, datos: any): Promise<void> => {
-  const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
-  await setDoc(pRef, datos, { merge: true })
+  try {
+    const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
+    await setDoc(pRef, datos, { merge: true })
+  } catch {}
+  if (datos.torneoId) {
+    const lista = leerCacheLocal<any[]>(`spinapp_partidos_${datos.torneoId}`) || []
+    const idx = lista.findIndex((p) => p.id === partidoId)
+    if (idx >= 0) {
+      lista[idx] = { ...lista[idx], ...datos }
+      guardarCacheLocal(`spinapp_partidos_${datos.torneoId}`, lista)
+    }
+  }
 }
 
 /**
@@ -665,4 +777,32 @@ export const obtenerEstadisticasJugadorDB = async (
   }
 
   return stats
+}
+
+/**
+ * Busca un partido activo o pendiente por su código numérico de 4 dígitos de cámara (para trípode)
+ */
+export const buscarPartidoPorCodigoCamaraDB = async (codigo: string): Promise<PartidoGrupo | null> => {
+  if (!codigo) return null
+  const codigoLimpio = String(codigo).trim()
+  try {
+    const q = query(
+      collection(db, COLECCION_PARTIDOS),
+      where('codigoCamara', '==', codigoLimpio),
+      limit(3),
+    )
+    const snap = await getDocs(q)
+    if (!snap.empty) {
+      // Priorizar partidos que estén en curso o pendientes (no jugados)
+      const partidoEnCurso = snap.docs.find((d) => d.data().estado !== 'jugado')
+      const docElegido = partidoEnCurso || snap.docs[0]
+      if (docElegido) {
+        return { id: docElegido.id, ...docElegido.data() } as PartidoGrupo
+      }
+    }
+    return null
+  } catch (err) {
+    console.error('Error al buscar partido por código de cámara:', err)
+    return null
+  }
 }

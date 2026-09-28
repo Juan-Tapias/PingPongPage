@@ -57,7 +57,7 @@
         <div class="space-y-2 text-xs">
           <div class="flex justify-between items-center gap-2">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span v-if="primerPartido.jugador1.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+              <span v-if="primerPartido.jugador1.estaSacando" class="text-[8px] px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
               <span class="font-medium text-slate-200 truncate">{{ primerPartido.jugador1.nombre }}</span>
               <span v-if="primerPartido.jugador1.setsGanados !== undefined && primerPartido.jugador1.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
                 ({{ primerPartido.jugador1.setsGanados }} set{{ primerPartido.jugador1.setsGanados > 1 ? 's' : '' }})
@@ -69,7 +69,7 @@
           </div>
           <div class="flex justify-between items-center gap-2">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span v-if="primerPartido.jugador2.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+              <span v-if="primerPartido.jugador2.estaSacando" class="text-[8px] px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
               <span class="font-medium text-slate-400 truncate">{{ primerPartido.jugador2.nombre }}</span>
               <span v-if="primerPartido.jugador2.setsGanados !== undefined && primerPartido.jugador2.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
                 ({{ primerPartido.jugador2.setsGanados }} set{{ primerPartido.jugador2.setsGanados > 1 ? 's' : '' }})
@@ -108,7 +108,7 @@
             @click="emit('iniciar-transmision-partido', primerPartido.partidoOriginal || primerPartido)"
           >
             <Radio class="w-3.5 h-3.5" />
-            <span>Transmitir esta Mesa con tu Cámara 📹</span>
+            <span>Transmitir Mesa con Trípode (Ingresar PIN) 📹</span>
           </button>
         </div>
       </div>
@@ -171,7 +171,7 @@
             <div class="space-y-2 text-xs">
               <div class="flex justify-between items-center gap-2">
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <span v-if="partido.jugador1.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+                  <span v-if="partido.jugador1.estaSacando" class="text-[8px] px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
                   <span class="font-medium text-slate-200 truncate">{{ partido.jugador1.nombre }}</span>
                   <span v-if="partido.jugador1.setsGanados !== undefined && partido.jugador1.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
                     ({{ partido.jugador1.setsGanados }} set{{ partido.jugador1.setsGanados > 1 ? 's' : '' }})
@@ -183,7 +183,7 @@
               </div>
               <div class="flex justify-between items-center gap-2">
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <span v-if="partido.jugador2.estaSacando" class="text-[11px]" title="Al Saque">🏓</span>
+                  <span v-if="partido.jugador2.estaSacando" class="text-[8px] px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
                   <span class="font-medium text-slate-400 truncate">{{ partido.jugador2.nombre }}</span>
                   <span v-if="partido.jugador2.setsGanados !== undefined && partido.jugador2.setsGanados > 0" class="text-[10px] font-bold text-emerald-400">
                     ({{ partido.jugador2.setsGanados }} set{{ partido.jugador2.setsGanados > 1 ? 's' : '' }})
@@ -223,7 +223,7 @@
               @click="emit('iniciar-transmision-partido', partido.partidoOriginal || partido)"
             >
               <Radio class="w-3.5 h-3.5" />
-              <span>Transmitir esta Mesa 📹</span>
+              <span>Transmitir Mesa (Ingresar PIN) 📹</span>
             </button>
           </div>
         </div>

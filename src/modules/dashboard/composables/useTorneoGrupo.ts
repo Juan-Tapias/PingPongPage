@@ -625,13 +625,9 @@ export function useTorneoGrupo(torneo: Torneo) {
       }
     }
 
-    // Códigos de emergencia/maestros (incluye ejemplos de placeholder UI y claves estándar)
-    const esMaestro1 = c1 === '00000' || c1 === '12345' || c1 === '58214' || c1 === '91042' || c1 === 'admin'
-    const esMaestro2 = c2 === '00000' || c2 === '12345' || c2 === '58214' || c2 === '91042' || c2 === 'admin'
-
-    const coincideDirecto = (pinsPosibles1.has(c1) || esMaestro1) && (pinsPosibles2.has(c2) || esMaestro2)
-    const coincideInverso = (pinsPosibles2.has(c1) || esMaestro1) && (pinsPosibles1.has(c2) || esMaestro2)
-    const bypassAdmin = Boolean(authStore.esAdmin)
+    const coincideDirecto = pinsPosibles1.has(c1) && pinsPosibles2.has(c2)
+    const coincideInverso = pinsPosibles2.has(c1) && pinsPosibles1.has(c2)
+    const bypassAdmin = Boolean(authStore.esAdmin || authStore.usuario?.rol === 'admin')
 
     console.log('Validando PINs para partido:', partido.id, {
       c1,
@@ -660,6 +656,7 @@ export function useTorneoGrupo(torneo: Torneo) {
 
       const pinParaGuardar1 = partido.codigoJugador1 || Array.from(pinsPosibles1)[0] || '12345'
       const pinParaGuardar2 = partido.codigoJugador2 || Array.from(pinsPosibles2)[0] || '12345'
+      const pinCamara = partido.codigoCamara || Math.floor(1000 + Math.random() * 9000).toString()
 
       try {
         await actualizarPartidoDB(partido.id, {
@@ -669,6 +666,7 @@ export function useTorneoGrupo(torneo: Torneo) {
           marcadorEnVivo: marcadorInicial,
           codigoJugador1: pinParaGuardar1,
           codigoJugador2: pinParaGuardar2,
+          codigoCamara: pinCamara,
         })
         
         // Actualizar localmente para la UI reactiva
@@ -678,6 +676,7 @@ export function useTorneoGrupo(torneo: Torneo) {
         partido.marcadorEnVivo = marcadorInicial
         partido.codigoJugador1 = pinParaGuardar1
         partido.codigoJugador2 = pinParaGuardar2
+        partido.codigoCamara = pinCamara
 
         return { valido: true, mensaje: 'Acceso autorizado. Abriendo marcador virtual...' }
       } catch (error) {
@@ -686,6 +685,7 @@ export function useTorneoGrupo(torneo: Torneo) {
         partido.arbitroActivoId = aId
         partido.mesa = mesaAsignada
         partido.marcadorEnVivo = marcadorInicial
+        partido.codigoCamara = pinCamara
         return { valido: true, mensaje: 'Accediendo en modo local al marcador virtual...' }
       }
     }
