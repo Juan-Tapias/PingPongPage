@@ -782,8 +782,6 @@ export function useWebRTCStream() {
           transmisorNombre: null,
         }
 
-        // Si el partido está marcado como 'en_curso' pero no se han disputado sets ni puntos,
-        // revertirlo a 'pendiente' para que no quede como partido zombi
         if (d && d.estado === 'en_curso' && (!d.sets || d.sets.length === 0)) {
           const m = d.marcadorEnVivo
           const sinPuntos =
@@ -794,6 +792,20 @@ export function useWebRTCStream() {
               Number(m.setsGanadosJ2 || 0) === 0)
           if (sinPuntos && !d.marcador) {
             payloadUpdate.estado = 'pendiente'
+            payloadUpdate.marcadorEnVivo = null
+          }
+        }
+
+        if (d) {
+          const tieneGanador = Boolean(d.jugadorGanadorId)
+          const tieneMarcadorFinal = Boolean(d.marcador && String(d.marcador).includes('-'))
+          const setsGanados1 = (d.sets || []).filter((s: any) => s.ganadorId && s.ganadorId === d.jugador1Id).length
+          const setsGanados2 = (d.sets || []).filter((s: any) => s.ganadorId && s.ganadorId === d.jugador2Id).length
+          const dosSetsGanados = setsGanados1 >= 2 || setsGanados2 >= 2
+
+          if (tieneGanador || tieneMarcadorFinal || dosSetsGanados) {
+            payloadUpdate.estado = 'jugado'
+            payloadUpdate.arbitroActivoId = null
             payloadUpdate.marcadorEnVivo = null
           }
         }

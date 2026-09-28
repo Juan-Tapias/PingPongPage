@@ -1055,6 +1055,19 @@ const sincronizarEstadoTransmisionEnFirestore = async () => {
   const p = props.partido
   if (!p?.id || !visible.value) return
 
+  if (
+    partidoTerminadoPorSets.value ||
+    p.estado === 'jugado' ||
+    partidoRealTime.value?.estado === 'jugado' ||
+    Boolean(partidoRealTime.value?.marcador && String(partidoRealTime.value.marcador).includes('-'))
+  ) {
+    if (syncBroadcastTimer) {
+      clearInterval(syncBroadcastTimer)
+      syncBroadcastTimer = null
+    }
+    return
+  }
+
   const ahora = Date.now()
   const payload: any = {
     estado: 'en_curso',
@@ -1440,6 +1453,10 @@ watch(
   ([terminado, esVisible]) => {
     if (terminado && esVisible && !finalizandoPorFinDePartido.value) {
       finalizandoPorFinDePartido.value = true
+      if (syncBroadcastTimer) {
+        clearInterval(syncBroadcastTimer)
+        syncBroadcastTimer = null
+      }
       cuentaRegresivaFin.value = 3
       if (timerCuentaFin) clearInterval(timerCuentaFin)
 
