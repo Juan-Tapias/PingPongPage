@@ -498,6 +498,8 @@ const partidosEnVivoParaBanner = computed<PartidoEnVivo[]>(() => {
         },
         transmisionActiva: transmisionViva || p.transmisionActiva === true,
         partidoOriginal: p,
+        historialSets: m?.historialSets || p.sets || [],
+        setsDetalle: m?.setsDetalle || p.marcadorDetallado || '',
       }
     })
 })

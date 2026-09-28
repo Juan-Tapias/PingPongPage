@@ -544,7 +544,20 @@ export function useTorneoGrupo(torneo: Torneo) {
     const partidosValidos = partidos.value.filter((p) => {
       const noJugado = p.estado !== 'jugado' && !p.marcador
       const noParticipa = !sonMismoJugador(p.jugador1Id, aId) && !sonMismoJugador(p.jugador2Id, aId)
-      const sinArbitroUOtorgadoAMi = !p.arbitroActivoId || sonMismoJugador(p.arbitroActivoId, aId)
+      // El partido sólo se bloquea si está activamente 'en_curso' con otro árbitro diferente
+      // Si el partido está 'pendiente' o inactivo, cualquier árbitro puede tomarlo
+      const esZombiOInactivo =
+        p.estado === 'en_curso' &&
+        !p.transmisionActiva &&
+        (!p.marcadorEnVivo?.actualizadoEn || Date.now() - p.marcadorEnVivo.actualizadoEn > 300000)
+
+      const sinArbitroUOtorgadoAMi =
+        Boolean(authStore.esAdmin) ||
+        p.estado !== 'en_curso' ||
+        esZombiOInactivo ||
+        !p.arbitroActivoId ||
+        sonMismoJugador(p.arbitroActivoId, aId)
+
       if (!noJugado || !noParticipa || !sinArbitroUOtorgadoAMi) return false
 
       return estanJugadoresLibresParaPartido(p, partidos.value)
@@ -721,7 +734,7 @@ export function useTorneoGrupo(torneo: Torneo) {
       marcador?: string
       marcadorDetallado?: string
       perdedorPorWId?: string
-      ganadorBolaId?: string
+      ganadorBolaId?: string | null
       motivoWO?: string
     },
   ) => {
@@ -760,7 +773,18 @@ export function useTorneoGrupo(torneo: Torneo) {
 
     // Persistir de forma inmediata en Firestore
     try {
+      const setsFormateados = (setsJugados || []).map((s) => ({
+        setNumero: Number(s.setNumero) || 1,
+        puntosJugador1: Number(s.puntosJugador1) || 0,
+        puntosJugador2: Number(s.puntosJugador2) || 0,
+        mallasJugador1: Number(s.mallasJugador1) || 0,
+        mallasJugador2: Number(s.mallasJugador2) || 0,
+        ganadorId: s.ganadorId || '',
+        ganadorBolaId: s.ganadorBolaId || null,
+      }))
+
       await actualizarPartidoDB(partidoId, {
+        torneoId: torneo?.id || (partido as any).torneoId,
         estado: 'jugado',
         marcadorEnVivo: null,
         enVivo: false,
@@ -774,24 +798,26 @@ export function useTorneoGrupo(torneo: Torneo) {
         marcador: marcadorResumen,
         marcadorDetallado,
         arbitroId: arbitroIdSeguro,
-        sets: setsJugados,
+        sets: setsFormateados,
         diasRestantes: 0,
         horasRestantes: 0,
-        esWalkover: datosExtra?.esWalkover || false,
+        esWalkover: Boolean(datosExtra?.esWalkover),
         perdedorPorWId: datosExtra?.perdedorPorWId || null,
         ganadorBolaId: datosExtra?.ganadorBolaId || null,
         motivoWO: datosExtra?.motivoWO || null,
       })
 
       // Calcular y persistir inmediatamente la tabla oficial de posiciones actualizada en Firestore
-      const tablaNueva = calcularTablaDesdePartidos(
-        jugadores.value,
-        partidos.value,
-        torneo?.clasificadosPlayoffs || 4,
-      )
-      await actualizarTablaPosicionesDB(torneo.id, tablaNueva)
+      if (torneo?.id) {
+        const tablaNueva = calcularTablaDesdePartidos(
+          jugadores.value,
+          partidos.value,
+          torneo?.clasificadosPlayoffs || 4,
+        )
+        await actualizarTablaPosicionesDB(torneo.id, tablaNueva)
+      }
     } catch (err) {
-      console.warn('Error al persistir resultado en base de datos:', err)
+      console.error('[useTorneoGrupo] Error al persistir resultado en base de datos:', err)
     }
   }
 

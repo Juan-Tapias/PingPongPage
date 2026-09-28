@@ -40,6 +40,33 @@ const guardarCacheLocal = (clave: string, valor: any): void => {
 }
 
 /**
+ * Limpia recursivamente objetos y arreglos para Firestore:
+ * - Reemplaza 'undefined' por 'null' para evitar errores fatales "Unsupported field value: undefined"
+ * - Maneja objetos anidados, arreglos de sets, y previene que setDoc falle silenciosamente
+ */
+export const sanearParaFirestore = <T = any>(obj: T): T => {
+  if (obj === undefined) return null as unknown as T
+  if (obj === null || typeof obj !== 'object') return obj
+  if (obj instanceof Date) return obj
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanearParaFirestore(item)) as unknown as T
+  }
+
+  const limpio: Record<string, any> = {}
+  for (const [key, value] of Object.entries(obj as Record<string, any>)) {
+    if (value === undefined) {
+      limpio[key] = null
+    } else if (typeof value === 'object' && value !== null) {
+      limpio[key] = sanearParaFirestore(value)
+    } else {
+      limpio[key] = value
+    }
+  }
+  return limpio as T
+}
+
+/**
  * Obtiene todos los torneos registrados en la base de datos con respaldo de caché local
  */
 export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
@@ -305,16 +332,21 @@ export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
 }
 
 export const actualizarPartidoDB = async (partidoId: string, datos: any): Promise<void> => {
+  const datosLimpios = sanearParaFirestore(datos)
   try {
     const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
-    await setDoc(pRef, datos, { merge: true })
-  } catch {}
-  if (datos.torneoId) {
-    const lista = leerCacheLocal<any[]>(`spinapp_partidos_${datos.torneoId}`) || []
+    await setDoc(pRef, datosLimpios, { merge: true })
+  } catch (err) {
+    console.error(`[actualizarPartidoDB] Error al persistir partido ${partidoId} en Firestore:`, err)
+  }
+
+  const torneoId = datosLimpios.torneoId || (typeof partidoId === 'string' && partidoId.startsWith('p-') ? partidoId.split('-')[1] : null)
+  if (torneoId) {
+    const lista = leerCacheLocal<any[]>(`spinapp_partidos_${torneoId}`) || []
     const idx = lista.findIndex((p) => p.id === partidoId)
     if (idx >= 0) {
-      lista[idx] = { ...lista[idx], ...datos }
-      guardarCacheLocal(`spinapp_partidos_${datos.torneoId}`, lista)
+      lista[idx] = { ...lista[idx], ...datosLimpios }
+      guardarCacheLocal(`spinapp_partidos_${torneoId}`, lista)
     }
   }
 }
@@ -349,15 +381,26 @@ export const actualizarMarcadorEnVivoDB = async (
       setsGanadosJ2: Number(marcadorEnVivo.setsGanadosJ2) || 0,
       mesa: String(marcadorEnVivo.mesa || 'Mesa 1'),
       servidorActual: Number(marcadorEnVivo.servidorActual) || 1,
+      finalizado: Boolean(marcadorEnVivo.finalizado),
+      ganadorId: marcadorEnVivo.ganadorId || null,
       actualizadoEn: Number(marcadorEnVivo.actualizadoEn) || Date.now(),
+      historialSets: marcadorEnVivo.historialSets ? sanearParaFirestore(marcadorEnVivo.historialSets) : [],
+      setsDetalle: marcadorEnVivo.setsDetalle || '',
+    }
+
+    const payloadPartido: Record<string, unknown> = {
+      marcadorEnVivo: marcadorLimpio,
+      mesa: marcadorLimpio.mesa,
+    }
+
+    if (marcadorEnVivo.historialSets && Array.isArray(marcadorEnVivo.historialSets) && marcadorEnVivo.historialSets.length > 0) {
+      payloadPartido.sets = sanearParaFirestore(marcadorEnVivo.historialSets)
+      payloadPartido.marcadorDetallado = marcadorEnVivo.historialSets.map((s: any) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
     }
 
     await setDoc(
       pRef,
-      {
-        marcadorEnVivo: marcadorLimpio,
-        mesa: marcadorLimpio.mesa,
-      },
+      sanearParaFirestore(payloadPartido),
       { merge: true },
     )
   } catch (error) {
@@ -491,6 +534,7 @@ export const limpiarPartidoZombiDB = async (partidoId: string): Promise<void> =>
       ultimaSenalEnVivo: 0,
       transmisorId: null,
       transmisorNombre: null,
+      arbitroActivoId: null,
     })
   } catch (err) {
     console.warn('Error al limpiar partido zombi en Firestore:', err)
@@ -571,18 +615,20 @@ export const guardarTablaPosicionesDB = async (
   totalPartidosJugados: number = 0,
 ): Promise<void> => {
   try {
+    const posicionesLimpias = sanearParaFirestore(posiciones)
     const tablaRef = doc(db, COLECCION_TABLAS_POSICIONES, torneoId)
     const payload: TablaPosicionesTorneo = {
       id: torneoId,
       torneoId,
       tipoFase: 'round_robin',
-      posiciones,
+      posiciones: posicionesLimpias,
       totalPartidosJugados,
       actualizadoEn: new Date().toISOString(),
     }
-    await setDoc(tablaRef, payload)
+    const payloadLimpio = sanearParaFirestore(payload)
+    await setDoc(tablaRef, payloadLimpio)
   } catch (error) {
-    console.warn('Error al guardar tabla de posiciones en la colección tablas_posiciones:', error)
+    console.error(`[guardarTablaPosicionesDB] Error al guardar tabla de posiciones en la colección tablas_posiciones (${torneoId}):`, error)
   }
 }
 

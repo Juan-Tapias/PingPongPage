@@ -26,11 +26,11 @@
           <div
             v-if="!modoMiniplayer"
             :class="[
-              'flex items-center justify-between px-2.5 sm:px-5 py-2 sm:py-3.5 z-30 transition-all duration-300 gap-1.5',
-              esPantallaCompleta
-                ? 'absolute top-0 inset-x-0 bg-gradient-to-b from-black/90 via-black/50 to-transparent'
+              'flex items-center justify-between px-2.5 sm:px-5 py-2 sm:py-3 z-40 transition-all duration-300 gap-1.5',
+              (esPantallaCompleta || esHorizontal)
+                ? 'absolute top-0 inset-x-0 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-auto'
                 : 'bg-slate-900/95 border-b border-slate-800/80',
-              !mostrarControles && esPantallaCompleta ? 'opacity-0 -translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
+              !mostrarControles && (esPantallaCompleta || esHorizontal) ? 'opacity-0 -translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
             ]"
           >
             <!-- Badge En Vivo y Espectadores -->
@@ -121,16 +121,16 @@
             </div>
           </div>
 
-          <!-- CONTENEDOR FLEX: VIDEO PRINCIPAL + CHAT LATERAL (DESKTOP) / INFERIOR (MÓVIL) -->
-          <div class="relative flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 w-full">
+          <!-- CONTENEDOR FLEX: VIDEO PRINCIPAL + CHAT LATERAL (DESKTOP / HORIZONTAL / FULLSCREEN) -->
+          <div :class="['relative flex-1 flex overflow-hidden min-h-0 w-full', (esPantallaCompleta || esHorizontal) ? 'flex-row items-stretch' : 'flex-col lg:flex-row']">
             <!-- ÁREA DE VIDEO PRINCIPAL (RESPONSIVE & FLOTANTE) -->
             <div
               ref="videoContainerRef"
               :class="[
-                'relative w-full bg-black flex items-center justify-center overflow-hidden group select-none min-h-0 min-w-0',
+                'relative bg-black flex items-center justify-center overflow-hidden group select-none min-h-0 min-w-0',
                 modoMiniplayer
                   ? 'aspect-video cursor-pointer'
-                  : esPantallaCompleta
+                  : (esPantallaCompleta || esHorizontal)
                     ? 'flex-1 h-full'
                     : 'w-full shrink-0 aspect-video max-h-[38vh] sm:max-h-[46vh] lg:max-h-none lg:aspect-auto lg:flex-1 lg:h-full'
               ]"
@@ -149,6 +149,9 @@
                 'w-full h-full transition-all duration-300',
                 ajusteVideo === 'contain' ? 'object-contain' : 'object-cover'
               ]"
+              :style="{
+                transform: rotacionVisor !== 0 ? `rotate(${rotacionVisor}deg)` : undefined
+              }"
               @loadedmetadata="acoplarVideoRemoto"
               @loadeddata="tieneVideoRecibido = true"
               @canplay="tieneVideoRecibido = true; videoElementRef?.play().catch(() => {})"
@@ -310,70 +313,91 @@
               <div class="h-1"></div>
             </div>
 
-            <!-- MARCADOR DEPORTIVO SUPERPUESTO (HUD OFICIAL ESTILO TV DEPORTIVA) -->
+            <!-- MARCADOR DEPORTIVO SUPERPUESTO (HUD OFICIAL BROADCAST TV ESTILO WTT/ITTF) -->
             <div
               v-if="partidoActivo && !modoMiniplayer"
-              :class="[
-                'absolute top-2 left-2 sm:top-4 sm:left-4 z-20 flex flex-col gap-1 transition-all duration-300 pointer-events-none drop-shadow-2xl max-w-[88%] sm:max-w-md',
-                esPantallaCompleta ? 'top-12 sm:top-14 scale-90 sm:scale-100 origin-top-left' : '',
-                !mostrarControles && esPantallaCompleta ? 'opacity-0 -translate-x-2' : 'opacity-100 translate-x-0'
-              ]"
+              class="absolute top-2 sm:top-3.5 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none select-none max-w-[96%] sm:max-w-xl transition-all duration-300 drop-shadow-2xl"
             >
+              <!-- Pestaña Superior: MESA 1 | SET 2 -->
               <div
-                class="bg-black/85 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden shadow-2xl text-white"
+                class="px-3 sm:px-4 py-0.5 rounded-t-lg bg-[#07101e]/95 backdrop-blur-md border-t-2 border-x-2 border-emerald-400/90 text-emerald-300 font-black text-[9px] sm:text-xs tracking-widest uppercase shadow-[0_0_15px_rgba(52,211,153,0.35)] flex items-center gap-1.5 -mb-px z-10"
               >
-                <!-- Jugador 1 -->
-                <div
-                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 border-b border-white/10 gap-2 sm:gap-3"
-                  :class="{ 'bg-emerald-500/20': Number(puntosJ1) > Number(puntosJ2) }"
-                >
-                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                    <span v-if="servidorActual === 1" class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
-                      {{ partidoActivo.jugador1?.nombre || 'Jugador 1' }}
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
-                    <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ1 }})</span>
-                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
-                      {{ puntosJ1 }}
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Jugador 2 -->
-                <div
-                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 gap-2 sm:gap-3"
-                  :class="{ 'bg-sky-500/20': Number(puntosJ2) > Number(puntosJ1) }"
-                >
-                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                    <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
-                    <span v-if="servidorActual === 2" class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
-                      {{ partidoActivo.jugador2?.nombre || 'Jugador 2' }}
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
-                    <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ2 }})</span>
-                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
-                      {{ puntosJ2 }}
-                    </span>
-                  </div>
-                </div>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{{ (marcadorEnVivo?.mesa || partidoActivo.mesa || 'Mesa 1').toUpperCase() }}</span>
+                <span class="text-emerald-500/60 font-mono">|</span>
+                <span class="text-amber-300 font-black">
+                  {{ (marcadorEnVivo?.setActual || (partidoActivo?.sets?.length ? `SET ${partidoActivo.sets.length}` : 'SET 1')).toUpperCase() }}
+                  <span v-if="setsGanadosJ1 > 0 || setsGanadosJ2 > 0" class="ml-1 text-slate-300 font-mono text-[9px] font-bold">
+                    ({{ setsGanadosJ1 }}-{{ setsGanadosJ2 }})
+                  </span>
+                </span>
               </div>
 
-              <!-- Badge de Ronda / Estado / Mesa -->
-              <div class="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-black uppercase text-white/90">
-                <span class="px-1.5 sm:px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10 text-emerald-400 font-bold">
-                  {{ marcadorEnVivo?.setActual || 'Set 1' }}
-                </span>
-                <span class="px-1.5 sm:px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
-                  {{ marcadorEnVivo?.mesa || partidoActivo.mesa || 'Mesa 1' }}
-                </span>
-                <span class="px-1.5 sm:px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs border border-white/10">
-                  Ronda {{ partidoActivo.ronda || partidoActivo.jornada || 1 }}
-                </span>
+              <!-- Cápsula Principal con borde Neón Verde/Esmeralda: Bandera + J1 + Score (11 - 09) + J2 + Bandera -->
+              <div
+                class="flex items-center gap-2 sm:gap-3.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-2xl bg-[#060d19]/90 backdrop-blur-md border-2 border-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.45)] text-white"
+              >
+                <!-- Lado Jugador 1 -->
+                <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <!-- Bandera Jugador 1 -->
+                  <div class="w-5 h-3.5 sm:w-6 sm:h-4 rounded-xs shadow-xs border border-white/25 shrink-0 overflow-hidden bg-slate-900 flex items-center justify-center">
+                    <svg class="w-full h-full" viewBox="0 0 640 480">
+                      <rect width="640" height="480" fill="#fe0000" />
+                      <rect width="320" height="240" fill="#000095" />
+                      <circle cx="160" cy="120" r="44" fill="#fff" />
+                      <circle cx="160" cy="120" r="32" fill="#000095" />
+                      <circle cx="160" cy="120" r="22" fill="#fff" />
+                    </svg>
+                  </div>
+
+                  <!-- Nombre Jugador 1 (ej: CHIH-YUAN L.) -->
+                  <span class="font-black text-[11px] sm:text-xs md:text-sm tracking-wider text-white uppercase truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[140px]">
+                    {{ formatearNombreHUD(partidoActivo.jugador1?.nombre) }}
+                  </span>
+
+                  <!-- Indicador Saque Jugador 1 -->
+                  <span
+                    v-if="servidorActual === 1"
+                    class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0 shadow-xs animate-pulse"
+                    title="Saque activo"
+                  >
+                    SAQUE
+                  </span>
+                </div>
+
+                <!-- Puntos Centrales: 11 - 09 -->
+                <div class="flex items-center gap-1 sm:gap-2 px-2 sm:px-2.5 py-0.5 rounded-lg bg-black/45 border border-white/10 shrink-0 font-mono font-black text-sm sm:text-lg md:text-xl text-amber-300 tracking-wider shadow-inner">
+                  <span class="min-w-[20px] sm:min-w-[26px] text-center">{{ puntosJ1Formateados }}</span>
+                  <span class="text-white/60 font-sans text-xs sm:text-sm font-bold">-</span>
+                  <span class="min-w-[20px] sm:min-w-[26px] text-center">{{ puntosJ2Formateados }}</span>
+                </div>
+
+                <!-- Lado Jugador 2 -->
+                <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <!-- Indicador Saque Jugador 2 -->
+                  <span
+                    v-if="servidorActual === 2"
+                    class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0 shadow-xs animate-pulse"
+                    title="Saque activo"
+                  >
+                    SAQUE
+                  </span>
+
+                  <!-- Nombre Jugador 2 (ej: MARIA G.) -->
+                  <span class="font-black text-[11px] sm:text-xs md:text-sm tracking-wider text-white uppercase truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[140px]">
+                    {{ formatearNombreHUD(partidoActivo.jugador2?.nombre) }}
+                  </span>
+
+                  <!-- Bandera Jugador 2 -->
+                  <div class="w-5 h-3.5 sm:w-6 sm:h-4 rounded-xs shadow-xs border border-white/25 shrink-0 overflow-hidden bg-slate-900 flex items-center justify-center">
+                    <svg class="w-full h-full" viewBox="0 0 640 480">
+                      <rect width="640" height="160" fill="#74ACDF" />
+                      <rect y="160" width="640" height="160" fill="#FFFFFF" />
+                      <rect y="320" width="640" height="160" fill="#74ACDF" />
+                      <circle cx="320" cy="240" r="30" fill="#F6B40E" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -383,7 +407,7 @@
               @click.stop
               :class="[
                 'absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-20 flex items-center gap-1 sm:gap-1.5 bg-black/75 backdrop-blur-xl p-1 sm:p-1.5 rounded-full border border-white/15 transition-all duration-300 shadow-[0_8px_30px_rgba(0,0,0,0.7)] max-w-[calc(100vw-20px)]',
-                !mostrarControles && esPantallaCompleta ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
+                !mostrarControles && (esPantallaCompleta || esHorizontal) ? 'opacity-0 translate-y-2 pointer-events-none' : 'opacity-100 translate-y-0'
               ]"
             >
               <!-- Control de Audio con Barra de Sonido Real Monocromática -->
@@ -471,6 +495,28 @@
                 <PictureInPicture2 class="w-4 h-4 text-white/90" />
               </button>
 
+              <!-- Alternar Ajuste de Escala (Rellenar / Ajustar) -->
+              <button
+                type="button"
+                class="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full flex items-center justify-center transition-all cursor-pointer border"
+                :class="ajusteVideo === 'cover' ? 'bg-amber-500/25 text-amber-300 border-amber-500/40 shadow-xs' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border-white/5'"
+                :title="ajusteVideo === 'cover' ? 'Ajustar a escala normal (contain)' : 'Expandir para rellenar pantalla (cover)'"
+                @click="ajusteVideo = ajusteVideo === 'contain' ? 'cover' : 'contain'"
+              >
+                <Expand class="w-4 h-4 text-white/90" />
+              </button>
+
+              <!-- Rotar Video Visor -->
+              <button
+                type="button"
+                class="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-full flex items-center justify-center transition-all cursor-pointer border"
+                :class="rotacionVisor !== 0 ? 'bg-amber-500/25 text-amber-300 border-amber-500/40 shadow-xs' : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border-white/5'"
+                :title="rotacionVisor === 0 ? 'Girar video 90°' : `Rotación: ${rotacionVisor}°`"
+                @click="rotacionVisor = ((rotacionVisor + 90) % 360) as any"
+              >
+                <RotateCw class="w-4 h-4 text-white/90" />
+              </button>
+
               <!-- Alternar Chat del Stream -->
               <button
                 type="button"
@@ -493,16 +539,37 @@
                 <Minimize v-else class="w-4 h-4 text-white/90" />
               </button>
             </div>
+
+            <!-- Botón flotante para reabrir chat en pantalla completa u horizontal cuando está oculto -->
+            <button
+              v-if="!mostrarChat && (esPantallaCompleta || esHorizontal) && !modoMiniplayer"
+              type="button"
+              class="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 shadow-xl text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+              title="Mostrar Live Chat (c)"
+              @click.stop="mostrarChat = true"
+            >
+              <MessageSquare class="w-3.5 h-3.5 text-sky-400" />
+              <span>Chat</span>
+            </button>
           </div>
 
           <!-- COMPONENTE DE CHAT EN VIVO ESTILO TWITCH -->
-          <ChatTransmisionEnVivo
+          <div
             v-if="mostrarChat && !modoMiniplayer"
-            :partido-id="partidoActivo?.id || (partidoActivo as any)?.partidoId || partido?.id || (partido as any)?.partidoId"
-            :partido="partidoActivo || partido"
-            :es-pantalla-completa="esPantallaCompleta"
-            @cerrar-chat="mostrarChat = false"
-          />
+            :class="[
+              (esPantallaCompleta || esHorizontal)
+                ? 'p-1.5 sm:p-2.5 shrink-0 h-full w-[265px] xs:w-[285px] sm:w-[315px] md:w-[340px] z-30'
+                : 'w-full lg:w-80 xl:w-96 flex-1 lg:flex-none h-full'
+            ]"
+          >
+            <ChatTransmisionEnVivo
+              :partido-id="partidoActivo?.id || (partidoActivo as any)?.partidoId || partido?.id || (partido as any)?.partidoId"
+              :partido="partidoActivo || partido"
+              :es-pantalla-completa="esPantallaCompleta"
+              :es-horizontal="esHorizontal"
+              @cerrar-chat="mostrarChat = false"
+            />
+          </div>
         </div>
 
           <!-- BARRA INFERIOR DEL MINIREPRODUCTOR FLOTANTE -->
@@ -580,6 +647,8 @@ import {
   MessageSquare,
   Scissors,
   Film,
+  Expand,
+  RotateCw,
 } from 'lucide-vue-next'
 import { doc, onSnapshot, type Unsubscribe } from 'firebase/firestore'
 import { db } from '@/services/firebase'
@@ -609,6 +678,32 @@ let ultimoVolumen = 0.8
 const esPantallaCompleta = ref(false)
 const modoMiniplayer = ref(false)
 const mostrarChat = ref(true)
+const esHorizontal = ref(false)
+
+const verificarOrientacion = () => {
+  if (typeof window === 'undefined') return
+  const w = window.innerWidth
+  const h = window.innerHeight
+  const esLandscape = w > h
+
+  let esLandscapeScreen = false
+  if (typeof screen !== 'undefined' && screen.orientation) {
+    esLandscapeScreen = screen.orientation.type ? screen.orientation.type.includes('landscape') : false
+  }
+
+  esHorizontal.value = esLandscape || esLandscapeScreen
+}
+
+const formatearNombreHUD = (nombre?: string): string => {
+  if (!nombre) return 'JUGADOR'
+  const partes = nombre.trim().split(/\s+/)
+  const p0 = partes[0] || 'JUGADOR'
+  const p1 = partes[1]
+  if (p1 && p1[0]) {
+    return `${p0.toUpperCase()} ${p1[0].toUpperCase()}.`
+  }
+  return p0.toUpperCase()
+}
 
 const alternarChat = () => {
   mostrarChat.value = !mostrarChat.value
@@ -618,7 +713,7 @@ const contenedorModalClases = computed(() => {
   if (modoMiniplayer.value) {
     return 'pointer-events-none bg-transparent flex items-end justify-end p-3 sm:p-5'
   }
-  if (esPantallaCompleta.value) {
+  if (esPantallaCompleta.value || esHorizontal.value) {
     return 'p-0 bg-black w-screen h-[100dvh] overflow-hidden flex items-center justify-center'
   }
   return 'p-0 sm:p-4 bg-black/90 backdrop-blur-md overflow-hidden max-h-[100dvh] flex items-center justify-center'
@@ -628,13 +723,14 @@ const tarjetaModalClases = computed(() => {
   if (modoMiniplayer.value) {
     return 'pointer-events-auto w-[310px] sm:w-[390px] max-w-[calc(100vw-24px)] rounded-2xl bg-slate-950 border border-slate-700/80 shadow-[0_20px_60px_rgba(0,0,0,0.85)] ring-1 ring-white/10 group/mini animate-in fade-in slide-in-from-bottom-6'
   }
-  if (esPantallaCompleta.value) {
+  if (esPantallaCompleta.value || esHorizontal.value) {
     return 'w-screen h-[100dvh] max-w-none max-h-none rounded-none border-none bg-black'
   }
   return `w-full ${mostrarChat.value ? 'max-w-6xl xl:max-w-7xl' : 'max-w-5xl'} rounded-none sm:rounded-2xl lg:rounded-3xl border-0 sm:border border-slate-800 shadow-2xl h-[100dvh] sm:h-[86vh] lg:h-[88vh] sm:max-h-[880px] bg-slate-950 flex flex-col transition-all duration-300 overflow-hidden`
 })
 
 const ajusteVideo = ref<'contain' | 'cover'>('contain')
+const rotacionVisor = ref<0 | 90 | 180 | 270>(0)
 const tieneVideoRecibido = ref(false)
 const soportaPiP = ref(false)
 const mostrarControles = ref(true)
@@ -882,6 +978,16 @@ const puntosJ2 = computed(() => {
   return 0
 })
 
+const puntosJ1Formateados = computed(() => {
+  const pts = Number(puntosJ1.value) || 0
+  return pts < 10 ? `0${pts}` : `${pts}`
+})
+
+const puntosJ2Formateados = computed(() => {
+  const pts = Number(puntosJ2.value) || 0
+  return pts < 10 ? `0${pts}` : `${pts}`
+})
+
 const servidorActual = computed(() => marcadorEnVivo.value?.servidorActual || 1)
 
 const avisoAutoplaySonido = ref(true)
@@ -1016,7 +1122,7 @@ const alternarCapturaClip = () => {
 const resetearInactividad = () => {
   mostrarControles.value = true
   if (timeoutInactividad) clearTimeout(timeoutInactividad)
-  if (esPantallaCompleta.value) {
+  if (esPantallaCompleta.value || esHorizontal.value) {
     timeoutInactividad = setTimeout(() => {
       mostrarControles.value = false
     }, 3500)
@@ -1167,12 +1273,23 @@ const handleKeydown = (e: KeyboardEvent) => {
 }
 
 onMounted(() => {
+  verificarOrientacion()
+  window.addEventListener('resize', verificarOrientacion)
+  window.addEventListener('orientationchange', verificarOrientacion)
+  if (screen?.orientation?.addEventListener) {
+    screen.orientation.addEventListener('change', verificarOrientacion)
+  }
   document.addEventListener('fullscreenchange', handleFullscreenChange)
   document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
   window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', verificarOrientacion)
+  window.removeEventListener('orientationchange', verificarOrientacion)
+  if (screen?.orientation?.removeEventListener) {
+    screen.orientation.removeEventListener('change', verificarOrientacion)
+  }
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
   window.removeEventListener('keydown', handleKeydown)
@@ -1183,6 +1300,7 @@ const open = () => {
   tieneVideoRecibido.value = false
   visible.value = true
   mostrarControles.value = true
+  verificarOrientacion()
   nextTick(() => {
     soportaPiP.value = 'pictureInPictureEnabled' in document
     acoplarVideoRemoto()

@@ -664,13 +664,13 @@ const handlePartidoFinalizado = async (datos: {
   marcador?: string
   marcadorDetallado?: string
   perdedorPorWId?: string
-  ganadorBolaId?: string
+  ganadorBolaId?: string | null
 }) => {
   if (transmitiendo.value) {
     await detenerTransmision()
     modalCamaraTransmisionRef.value?.close()
   }
-  registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId, datos)
+  await registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId, datos)
 }
 
 const handleActualizarMarcadorEnVivo = async (datos: {

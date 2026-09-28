@@ -8,9 +8,11 @@ import {
   increment,
   query,
   orderBy,
+  deleteDoc,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
+import { useAuthStore } from '@/stores/auth'
 import type { ClipBiblioteca, CategoriaClip } from '../types'
 
 // Limpieza de datos demo antiguos en localStorage si existieran
@@ -126,6 +128,14 @@ export function useBibliotecaVideos() {
   })
 
   const agregarClip = async (nuevo: Omit<ClipBiblioteca, 'id' | 'vistas' | 'likes' | 'fechaCreacion'>) => {
+    const authStore = useAuthStore()
+    // Solo administradores pueden agregar clips manualmente.
+    // Los usuarios no-admin únicamente pueden registrar transmisiones completadas automáticamente.
+    if (nuevo.tipo !== 'transmision_completa' && !authStore.esAdmin) {
+      console.warn('[useBibliotecaVideos] Permiso denegado: solo administradores pueden agregar clips manualmente')
+      return null
+    }
+
     const payload: Omit<ClipBiblioteca, 'id'> = {
       ...nuevo,
       vistas: 0,
@@ -167,18 +177,67 @@ export function useBibliotecaVideos() {
     } catch {}
   }
 
+  const haDadoLike = (clipId: string): boolean => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem(`spinapp_clip_like_${clipId}`) === 'true'
+  }
+
   const darLike = async (clipId: string) => {
     const clip = clips.value.find((c) => c.id === clipId)
-    if (clip) {
+    if (!clip) return
+
+    const yaDioLike = haDadoLike(clipId)
+    if (yaDioLike) {
+      clip.likes = Math.max(0, clip.likes - 1)
+      localStorage.removeItem(`spinapp_clip_like_${clipId}`)
+      try {
+        if (!clipId.startsWith('local_')) {
+          await updateDoc(doc(db, 'biblioteca_videos', clipId), {
+            likes: increment(-1),
+          })
+        }
+      } catch {}
+    } else {
       clip.likes += 1
+      localStorage.setItem(`spinapp_clip_like_${clipId}`, 'true')
+      try {
+        if (!clipId.startsWith('local_')) {
+          await updateDoc(doc(db, 'biblioteca_videos', clipId), {
+            likes: increment(1),
+          })
+        }
+      } catch {}
     }
+  }
+
+  const eliminarClip = async (clipId: string): Promise<boolean> => {
+    const authStore = useAuthStore()
+    if (!authStore.esAdmin) {
+      console.warn('[useBibliotecaVideos] Permiso denegado: solo administradores pueden eliminar clips')
+      return false
+    }
+
     try {
-      if (!clipId.startsWith('demo_') && !clipId.startsWith('local_')) {
-        await updateDoc(doc(db, 'biblioteca_videos', clipId), {
-          likes: increment(1),
-        })
+      clips.value = clips.value.filter((c) => c.id !== clipId)
+
+      if (!clipId.startsWith('local_')) {
+        await deleteDoc(doc(db, 'biblioteca_videos', clipId))
       }
-    } catch {}
+
+      const guardadosRaw = localStorage.getItem('biblioteca_clips_locales')
+      if (guardadosRaw) {
+        try {
+          const parseados: ClipBiblioteca[] = JSON.parse(guardadosRaw)
+          const actualizados = parseados.filter((c) => c.id !== clipId)
+          localStorage.setItem('biblioteca_clips_locales', JSON.stringify(actualizados))
+        } catch {}
+      }
+
+      return true
+    } catch (err) {
+      console.error('[useBibliotecaVideos] Error al eliminar clip:', err)
+      return false
+    }
   }
 
   onMounted(() => {
@@ -202,5 +261,7 @@ export function useBibliotecaVideos() {
     agregarClip,
     incrementarVistas,
     darLike,
+    haDadoLike,
+    eliminarClip,
   }
 }
