@@ -24,7 +24,7 @@
 
       <!-- Hero de la Biblioteca (Estilo Twitch / YouTube Gaming) -->
       <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-300/80 dark:border-slate-800/90 shadow-xl bg-[#080d1a] p-5 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div class="space-y-2 max-w-xl z-10">
+        <div class="space-y-2.5 max-w-xl z-10">
           <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-xs font-black uppercase tracking-wider backdrop-blur-md">
             <Film class="w-3.5 h-3.5 text-orange-400" />
             <span>Videoteca Oficial de Partidos</span>
@@ -37,10 +37,26 @@
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg">
             Revive las transmisiones en vivo, los mejores remates, saques as y puntos decisivos capturados durante los torneos.
           </p>
+
+          <!-- Métricas y Estadísticas en Vivo de la Videoteca -->
+          <div class="flex items-center gap-2.5 pt-1 text-xs font-bold text-slate-300 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/90 border border-slate-800 text-white shadow-2xs">
+              <Film class="w-3.5 h-3.5 text-orange-400" />
+              <span>{{ clips.length }} {{ clips.length === 1 ? 'Video' : 'Videos' }}</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/90 border border-slate-800 text-white shadow-2xs">
+              <Eye class="w-3.5 h-3.5 text-sky-400" />
+              <span>{{ totalVistas }} Vistas</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/90 border border-slate-800 text-white shadow-2xs">
+              <Heart class="w-3.5 h-3.5 text-rose-400 fill-rose-500/40" />
+              <span>{{ totalLikes }} Likes</span>
+            </span>
+          </div>
         </div>
 
-        <!-- Botón para subir o registrar nuevo clip -->
-        <div class="flex items-center gap-3 z-10 w-full sm:w-auto">
+        <!-- Botón para subir o registrar nuevo clip (SOLO VISIBLE PARA ADMINS) -->
+        <div v-if="authStore.esAdmin" class="flex items-center gap-3 z-10 w-full sm:w-auto">
           <button
             type="button"
             class="w-full sm:w-auto justify-center px-5 py-3 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 active:scale-95 text-white font-black text-xs sm:text-sm shadow-xl shadow-orange-600/30 flex items-center gap-2 cursor-pointer transition-all border border-orange-400/30"
@@ -150,7 +166,9 @@
         <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
           {{
             clips.length === 0
-              ? 'Sé el primero en guardar un clip durante una transmisión en vivo o subir una repetición destacada.'
+              ? (authStore.esAdmin
+                  ? 'Como administrador, puedes subir clips grabados o esperar a que concluyan transmisiones en vivo para que aparezcan aquí automáticamente.'
+                  : 'Las transmisiones de los partidos y las jugadas destacadas aparecerán aquí automáticamente.')
               : 'No hay clips que coincidan con el filtro seleccionado. Prueba con otra categoría o restablece tu búsqueda.'
           }}
         </p>
@@ -164,6 +182,7 @@
             Restablecer Filtros
           </button>
           <button
+            v-if="authStore.esAdmin"
             type="button"
             class="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold text-xs cursor-pointer shadow-md transition-all flex items-center gap-1.5"
             @click="mostrarModalSubir = true"
@@ -175,16 +194,18 @@
       </div>
     </main>
 
-    <!-- Modal Reproductor de Video -->
+    <!-- Modal Reproductor de Video (Con Likes en Tiempo Real, YouTube y Delete Admin) -->
     <ModalReproductorVideo
       :clip="clipSeleccionado"
-      @cerrar="clipSeleccionado = null"
+      :ya-dio-like="clipSeleccionado ? haDadoLike(clipSeleccionado.id) : false"
+      @cerrar="clipSeleccionadoId = null"
       @like="darLike"
+      @eliminar="handleEliminarClip"
     />
 
-    <!-- Modal para Subir o Enlazar Nuevo Clip -->
+    <!-- Modal para Subir o Enlazar Nuevo Clip (Solo Admins) -->
     <ModalSubirClip
-      :visible="mostrarModalSubir"
+      :visible="mostrarModalSubir && authStore.esAdmin"
       @cerrar="mostrarModalSubir = false"
       @clip-creado="handleClipCreado"
     />
@@ -192,7 +213,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   Film,
@@ -204,7 +225,10 @@ import {
   Radio,
   Zap,
   Trophy,
+  Eye,
+  Heart,
 } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
 import Navbar from '@/components/Navbar.vue'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
 import TarjetaVideoBiblioteca from '../components/TarjetaVideoBiblioteca.vue'
@@ -212,6 +236,8 @@ import ModalReproductorVideo from '../components/ModalReproductorVideo.vue'
 import ModalSubirClip from '../components/ModalSubirClip.vue'
 import { useBibliotecaVideos } from '../composables/useBibliotecaVideos'
 import type { ClipBiblioteca, CategoriaClip } from '../types'
+
+const authStore = useAuthStore()
 
 const {
   clips,
@@ -223,10 +249,27 @@ const {
   agregarClip,
   incrementarVistas,
   darLike,
+  haDadoLike,
+  eliminarClip,
 } = useBibliotecaVideos()
 
-const clipSeleccionado = ref<ClipBiblioteca | null>(null)
+const clipSeleccionadoId = ref<string | null>(null)
+
+// Vinculación reactiva en tiempo real: al actualizarse los likes o views de un clip, el modal se actualiza al instante
+const clipSeleccionado = computed(() => {
+  if (!clipSeleccionadoId.value) return null
+  return clips.value.find((c) => c.id === clipSeleccionadoId.value) || null
+})
+
 const mostrarModalSubir = ref(false)
+
+const totalVistas = computed(() => {
+  return clips.value.reduce((total, c) => total + (c.vistas || 0), 0)
+})
+
+const totalLikes = computed(() => {
+  return clips.value.reduce((total, c) => total + (c.likes || 0), 0)
+})
 
 const CATEGORIAS: { id: CategoriaClip; label: string; icon: any }[] = [
   { id: 'todos', label: 'Todos', icon: Layers },
@@ -237,12 +280,19 @@ const CATEGORIAS: { id: CategoriaClip; label: string; icon: any }[] = [
 ]
 
 const handleReproducirClip = (clip: ClipBiblioteca) => {
-  clipSeleccionado.value = clip
+  clipSeleccionadoId.value = clip.id
   incrementarVistas(clip.id)
 }
 
 const handleClipCreado = async (nuevo: Omit<ClipBiblioteca, 'id' | 'vistas' | 'likes' | 'fechaCreacion'>) => {
+  if (!authStore.esAdmin) return
   await agregarClip(nuevo)
+}
+
+const handleEliminarClip = async (clipId: string) => {
+  if (!authStore.esAdmin) return
+  await eliminarClip(clipId)
+  clipSeleccionadoId.value = null
 }
 </script>
 

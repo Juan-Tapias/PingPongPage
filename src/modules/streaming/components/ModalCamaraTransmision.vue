@@ -12,20 +12,21 @@
         v-if="visible"
         ref="modalContenedorRef"
         :class="[
-          'fixed inset-0 z-[70] flex items-center justify-center select-none overflow-y-auto transition-all',
-          esPantallaCompleta ? 'p-0 bg-black' : 'p-2 sm:p-4 bg-black/90 backdrop-blur-md'
+          'fixed inset-0 z-[70] flex items-center justify-center select-none overflow-hidden transition-all',
+          (esPantallaCompleta || esHorizontal) ? 'p-0 bg-black w-screen h-[100dvh]' : 'p-2 sm:p-4 bg-black/90 backdrop-blur-md'
         ]"
       >
         <div
           :class="[
-            'relative w-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden flex flex-col transition-all',
-            esPantallaCompleta
-              ? 'w-screen h-[100dvh] max-w-none max-h-none rounded-none border-none bg-black flex flex-col'
-              : `w-full ${mostrarChat ? 'max-w-6xl xl:max-w-7xl' : 'max-w-5xl'} rounded-none sm:rounded-2xl lg:rounded-3xl border-0 sm:border border-slate-800 shadow-2xl h-[100dvh] sm:h-[86vh] lg:h-[88vh] sm:max-h-[880px] flex flex-col transition-all duration-300 overflow-hidden`
+            'relative w-full bg-black border-0 shadow-2xl overflow-hidden flex transition-all select-none',
+            esHorizontal
+              ? 'w-screen h-[100dvh] max-w-none max-h-none rounded-none border-none bg-black flex-row'
+              : `w-full ${mostrarChat ? 'max-w-6xl xl:max-w-7xl' : 'max-w-5xl'} rounded-none sm:rounded-2xl lg:rounded-3xl border-0 sm:border border-slate-800 shadow-2xl h-[100dvh] sm:h-[86vh] lg:h-[88vh] sm:max-h-[880px] flex-col transition-all duration-300`
           ]"
         >
           <!-- CABECERA DE TRANSMISIÓN -->
           <div
+            v-if="!esHorizontal"
             class="flex items-center justify-between px-2.5 sm:px-5 py-2 sm:py-3.5 bg-slate-900/90 border-b border-slate-800/80 z-20 gap-1.5"
           >
             <!-- Badge En Vivo, Temporizador 1 Hora y Espectadores -->
@@ -74,6 +75,18 @@
 
             <!-- Botones de Acción Rápida -->
             <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+              <!-- Botón Rotar / Modo Horizontal en Celular -->
+              <button
+                type="button"
+                class="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs"
+                :class="rotacionCamara !== 0 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'"
+                :title="rotacionCamara === 0 ? 'Girar a Modo Horizontal (16:9)' : `Rotación activa: ${rotacionCamara}°`"
+                @click="alternarRotacionCamara"
+              >
+                <RotateCw class="w-3.5 h-3.5 text-amber-400" />
+                <span class="hidden md:inline">{{ rotacionCamara === 0 ? 'Modo Horizontal' : `${rotacionCamara}°` }}</span>
+              </button>
+
               <!-- Botón Pantalla Completa en Celular -->
               <button
                 type="button"
@@ -107,27 +120,247 @@
             </div>
           </div>
 
-          <!-- CONTENEDOR FLEX: CÁMARA LOCAL + CHAT LATERAL (DESKTOP) / INFERIOR (MÓVIL) -->
-          <div class="relative flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 w-full">
-            <!-- ÁREA DE VIDEO / CÁMARA LOCAL -->
+          <!-- CONTENEDOR FLEX: CÁMARA LOCAL + CHAT LATERAL -->
+          <div :class="['relative flex-1 flex overflow-hidden min-h-0 w-full', esHorizontal ? 'flex-row' : 'flex-col']">
+            <!-- ÁREA DE VIDEO / VIEWFINDER DE CÁMARA NATIVO -->
             <div
               :class="[
-                'relative w-full bg-black flex items-center justify-center overflow-hidden group select-none min-h-0 min-w-0 transition-all',
-                esPantallaCompleta
+                'relative bg-black flex items-center justify-center overflow-hidden group select-none min-h-0 min-w-0 transition-all',
+                esHorizontal || esPantallaCompleta
                   ? 'flex-1 h-full'
                   : 'w-full shrink-0 aspect-video max-h-[38vh] sm:max-h-[46vh] lg:max-h-none lg:aspect-auto lg:flex-1 lg:h-full'
               ]"
               @dblclick="alternarPantallaCompleta"
             >
-            <!-- Video en tiempo real del emisor -->
+            <!-- Video en tiempo real del emisor con soporte para rotación horizontal -->
             <video
               ref="videoElementRef"
               autoplay
               playsinline
               muted
-              class="w-full h-full object-cover transform transition-transform"
-              :class="{ '-scale-x-100': !camaraTrasera }"
+              class="w-full h-full object-contain transform transition-all duration-300"
+              :style="{
+                transform: `${!camaraTrasera ? 'scaleX(-1) ' : ''}rotate(${rotacionCamara}deg) scale(${zoomSeleccionado >= 1 ? zoomSeleccionado : 1})`,
+              }"
+              @loadedmetadata="verificarOrientacionVideo"
             ></video>
+
+            <!-- ENMARCADO DE CÁMARA PROFESIONAL (ESQUINAS BLANCAS DEL VIEWFINDER) -->
+            <div class="pointer-events-none absolute inset-3 sm:inset-6 z-10 transition-opacity duration-300">
+              <div class="absolute top-0 left-0 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-l-2 border-white/70 rounded-tl-sm"></div>
+              <div class="absolute top-0 right-0 w-5 h-5 sm:w-7 sm:h-7 border-t-2 border-r-2 border-white/70 rounded-tr-sm"></div>
+              <div class="absolute bottom-0 left-0 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-l-2 border-white/70 rounded-bl-sm"></div>
+              <div class="absolute bottom-0 right-0 w-5 h-5 sm:w-7 sm:h-7 border-b-2 border-r-2 border-white/70 rounded-br-sm"></div>
+            </div>
+
+            <!-- CABECERA FLOTANTE DE CÁMARA (CUANDO ESTÁ EN MODO HORIZONTAL O FULLSCREEN) -->
+            <div
+              v-if="esHorizontal"
+              class="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-3 sm:px-5 py-2.5 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-auto"
+            >
+              <!-- Indicadores de Estado -->
+              <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider bg-rose-500/25 text-rose-400 border border-rose-500/40 shadow-xs shrink-0">
+                  <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                  <span>REC EN VIVO</span>
+                </span>
+
+                <span
+                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-mono font-bold text-amber-300 bg-black/60 backdrop-blur-md border border-amber-500/40 shrink-0"
+                  title="Duración de la transmisión"
+                >
+                  <Clock class="w-3.5 h-3.5 text-amber-400" />
+                  <span>{{ tiempoTranscurridoInterno || tiempoFormateado || '00:00' }}</span>
+                  <span class="hidden sm:inline"> / 60:00</span>
+                </span>
+
+                <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-black/60 backdrop-blur-md border border-white/15 shrink-0">
+                  <Users class="w-3.5 h-3.5 text-sky-400" />
+                  <span>{{ totalEspectadores }}</span>
+                </span>
+
+                <button
+                  type="button"
+                  class="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold transition-all cursor-pointer border active:scale-95 bg-black/60 backdrop-blur-md select-none shadow-xs shrink-0"
+                  :class="badgeDiagnosticoClases"
+                  title="Ver diagnóstico de red"
+                  @click="mostrarDiagnostico = !mostrarDiagnostico"
+                >
+                  <Activity class="w-3.5 h-3.5 animate-pulse" :class="colorPuntoCalidad" />
+                  <span>{{ diagnosticoActual.latenciaMs }}ms</span>
+                  <span class="hidden sm:inline font-mono opacity-80">| {{ diagnosticoActual.fps }}fps</span>
+                </button>
+              </div>
+
+              <!-- Herramientas Rápidas Superior Derecha -->
+              <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <!-- Linterna / Flash -->
+                <button
+                  v-if="soportaTorch"
+                  type="button"
+                  class="p-2 rounded-full transition-all cursor-pointer border shadow-xs"
+                  :class="torchActivo ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-500/50' : 'bg-black/60 text-white/80 hover:text-white border-white/20'"
+                  title="Alternar linterna"
+                  @click="alternarTorch"
+                >
+                  <Zap class="w-4 h-4" />
+                </button>
+
+                <!-- Rotar 90° -->
+                <button
+                  type="button"
+                  class="p-2 rounded-full transition-all cursor-pointer border shadow-xs"
+                  :class="rotacionCamara !== 0 ? 'bg-amber-500/25 text-amber-300 border-amber-500/40' : 'bg-black/60 text-white/80 hover:text-white border-white/20'"
+                  :title="`Rotación activa: ${rotacionCamara}°`"
+                  @click="alternarRotacionCamara"
+                >
+                  <RotateCw class="w-4 h-4 text-amber-400" />
+                </button>
+
+                <!-- Pantalla Completa -->
+                <button
+                  type="button"
+                  class="p-2 rounded-full bg-black/60 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white transition-all cursor-pointer border border-white/20"
+                  :title="esPantallaCompleta ? 'Salir de pantalla completa' : 'Pantalla completa'"
+                  @click="alternarPantallaCompleta"
+                >
+                  <Minimize v-if="esPantallaCompleta" class="w-4 h-4" />
+                  <Maximize v-else class="w-4 h-4" />
+                </button>
+
+                <!-- Minimizar -->
+                <button
+                  type="button"
+                  class="p-2 rounded-full bg-black/60 hover:bg-white/20 active:scale-95 text-white/80 hover:text-white transition-all cursor-pointer border border-white/20"
+                  title="Minimizar cámara"
+                  @click="visible = false"
+                >
+                  <Minimize2 class="w-4 h-4" />
+                </button>
+
+                <!-- Finalizar -->
+                <button
+                  type="button"
+                  class="p-2 rounded-full bg-rose-600/80 hover:bg-rose-500 active:scale-95 text-white transition-all cursor-pointer border border-rose-400/50 shadow-md"
+                  title="Finalizar transmisión"
+                  @click="confirmarFinalizarTransmision"
+                >
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <!-- EFECTO FLASH DE DISPARO AL GRABAR CLIP -->
+            <div
+              v-if="flashDisparo"
+              class="absolute inset-0 bg-white/70 z-50 pointer-events-none transition-opacity duration-150"
+            ></div>
+
+            <!-- CÁPSULA DE ZOOM + SELECTOR DE MODOS NATIVOS ESTILO CÁMARA (FOTO DE REFERENCIA) -->
+            <div class="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 select-none pointer-events-auto">
+              <!-- Selector de Zoom Flotante: [ ⊕ 0.6 1x 2 2.5 5 ☀️ ] -->
+              <div class="flex items-center gap-1 sm:gap-1.5 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-xl border border-white/20 shadow-2xl select-none">
+                <span class="text-white/60 text-xs px-1 select-none">⊕</span>
+                <button
+                  v-for="z in nivelesZoom"
+                  :key="z"
+                  type="button"
+                  class="px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-black transition-all cursor-pointer select-none"
+                  :class="zoomSeleccionado === z ? 'bg-amber-400 text-slate-950 shadow-md scale-110' : 'text-white/75 hover:text-white hover:bg-white/10'"
+                  @click.stop="seleccionarZoom(z)"
+                >
+                  {{ z === 1 ? '1x' : `${z}` }}
+                </button>
+                <span class="text-white/60 text-xs px-1 select-none">☀️</span>
+              </div>
+
+              <!-- Selector de Modos de Cámara (Estilo Android/iOS Cámara Nativa) -->
+              <div class="flex items-center gap-3.5 sm:gap-5 text-[10px] sm:text-xs tracking-wider uppercase font-black text-white/50 drop-shadow-md select-none bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                <button
+                  type="button"
+                  class="transition-colors cursor-pointer"
+                  :class="modoCamara === 'camara' ? 'text-amber-400 font-black' : 'hover:text-white'"
+                  @click="modoCamara = 'camara'"
+                >
+                  CÁMARA
+                </button>
+                <button
+                  type="button"
+                  class="transition-colors cursor-pointer"
+                  :class="modoCamara === 'en_vivo' ? 'text-amber-400 font-black' : 'hover:text-white'"
+                  @click="modoCamara = 'en_vivo'"
+                >
+                  EN VIVO
+                </button>
+                <button
+                  type="button"
+                  class="transition-colors cursor-pointer"
+                  :class="modoCamara === 'clips' ? 'text-amber-400 font-black' : 'hover:text-white'"
+                  @click="modoCamara = 'clips'"
+                >
+                  CLIPS
+                </button>
+                <button
+                  type="button"
+                  class="transition-colors cursor-pointer"
+                  :class="mostrarDiagnostico ? 'text-amber-400 font-black' : 'hover:text-white'"
+                  @click="mostrarDiagnostico = !mostrarDiagnostico"
+                >
+                  DIAGNÓSTICO
+                </button>
+              </div>
+            </div>
+
+            <!-- Banner recomendación modo horizontal cuando el sensor está en vertical -->
+            <div
+              v-if="esVideoVertical && rotacionCamara === 0"
+              class="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-3.5 py-2 rounded-2xl bg-slate-950/90 text-amber-300 text-xs font-bold border border-amber-500/40 shadow-2xl flex items-center gap-2 pointer-events-auto backdrop-blur-md max-w-[90%]"
+            >
+              <Smartphone class="w-4 h-4 shrink-0 text-amber-400" />
+              <span class="text-[11px] sm:text-xs">Para ping pong ubica el celular en horizontal (16:9)</span>
+              <button
+                type="button"
+                class="px-2 py-0.5 rounded-lg bg-amber-500 text-slate-950 font-black text-[10px] cursor-pointer hover:bg-amber-400 transition-colors shrink-0"
+                @click="rotacionCamara = 90"
+              >
+                Girar 90°
+              </button>
+            </div>
+
+            <!-- OVERLAY AUTOMÁTICO DE PARTIDO FINALIZADO (AL MEJOR DE 3 SETS) -->
+            <Transition
+              enter-active-class="transition duration-300 ease-out"
+              enter-from-class="opacity-0 scale-95"
+              enter-to-class="opacity-100 scale-100"
+              leave-active-class="transition duration-200 ease-in"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 scale-95"
+            >
+              <div
+                v-if="finalizandoPorFinDePartido"
+                class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center gap-3.5 text-white z-50 p-6 text-center select-none"
+              >
+                <div class="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shadow-2xl animate-bounce">
+                  <Trophy class="w-8 h-8" />
+                </div>
+                <div class="space-y-1.5 max-w-sm">
+                  <h3 class="text-base sm:text-lg font-black text-white">¡Partido Concluido (Al Mejor de 3 Sets)!</h3>
+                  <p class="text-xs text-slate-300 leading-relaxed">
+                    El árbitro ha finalizado los sets reglamentarios. Guardando la transmisión completa en la videoteca y apagando la cámara automáticamente...
+                  </p>
+                  <p class="text-xs sm:text-sm font-mono font-black text-emerald-400 pt-1">
+                    Cerrando cámara en {{ cuentaRegresivaFin }}s
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs cursor-pointer shadow-lg transition-all active:scale-95"
+                  @click="ejecutarFinalizarTransmision"
+                >
+                  Finalizar Ahora
+                </button>
+              </div>
+            </Transition>
 
             <!-- Overlay cuando el stream local está inicializándose -->
             <div
@@ -170,66 +403,87 @@
               </div>
             </Transition>
 
-            <!-- MARCADOR DEPORTIVO SUPERPUESTO (HUD OFICIAL DE TV) -->
+            <!-- MARCADOR FLOTANTE CENTRAL ESTILO WTT / ITTF (TRANSMISIÓN DE TV PROFESIONAL) -->
             <div
               v-if="partidoActivo"
-              class="absolute top-2 left-2 sm:top-4 sm:left-4 z-10 flex flex-col gap-1 max-w-[85%] sm:max-w-md pointer-events-none drop-shadow-2xl"
+              class="absolute left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none select-none drop-shadow-2xl transition-all duration-300"
+              :class="esHorizontal ? 'top-12 sm:top-14 scale-90 sm:scale-100' : 'top-3 scale-95'"
             >
-              <div
-                class="bg-black/80 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden shadow-2xl text-white"
-              >
-                <!-- Jugador 1 -->
-                <div
-                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 border-b border-white/10 gap-2 sm:gap-3"
-                  :class="{ 'bg-emerald-500/20': Number(puntosJ1) > Number(puntosJ2) }"
-                >
-                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                    <span v-if="servidorActual === 1" class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
-                      {{ partidoActivo.jugador1?.nombre || 'Jugador 1' }}
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
-                    <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ1 }})</span>
-                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
-                      {{ puntosJ1 }}
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Jugador 2 -->
-                <div
-                  class="flex items-center justify-between px-2 sm:px-3.5 py-1 sm:py-1.5 gap-2 sm:gap-3"
-                  :class="{ 'bg-sky-500/20': Number(puntosJ2) > Number(puntosJ1) }"
-                >
-                  <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                    <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
-                    <span v-if="servidorActual === 2" class="text-[8px] sm:text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0" title="Saque">SAQUE</span>
-                    <span class="text-xs sm:text-sm font-black truncate max-w-24 xs:max-w-36 sm:max-w-44">
-                      {{ partidoActivo.jugador2?.nombre || 'Jugador 2' }}
-                    </span>
-                  </div>
-                  <div class="flex items-center gap-1.5 sm:gap-2 font-mono font-black text-xs sm:text-sm shrink-0">
-                    <span class="text-slate-400 text-[10px] sm:text-xs">({{ setsGanadosJ2 }})</span>
-                    <span class="px-1.5 sm:px-2 py-0.5 rounded bg-white/10 text-white min-w-5 sm:min-w-6 text-center">
-                      {{ puntosJ2 }}
-                    </span>
-                  </div>
-                </div>
+              <!-- Pestaña Superior de Mesa y Set: MESA 1 | SET 2 -->
+              <div class="px-3.5 py-0.5 rounded-t-lg bg-black/85 border-t border-x border-white/20 text-[10px] sm:text-xs font-black uppercase tracking-widest text-emerald-400 shadow-md flex items-center gap-1.5">
+                <span>{{ marcadorEnVivo?.mesa || partidoActivo.mesa || 'Mesa 1' }}</span>
+                <span class="text-white/40">|</span>
+                <span>{{ marcadorEnVivo?.setActual || 'Set 1' }}</span>
+                <span v-if="setsGanadosJ1 > 0 || setsGanadosJ2 > 0" class="ml-1 text-slate-300 font-mono text-[9px] font-bold">
+                  ({{ setsGanadosJ1 }}-{{ setsGanadosJ2 }})
+                </span>
               </div>
 
-              <!-- Badge de Ronda / Estado / Mesa -->
-              <div class="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase text-white/90">
-                <span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-xs border border-white/10 text-emerald-400 font-bold">
-                  {{ marcadorEnVivo?.setActual || 'Set 1' }}
-                </span>
-                <span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-xs border border-white/10">
-                  {{ marcadorEnVivo?.mesa || partidoActivo.mesa || 'Mesa 1' }}
-                </span>
-                <span class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-xs border border-white/10">
-                  Ronda {{ partidoActivo.ronda || partidoActivo.jornada || 1 }}
-                </span>
+              <!-- Cápsula Principal con borde Neón Verde/Esmeralda: Bandera + J1 + Score (11 - 09) + J2 + Bandera -->
+              <div
+                class="flex items-center gap-2 sm:gap-3.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-2xl bg-[#060d19]/90 backdrop-blur-md border-2 border-emerald-400 shadow-[0_0_25px_rgba(52,211,153,0.45)] text-white"
+              >
+                <!-- Lado Jugador 1 -->
+                <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <!-- Bandera Jugador 1 -->
+                  <div class="w-5 h-3.5 sm:w-6 sm:h-4 rounded-xs shadow-xs border border-white/25 shrink-0 overflow-hidden bg-slate-900 flex items-center justify-center">
+                    <svg class="w-full h-full" viewBox="0 0 640 480">
+                      <rect width="640" height="480" fill="#fe0000" />
+                      <rect width="320" height="240" fill="#000095" />
+                      <circle cx="160" cy="120" r="44" fill="#fff" />
+                      <circle cx="160" cy="120" r="32" fill="#000095" />
+                      <circle cx="160" cy="120" r="22" fill="#fff" />
+                    </svg>
+                  </div>
+
+                  <!-- Nombre Jugador 1 -->
+                  <span class="font-black text-[11px] sm:text-xs md:text-sm tracking-wider text-white uppercase truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[140px]">
+                    {{ formatearNombreHUD(partidoActivo.jugador1?.nombre) }}
+                  </span>
+
+                  <!-- Indicador Saque Jugador 1 -->
+                  <span
+                    v-if="servidorActual === 1"
+                    class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0 shadow-xs animate-pulse"
+                    title="Saque activo"
+                  >
+                    SAQUE
+                  </span>
+                </div>
+
+                <!-- Puntos Centrales: 11 - 09 -->
+                <div class="flex items-center gap-1 sm:gap-2 px-2 sm:px-2.5 py-0.5 rounded-lg bg-black/45 border border-white/10 shrink-0 font-mono font-black text-sm sm:text-lg md:text-xl text-amber-300 tracking-wider shadow-inner">
+                  <span class="min-w-[20px] sm:min-w-[26px] text-center">{{ puntosJ1Formateados }}</span>
+                  <span class="text-white/60 font-sans text-xs sm:text-sm font-bold">-</span>
+                  <span class="min-w-[20px] sm:min-w-[26px] text-center">{{ puntosJ2Formateados }}</span>
+                </div>
+
+                <!-- Lado Jugador 2 -->
+                <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                  <!-- Indicador Saque Jugador 2 -->
+                  <span
+                    v-if="servidorActual === 2"
+                    class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded font-black bg-amber-400 text-slate-950 uppercase tracking-wider shrink-0 shadow-xs animate-pulse"
+                    title="Saque activo"
+                  >
+                    SAQUE
+                  </span>
+
+                  <!-- Nombre Jugador 2 -->
+                  <span class="font-black text-[11px] sm:text-xs md:text-sm tracking-wider text-white uppercase truncate max-w-[70px] xs:max-w-[100px] sm:max-w-[140px]">
+                    {{ formatearNombreHUD(partidoActivo.jugador2?.nombre) }}
+                  </span>
+
+                  <!-- Bandera Jugador 2 -->
+                  <div class="w-5 h-3.5 sm:w-6 sm:h-4 rounded-xs shadow-xs border border-white/25 shrink-0 overflow-hidden bg-slate-900 flex items-center justify-center">
+                    <svg class="w-full h-full" viewBox="0 0 640 480">
+                      <rect width="640" height="160" fill="#74ACDF" />
+                      <rect y="160" width="640" height="160" fill="#FFFFFF" />
+                      <rect y="320" width="640" height="160" fill="#74ACDF" />
+                      <circle cx="320" cy="240" r="30" fill="#F6B40E" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -338,81 +592,208 @@
               :partido-id="partidoActivo?.id || (partidoActivo as any)?.partidoId || partido?.id || (partido as any)?.partidoId"
               :partido="partidoActivo || partido"
               :es-pantalla-completa="esPantallaCompleta"
+              class="w-72 sm:w-80 h-full shrink-0 z-40 border-l border-white/10"
               @cerrar-chat="mostrarChat = false"
             />
+
+            <!-- BARRA LATERAL DERECHA DE ACCIONES DE CÁMARA NATIVA (MODO HORIZONTAL) -->
+            <div
+              v-if="esHorizontal"
+              class="w-20 xs:w-24 sm:w-28 h-full bg-black/95 backdrop-blur-2xl border-l border-white/10 flex flex-col items-center justify-between py-4 px-2 z-30 shrink-0 select-none"
+            >
+              <!-- Acciones Superiores -->
+              <div class="flex flex-col items-center gap-3">
+                <!-- Alternar Cámara (Frontal / Trasera) -->
+                <button
+                  type="button"
+                  class="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center border border-white/20 shadow-lg transition-all cursor-pointer"
+                  :title="camaraTrasera ? 'Cambiar a cámara frontal' : 'Cambiar a cámara trasera'"
+                  @click="alternarCamara"
+                >
+                  <SwitchCamera class="w-5 h-5 text-sky-300" />
+                </button>
+
+                <!-- Ver / Ocultar Chat en Vivo -->
+                <button
+                  type="button"
+                  class="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border shadow-md relative"
+                  :class="mostrarChat ? 'bg-sky-500 text-white border-sky-400 shadow-sky-500/40' : 'bg-white/10 hover:bg-white/20 text-slate-300 border-white/15'"
+                  title="Chat de espectadores"
+                  @click="mostrarChat = !mostrarChat"
+                >
+                  <MessageSquare class="w-4 h-4" />
+                </button>
+              </div>
+
+              <!-- BOTÓN CENTRAL OBTURADOR / DISPARADOR ESTILO CÁMARA (FOTO DE REFERENCIA) -->
+              <div class="flex flex-col items-center gap-1.5 my-auto">
+                <button
+                  type="button"
+                  class="w-16 h-16 xs:w-18 xs:h-18 sm:w-20 sm:h-20 rounded-full border-4 border-white p-1 flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.4)] cursor-pointer active:scale-90 transition-all select-none group"
+                  :title="estaGrabandoClip ? 'Terminar de grabar clip ahora' : 'Grabar clip destacado (15s)'"
+                  @click="dispararObturador"
+                >
+                  <!-- Botón Interno Shutter -->
+                  <div
+                    v-if="estaGrabandoClip"
+                    class="w-11 h-11 xs:w-12 xs:h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-600 text-white flex flex-col items-center justify-center animate-pulse shadow-lg font-mono font-black text-xs"
+                  >
+                    <span>{{ segundosGrabadosClip }}s</span>
+                    <span class="text-[8px] font-sans uppercase">REC</span>
+                  </div>
+                  <div
+                    v-else
+                    class="w-11 h-11 xs:w-12 xs:h-12 sm:w-14 sm:h-14 rounded-full transition-all group-hover:scale-95 shadow-inner flex items-center justify-center"
+                    :class="modoCamara === 'clips' ? 'bg-amber-400' : 'bg-white'"
+                  >
+                    <span v-if="modoCamara === 'clips'" class="text-[9px] font-black uppercase text-slate-950">CLIP</span>
+                    <span v-else class="w-3.5 h-3.5 rounded-full bg-rose-600"></span>
+                  </div>
+                </button>
+                <span class="text-[9px] font-black uppercase tracking-wider text-white/70">
+                  {{ estaGrabandoClip ? 'GRABANDO' : (modoCamara === 'clips' ? 'CLIP 15s' : 'OBTURADOR') }}
+                </span>
+              </div>
+
+              <!-- Acciones Inferiores -->
+              <div class="flex flex-col items-center gap-3">
+                <!-- Miniatura de Clip / Galería (Foto de Referencia: abajo a la izquierda) -->
+                <button
+                  type="button"
+                  class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-slate-800/90 border border-white/20 overflow-hidden flex items-center justify-center text-amber-300 hover:border-amber-400 active:scale-90 transition-all cursor-pointer relative shadow-lg"
+                  title="Grabar clip destacado de 15s para la biblioteca"
+                  @click="alternarCapturaClip"
+                >
+                  <Scissors class="w-5 h-5 text-amber-400" />
+                  <span class="absolute bottom-0 inset-x-0 bg-black/80 text-[7px] font-black text-amber-300 uppercase text-center py-0.2">CLIP</span>
+                </button>
+
+                <!-- Micrófono -->
+                <button
+                  type="button"
+                  class="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border shadow-md"
+                  :class="audioActivo ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'"
+                  :title="audioActivo ? 'Silenciar micrófono' : 'Activar micrófono'"
+                  @click="alternarAudio"
+                >
+                  <Mic v-if="audioActivo" class="w-4 h-4" />
+                  <MicOff v-else class="w-4 h-4" />
+                </button>
+
+                <!-- Video -->
+                <button
+                  type="button"
+                  class="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer border shadow-md"
+                  :class="videoActivo ? 'bg-white/10 text-white border-white/20' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'"
+                  :title="videoActivo ? 'Pausar video' : 'Activar video'"
+                  @click="alternarVideo"
+                >
+                  <Video v-if="videoActivo" class="w-4 h-4 text-emerald-400" />
+                  <VideoOff v-else class="w-4 h-4 text-rose-400" />
+                </button>
+              </div>
+            </div>
           </div>
 
-          <!-- BARRA DE CONTROLES INFERIOR (100% RESPONSIVE) -->
+          <!-- BARRA DE CONTROLES INFERIOR EN MODO VERTICAL (ESTILO CÁMARA NATIVA) -->
           <div
-            class="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 z-20"
+            v-if="!esHorizontal"
+            class="p-3 sm:p-4 bg-slate-950 border-t border-slate-800 flex flex-col gap-3 z-20 select-none"
           >
-            <!-- Controles de Medios Hardware -->
-            <div class="flex items-center gap-2 flex-wrap">
-              <!-- Alternar Cámara (Frontal / Trasera) -->
+            <!-- Fila Superior de Herramientas Rápidas -->
+            <div class="flex items-center justify-between gap-2 flex-wrap px-1">
+              <!-- Micrófono -->
               <button
                 type="button"
-                class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-slate-700/60 shadow-xs"
-                :title="camaraTrasera ? 'Cambiar a cámara frontal' : 'Cambiar a cámara trasera'"
-                @click="alternarCamara"
-              >
-                <SwitchCamera class="w-4 h-4 text-sky-400" />
-                <span class="hidden xs:inline">{{ camaraTrasera ? 'Cámara Trasera' : 'Cámara Frontal' }}</span>
-              </button>
-
-              <!-- Silenciar / Activar Micrófono -->
-              <button
-                type="button"
-                class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer border shadow-xs"
-                :class="audioActivo ? 'bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border-emerald-500/50' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-xs"
+                :class="audioActivo ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/50' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'"
                 @click="alternarAudio"
               >
                 <Mic v-if="audioActivo" class="w-4 h-4 text-emerald-400" />
                 <MicOff v-else class="w-4 h-4 text-rose-400" />
-                <span>{{ audioActivo ? 'Micrófono ON' : 'Mic Silenciado' }}</span>
+                <span>{{ audioActivo ? 'Mic ON' : 'Mute' }}</span>
               </button>
 
-              <!-- Pausar / Activar Video -->
+              <!-- Video -->
               <button
                 type="button"
-                class="p-2 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border shadow-xs"
-                :class="videoActivo ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700/60' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-xs"
+                :class="videoActivo ? 'bg-slate-800 text-white border-slate-700/60' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'"
                 @click="alternarVideo"
               >
                 <Video v-if="videoActivo" class="w-4 h-4 text-emerald-400" />
                 <VideoOff v-else class="w-4 h-4 text-rose-400" />
-                <span class="hidden sm:inline">{{ videoActivo ? 'Cámara ON' : 'Cámara OFF' }}</span>
+                <span>{{ videoActivo ? 'Cámara' : 'Pausa' }}</span>
               </button>
 
-              <!-- Ver / Ocultar Chat en Vivo del Partido -->
+              <!-- Chat -->
               <button
                 type="button"
-                class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer border shadow-xs"
-                :class="mostrarChat ? 'bg-sky-500/20 text-sky-300 border-sky-500/40 shadow-xs' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700/60'"
-                title="Ver mensajes de espectadores en vivo"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-xs"
+                :class="mostrarChat ? 'bg-sky-500/20 text-sky-300 border-sky-500/40' : 'bg-slate-800 text-slate-300 border-slate-700/60'"
                 @click="mostrarChat = !mostrarChat"
               >
                 <MessageSquare class="w-4 h-4 text-sky-400" />
                 <span>Chat</span>
               </button>
 
-              <!-- Capturar Clip de 15s para la Biblioteca -->
+              <!-- Rotar Horizontal -->
               <button
                 type="button"
-                class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer border shadow-xs select-none"
-                :class="estaGrabandoClip ? 'bg-rose-600 text-white border-rose-400 animate-pulse' : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700/60'"
-                :title="estaGrabandoClip ? 'Grabando clip... clic para terminar ahora' : 'Grabar clip destacado (15s)'"
-                @click="alternarCapturaClip"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-xs"
+                :class="rotacionCamara !== 0 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-800 text-slate-300 border-slate-700/60'"
+                @click="alternarRotacionCamara"
               >
-                <span v-if="estaGrabandoClip" class="w-2 h-2 rounded-full bg-white animate-ping"></span>
-                <Scissors v-else class="w-4 h-4 text-amber-400" />
-                <span v-if="estaGrabandoClip" class="font-mono text-white">{{ segundosGrabadosClip }}s REC</span>
-                <span v-else class="hidden xs:inline">Grabar Clip</span>
+                <RotateCw class="w-4 h-4 text-amber-400" />
+                <span>{{ rotacionCamara === 0 ? 'Horizontal' : `${rotacionCamara}°` }}</span>
               </button>
             </div>
 
-            <p class="text-[11px] text-slate-400 font-medium text-right hidden md:block">
-              Consejo: Ubica el celular en posición horizontal apuntando a la mesa de ping pong.
-            </p>
+            <!-- Fila Principal Estilo App de Cámara Nativa: [ Galería / Clips ]  [ OBTURADOR ]  [ Flip Cámara ] -->
+            <div class="flex items-center justify-around py-1">
+              <!-- Botón Galería / Grabar Clip 15s -->
+              <button
+                type="button"
+                class="w-12 h-12 rounded-2xl bg-slate-800 border border-white/20 overflow-hidden flex flex-col items-center justify-center text-amber-300 hover:border-amber-400 active:scale-90 transition-all cursor-pointer relative shadow-lg"
+                title="Capturar clip de 15 segundos"
+                @click="alternarCapturaClip"
+              >
+                <Scissors class="w-5 h-5 text-amber-400" />
+                <span class="text-[8px] font-black uppercase text-amber-300">15s</span>
+              </button>
+
+              <!-- Gran Botón Obturador Shutter Blanco Circular -->
+              <button
+                type="button"
+                class="w-18 h-18 rounded-full border-4 border-white p-1 flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.4)] cursor-pointer active:scale-90 transition-all group"
+                @click="dispararObturador"
+              >
+                <div
+                  v-if="estaGrabandoClip"
+                  class="w-12 h-12 rounded-2xl bg-rose-600 text-white flex flex-col items-center justify-center animate-pulse font-mono font-black text-xs"
+                >
+                  <span>{{ segundosGrabadosClip }}s</span>
+                </div>
+                <div
+                  v-else
+                  class="w-12 h-12 rounded-full transition-all group-hover:scale-95 flex items-center justify-center shadow-inner"
+                  :class="modoCamara === 'clips' ? 'bg-amber-400' : 'bg-white'"
+                >
+                  <span v-if="modoCamara === 'clips'" class="text-[9px] font-black text-slate-950 uppercase">CLIP</span>
+                  <span v-else class="w-3.5 h-3.5 rounded-full bg-rose-600"></span>
+                </div>
+              </button>
+
+              <!-- Botón Flip Cámara Frontal/Trasera -->
+              <button
+                type="button"
+                class="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-white flex items-center justify-center border border-white/20 shadow-md transition-all cursor-pointer"
+                title="Cambiar cámara"
+                @click="alternarCamara"
+              >
+                <SwitchCamera class="w-5 h-5 text-sky-300" />
+              </button>
+            </div>
           </div>
 
         </div>
@@ -494,6 +875,9 @@ import {
   MessageSquare,
   Scissors,
   Film,
+  RotateCw,
+  Trophy,
+  Smartphone,
 } from 'lucide-vue-next'
 import { doc, onSnapshot, setDoc, type Unsubscribe } from 'firebase/firestore'
 import { db } from '@/services/firebase'
@@ -860,20 +1244,217 @@ const puntosJ2 = computed(() => {
   return 0
 })
 
+const puntosJ1Formateados = computed(() => {
+  const pts = Number(puntosJ1.value) || 0
+  return pts < 10 ? `0${pts}` : `${pts}`
+})
+
+const puntosJ2Formateados = computed(() => {
+  const pts = Number(puntosJ2.value) || 0
+  return pts < 10 ? `0${pts}` : `${pts}`
+})
+
+const formatearNombreHUD = (nombre?: string): string => {
+  if (!nombre) return 'JUGADOR'
+  const partes = nombre.trim().split(/\s+/)
+  const p0 = partes[0] || 'JUGADOR'
+  const p1 = partes[1]
+  if (p1 && p1[0]) {
+    return `${p0.toUpperCase()} ${p1[0].toUpperCase()}.`
+  }
+  return p0.toUpperCase()
+}
+
 const servidorActual = computed(() => marcadorEnVivo.value?.servidorActual || 1)
 
 const alternarCamara = () => emit('alternar-camara')
 const alternarAudio = () => emit('alternar-audio')
 const alternarVideo = () => emit('alternar-video')
 
+// ==========================================
+// ORIENTACIÓN Y MODO HORIZONTAL EN CELULAR
+// ==========================================
+const rotacionCamara = ref<0 | 90 | 180 | 270>(0)
+const esVideoVertical = ref(false)
+
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1000)
+const windowHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 600)
+
+const verificarOrientacion = () => {
+  if (typeof window === 'undefined') return
+  windowWidth.value = window.innerWidth
+  windowHeight.value = window.innerHeight
+}
+
+const esHorizontal = computed(() => {
+  const isLandscapeWindow = windowWidth.value > windowHeight.value
+  let isLandscapeScreen = false
+  if (typeof screen !== 'undefined' && screen.orientation?.type) {
+    isLandscapeScreen = screen.orientation.type.includes('landscape')
+  }
+  return isLandscapeWindow || isLandscapeScreen || rotacionCamara.value === 90 || rotacionCamara.value === 270 || esPantallaCompleta.value
+})
+
+// ==========================================
+// SELECTOR DE ZOOM ESTILO CÁMARA (0.6, 1x, 2, 2.5, 5)
+// ==========================================
+const nivelesZoom = [0.6, 1, 2, 2.5, 5]
+const zoomSeleccionado = ref(1)
+
+// ==========================================
+// MODOS DE CÁMARA Y DISPARO NATIVO
+// ==========================================
+const modoCamara = ref<'camara' | 'en_vivo' | 'clips'>('en_vivo')
+const flashDisparo = ref(false)
+
+const dispararObturador = () => {
+  flashDisparo.value = true
+  setTimeout(() => {
+    flashDisparo.value = false
+  }, 150)
+  alternarCapturaClip()
+}
+
+const seleccionarZoom = async (z: number) => {
+  zoomSeleccionado.value = z
+  const videoTrack = props.streamLocal?.getVideoTracks()[0]
+  if (videoTrack) {
+    const caps = videoTrack.getCapabilities ? (videoTrack.getCapabilities() as any) : null
+    if (caps && 'zoom' in caps) {
+      try {
+        const minZ = caps.zoom.min || 1
+        const maxZ = caps.zoom.max || 5
+        const targetZ = Math.max(minZ, Math.min(maxZ, z))
+        await videoTrack.applyConstraints({
+          advanced: [{ zoom: targetZ } as any]
+        })
+        return
+      } catch (err) {
+        console.warn('Error aplicando zoom hardware:', err)
+      }
+    }
+  }
+}
+
+// ==========================================
+// CONTROL DE LINTERNA / FLASH
+// ==========================================
+const torchActivo = ref(false)
+const soportaTorch = ref(false)
+
+const verificarSoporteTorch = () => {
+  const track = props.streamLocal?.getVideoTracks()[0]
+  if (track) {
+    const caps = track.getCapabilities ? (track.getCapabilities() as any) : null
+    if (caps && 'torch' in caps) {
+      soportaTorch.value = true
+    }
+  }
+}
+
+const alternarTorch = async () => {
+  const track = props.streamLocal?.getVideoTracks()[0]
+  if (track) {
+    try {
+      torchActivo.value = !torchActivo.value
+      await track.applyConstraints({
+        advanced: [{ torch: torchActivo.value } as any]
+      })
+    } catch (err) {
+      console.warn('Error alternando linterna:', err)
+      torchActivo.value = false
+    }
+  }
+}
+
+const alternarRotacionCamara = () => {
+  rotacionCamara.value = ((rotacionCamara.value + 90) % 360) as any
+}
+
+const verificarOrientacionVideo = () => {
+  if (videoElementRef.value) {
+    const w = videoElementRef.value.videoWidth
+    const h = videoElementRef.value.videoHeight
+    if (w > 0 && h > 0) {
+      esVideoVertical.value = h > w && rotacionCamara.value === 0
+    }
+  }
+}
+
+const solicitarOrientacionHorizontal = async () => {
+  try {
+    if (screen.orientation && 'lock' in screen.orientation) {
+      await (screen.orientation as any).lock('landscape').catch(() => {})
+    }
+  } catch {}
+}
+
 // Grabador de Clips en vivo para la Biblioteca
 const {
   estaGrabando: estaGrabandoClip,
   segundosGrabados: segundosGrabadosClip,
   feedbackClip,
+  guardandoTransmision,
   iniciarGrabacionClip,
   detenerGrabacionClip,
+  iniciarGrabacionTransmision,
+  detenerYGuardarTransmision,
 } = useGrabadorClips()
+
+// Iniciar grabación continua automática de la transmisión en vivo
+watch(
+  [visible, () => props.streamLocal],
+  ([esVisible, stream]) => {
+    if (esVisible && stream) {
+      iniciarGrabacionTransmision(stream)
+    }
+  },
+  { immediate: true },
+)
+
+// ==============================================================
+// AUTO-APAGADO POR FINALIZACIÓN DE SETS (AL MEJOR DE 3 / JUGADO)
+// ==============================================================
+const partidoTerminadoPorSets = computed(() => {
+  if (!partidoActivo.value) return false
+  const p = partidoActivo.value
+  const j1Sets = setsGanadosJ1.value
+  const j2Sets = setsGanadosJ2.value
+
+  // Al mejor de 3 sets: gana el primero que consiga 2 sets
+  return (
+    j1Sets >= 2 ||
+    j2Sets >= 2 ||
+    p.estado === 'jugado' ||
+    Boolean(p.ganadorId) ||
+    Boolean(marcadorEnVivo.value?.finalizado)
+  )
+})
+
+const finalizandoPorFinDePartido = ref(false)
+const cuentaRegresivaFin = ref(3)
+let timerCuentaFin: any = null
+
+watch(
+  [partidoTerminadoPorSets, visible],
+  ([terminado, esVisible]) => {
+    if (terminado && esVisible && !finalizandoPorFinDePartido.value) {
+      finalizandoPorFinDePartido.value = true
+      cuentaRegresivaFin.value = 3
+      if (timerCuentaFin) clearInterval(timerCuentaFin)
+
+      timerCuentaFin = setInterval(() => {
+        cuentaRegresivaFin.value -= 1
+        if (cuentaRegresivaFin.value <= 0) {
+          clearInterval(timerCuentaFin)
+          timerCuentaFin = null
+          ejecutarFinalizarTransmision()
+        }
+      }, 1000)
+    }
+  },
+  { immediate: true },
+)
 
 const alternarCapturaClip = () => {
   if (estaGrabandoClip.value) {
@@ -922,8 +1503,43 @@ const confirmarFinalizarTransmision = () => {
 }
 
 const ejecutarFinalizarTransmision = () => {
+  if (timerCuentaFin) {
+    clearInterval(timerCuentaFin)
+    timerCuentaFin = null
+  }
+  finalizandoPorFinDePartido.value = false
   mostrarModalConfirmacion.value = false
   visible.value = false
+
+  // Registrar automáticamente la transmisión completada en la videoteca
+  const p = partidoRealTime.value || props.partido
+  const j1Nombre = p?.jugador1?.nombre || 'Jugador 1'
+  const j2Nombre = p?.jugador2?.nombre || 'Jugador 2'
+  const torneo = (p as any)?.torneoNombre || 'Torneo Tenis de Mesa'
+  const mesa = marcadorEnVivo.value?.mesa || p?.mesa || 'Mesa 1'
+  const marcador = `${setsGanadosJ1.value} - ${setsGanadosJ2.value}`
+
+  detenerYGuardarTransmision(
+    videoElementRef.value,
+    {
+      titulo: `Transmisión: ${j1Nombre} vs ${j2Nombre} (${mesa})`,
+      descripcion: `Transmisión en vivo completa finalizada en ${torneo}. Marcador: ${marcador}.`,
+      torneoId: p?.torneoId,
+      torneoNombre: torneo,
+      partidoId: p?.id,
+      mesa: mesa,
+      jugador1: { id: p?.jugador1Id || 'j1', nombre: j1Nombre },
+      jugador2: { id: p?.jugador2Id || 'j2', nombre: j2Nombre },
+      marcadorMomento: marcador,
+      creadorNombre: 'Transmisión Oficial',
+      creadorId: 'transmision_auto',
+      tipo: 'transmision_completa',
+    },
+    rotacionCamara.value,
+  ).catch((err) => {
+    console.warn('[ModalCamaraTransmision] Error al registrar transmisión completada:', err)
+  })
+
   emit('finalizar')
 }
 
@@ -1000,15 +1616,24 @@ const handleFullscreenChange = () => {
 
 const open = () => {
   visible.value = true
+  finalizandoPorFinDePartido.value = false
+  verificarOrientacion()
   solicitarWakeLock()
+  solicitarOrientacionHorizontal()
   nextTick(() => {
     acoplarVideoLocal()
+    verificarSoporteTorch()
     setTimeout(acoplarVideoLocal, 150)
   })
 }
 
 const close = () => {
   visible.value = false
+  if (timerCuentaFin) {
+    clearInterval(timerCuentaFin)
+    timerCuentaFin = null
+  }
+  finalizandoPorFinDePartido.value = false
   liberarWakeLock()
   if (esPantallaCompleta.value) {
     alternarPantallaCompleta().catch(() => {})
@@ -1016,9 +1641,17 @@ const close = () => {
 }
 
 onMounted(() => {
+  verificarOrientacion()
+  window.addEventListener('resize', verificarOrientacion)
+  window.addEventListener('orientationchange', verificarOrientacion)
+  if (screen?.orientation?.addEventListener) {
+    screen.orientation.addEventListener('change', verificarOrientacion)
+  }
   if (visible.value) {
     acoplarVideoLocal()
+    verificarSoporteTorch()
     solicitarWakeLock()
+    solicitarOrientacionHorizontal()
   }
   document.addEventListener('visibilitychange', handleVisibilityChangeWakeLock)
   document.addEventListener('fullscreenchange', handleFullscreenChange)
@@ -1027,6 +1660,15 @@ onMounted(() => {
 
 onUnmounted(() => {
   liberarWakeLock()
+  if (timerCuentaFin) {
+    clearInterval(timerCuentaFin)
+    timerCuentaFin = null
+  }
+  window.removeEventListener('resize', verificarOrientacion)
+  window.removeEventListener('orientationchange', verificarOrientacion)
+  if (screen?.orientation?.removeEventListener) {
+    screen.orientation.removeEventListener('change', verificarOrientacion)
+  }
   document.removeEventListener('visibilitychange', handleVisibilityChangeWakeLock)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)

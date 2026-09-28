@@ -83,7 +83,7 @@ export interface SetPartido {
   mallasJugador1: number
   mallasJugador2: number
   ganadorId?: string
-  ganadorBolaId?: string
+  ganadorBolaId?: string | null
 }
 
 export interface MarcadorEnVivo {
@@ -96,10 +96,16 @@ export interface MarcadorEnVivo {
   mesa: string            // Ej. 'Mesa 1', 'Mesa 2'
   servidorActual?: 1 | 2  // Indicador de saque
   actualizadoEn: number   // Timestamp milisegundos
+  finalizado?: boolean    // true si se alcanzaron 2 sets ganados (al mejor de 3)
+  ganadorId?: string | null
+  ganadorBolaId?: string | null
+  historialSets?: SetPartido[] // Sets finalizados hasta el momento
+  setsDetalle?: string         // Resumen legible (ej. "Set 1: 11-8")
 }
 
 export interface PartidoGrupo {
   id: string
+  torneoId?: string
   numeroPartido?: number
   jugador1Id: string
   jugador2Id: string
@@ -136,7 +142,7 @@ export interface PartidoGrupo {
   arbitroId?: string         // Id del jugador que oficia como árbitro
   sets?: SetPartido[]        // Historial de sets jugados (mejor de 3)
   // Campos reglamentarios de Bola y Walkover (W)
-  ganadorBolaId?: string     // Jugador que ganó el punto de bola preliminar
+  ganadorBolaId?: string | null     // Jugador que ganó el punto de bola preliminar
   esWalkover?: boolean       // Si finalizó por inasistencia / W.O.
   perdedorPorWId?: string    // Jugador sancionado por inasistencia (0 pts)
   motivoWO?: string          // Justificación o motivo del W.O.

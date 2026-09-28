@@ -238,8 +238,9 @@ export function useWebRTCStream() {
         media = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: modoCamara,
-            width: { ideal: 1280, max: 1280 },
-            height: { ideal: 720, max: 720 },
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 360 },
+            aspectRatio: { ideal: 1.7777777778 }, // Prioridad 16:9 panorámica horizontal para mesa de ping-pong
             frameRate: { ideal: 30, max: 30 },
           },
           audio: {

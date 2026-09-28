@@ -92,7 +92,12 @@ service cloud.firestore {
     // Reglas para la colección 'biblioteca_videos' (Grabaciones, Repeticiones y Clips)
     match /biblioteca_videos/{videoId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      // Solo admins pueden crear clips manualmente; las transmisiones completadas se pueden registrar de forma automática
+      allow create: if isAuthenticated() && (
+        isAdmin() || request.resource.data.tipo == 'transmision_completa'
+      );
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
   }
 }
