@@ -6,11 +6,10 @@
           type="button"
           title="Volver a mis torneos"
           aria-label="Volver a mis torneos"
-          class="flex items-center gap-1.5 px-3 py-2 sm:px-3 sm:py-2.5 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200/80 dark:border-slate-700/80 active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs text-xs font-bold"
+          class="flex items-center justify-center p-2 sm:p-2.5 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white border border-slate-200/80 dark:border-slate-700/80 active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
           @click="$emit('volver')"
         >
           <ArrowLeft class="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-          <span class="inline">Volver</span>
         </button>
 
         <div class="h-6 w-px bg-slate-200 dark:bg-slate-800 shrink-0"></div>

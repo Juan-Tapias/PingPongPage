@@ -14,13 +14,13 @@
         @click.self="cerrar"
       >
         <div
-          class="relative w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-6 text-white space-y-4 my-auto select-none"
+          class="relative w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 text-white space-y-4 my-auto select-none max-h-[92dvh] overflow-y-auto"
         >
           <!-- Cabecera -->
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <div class="flex items-center gap-2">
               <span class="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold">
-                🎬
+                <Film class="w-4 h-4" />
               </span>
               <div>
                 <h3 class="text-sm sm:text-base font-black text-white font-heading">
@@ -63,10 +63,10 @@
                 v-model="tipo"
                 class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-orange-500 outline-hidden transition-all"
               >
-                <option value="mejor_jugada">⭐ Mejor Jugada</option>
-                <option value="saque_as">⚡ Saque As</option>
-                <option value="punto_campeonato">🏆 Punto de Match / Campeonato</option>
-                <option value="transmision_completa">🔴 Transmisión Completa</option>
+                <option value="mejor_jugada">Mejor Jugada</option>
+                <option value="saque_as">Saque As</option>
+                <option value="punto_campeonato">Punto de Match / Campeonato</option>
+                <option value="transmision_completa">Transmisión Completa</option>
               </select>
             </div>
 
@@ -117,7 +117,7 @@
             </div>
 
             <!-- Enfrentamiento de Jugadores (Opcional) -->
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
               <div>
                 <label class="block text-[11px] font-bold text-slate-300 mb-1">Jugador 1</label>
                 <input
@@ -139,7 +139,7 @@
             </div>
 
             <!-- Mesa y Marcador del Momento -->
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
               <div>
                 <label class="block text-[11px] font-bold text-slate-300 mb-1">Mesa</label>
                 <input
@@ -186,7 +186,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { X } from 'lucide-vue-next'
+import { X, Film } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import type { ClipBiblioteca } from '../types'
 

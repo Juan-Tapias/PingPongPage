@@ -10,6 +10,7 @@
         :alt="clip.titulo"
         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
         loading="lazy"
+        @error="($event.target as HTMLImageElement).src = '/images/table-vertical.jpg'"
       />
 
       <!-- Gradiente oscuro en miniatura -->

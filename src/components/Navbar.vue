@@ -10,9 +10,19 @@
 
       <!-- Zona Derecha: Switcher, Theme Toggle y Dropdown de Usuario con Opción de Salir -->
       <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-        <!-- Switcher visual: Panel Admin <-> Vista Jugador -->
+        <!-- Switcher visual: Panel Admin <-> Vista Jugador / Volver a Torneos -->
         <RouterLink
-          v-if="esRutaAdmin"
+          v-if="esRutaBiblioteca"
+          to="/"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200/60 dark:border-slate-700/60"
+          title="Volver a la Página Principal"
+        >
+          <ArrowLeft class="w-3.5 h-3.5 text-orange-500" />
+          <span class="hidden sm:inline">Inicio</span>
+        </RouterLink>
+
+        <RouterLink
+          v-else-if="esRutaAdmin"
           to="/"
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
           title="Cambiar a Vista de Jugador"
@@ -34,11 +44,17 @@
         <!-- Enlace a Biblioteca de Videos y Clips -->
         <RouterLink
           to="/biblioteca"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 transition-colors"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border shrink-0 select-none min-h-[36px]"
+          :class="[
+            esRutaBiblioteca
+              ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/40 shadow-xs'
+              : 'text-slate-700 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 border-slate-200/60 dark:border-slate-700/60'
+          ]"
           title="Biblioteca de Videos y Repeticiones"
         >
-          <Film class="w-3.5 h-3.5 text-orange-500" />
-          <span class="hidden sm:inline">Biblioteca</span>
+          <Film class="w-3.5 h-3.5 text-orange-500 shrink-0" />
+          <span class="hidden md:inline">Biblioteca</span>
+          <span class="hidden sm:inline md:hidden">Clips</span>
         </RouterLink>
 
         <!-- Botón Especial de Modo Oscuro / Claro con Pelota Rebotando sobre la Mesa -->
@@ -144,6 +160,15 @@
                 <span>Mis Torneos y Partidos</span>
               </RouterLink>
 
+              <RouterLink
+                to="/biblioteca"
+                class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all font-semibold"
+                @click="menuUsuarioAbierto = false"
+              >
+                <Film class="w-4 h-4 text-orange-500 shrink-0" />
+                <span>Biblioteca de Videos</span>
+              </RouterLink>
+
               <!-- Conmutador Admin / Jugador en caso de ser Administrador -->
               <template v-if="authStore.esAdmin">
                 <RouterLink
@@ -212,6 +237,7 @@ import {
   GraduationCap,
   Briefcase,
   Film,
+  ArrowLeft,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useReglamento } from '@/composables/useReglamento'
@@ -227,6 +253,7 @@ const menuUsuarioAbierto = ref(false)
 const navUsuarioRef = ref<HTMLElement | null>(null)
 
 const esRutaAdmin = computed(() => route.path.startsWith('/admin'))
+const esRutaBiblioteca = computed(() => route.path.startsWith('/biblioteca'))
 
 const userInitials = computed(() => {
   const nombre = authStore.usuario?.nombre?.[0] || 'P'

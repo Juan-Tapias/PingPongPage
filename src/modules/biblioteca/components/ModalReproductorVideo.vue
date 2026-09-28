@@ -106,7 +106,7 @@
                       max="1"
                       step="0.05"
                       :value="muteado ? 0 : volumen"
-                      class="w-14 sm:w-16 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500"
+                      class="hidden sm:inline-block w-14 sm:w-16 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-orange-500"
                       @input="handleCambiarVolumen(($event.target as HTMLInputElement).valueAsNumber)"
                     />
                   </div>
