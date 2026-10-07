@@ -468,7 +468,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import {
   Trophy,
   Plus,
@@ -489,14 +489,18 @@ import {
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
-import ModalCrearTorneo from '../components/ModalCrearTorneo.vue'
-import ModalResolverPartidoAdmin from '../components/ModalResolverPartidoAdmin.vue'
-import ModalVerComprobante from '../components/ModalVerComprobante.vue'
-import ModalGestionarTorneo from '../components/ModalGestionarTorneo.vue'
-import TablaPartidosVencidos from './partials/TablaPartidosVencidos.vue'
+
+// Carga asíncrona de componentes y modales pesados del panel administrativo
+const ModalCrearTorneo = defineAsyncComponent(() => import('../components/ModalCrearTorneo.vue'))
+const ModalResolverPartidoAdmin = defineAsyncComponent(() => import('../components/ModalResolverPartidoAdmin.vue'))
+const ModalVerComprobante = defineAsyncComponent(() => import('../components/ModalVerComprobante.vue'))
+const ModalGestionarTorneo = defineAsyncComponent(() => import('../components/ModalGestionarTorneo.vue'))
+const TablaPartidosVencidos = defineAsyncComponent(() => import('./partials/TablaPartidosVencidos.vue'))
+
 import type { Torneo } from '@/types'
 import {
   obtenerTorneosDB,
+  leerCacheTorneosInmediato,
   guardarTorneoDB,
   actualizarEstadoTorneoDB,
   eliminarTorneoDB,
@@ -522,7 +526,8 @@ const modalComprobanteRef = ref()
 const modalGestionarRef = ref()
 const torneoSeleccionado = ref<Torneo | null>(null)
 
-const torneos = ref<Torneo[]>([])
+const torneosEnCache = leerCacheTorneosInmediato()
+const torneos = ref<Torneo[]>(torneosEnCache)
 
 // Estadísticas del circuito en tiempo real para las tarjetas KPI
 const statsCircuito = computed(() => {
@@ -548,7 +553,9 @@ const calcularBolsaTorneo = (torneo: Torneo): number => {
 }
 
 onMounted(async () => {
-  cargandoTorneos.value = true
+  if (torneos.value.length === 0) {
+    cargandoTorneos.value = true
+  }
   try {
     const torneosObtenidos = await obtenerTorneosDB()
     

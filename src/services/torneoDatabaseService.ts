@@ -40,6 +40,42 @@ const guardarCacheLocal = (clave: string, valor: any): void => {
 }
 
 /**
+ * Caché en memoria (RAM) de alta velocidad con TTL para navegación instantánea (0ms) en móviles
+ */
+const CACHE_TTL_MS = 60 * 1000 // 60 segundos
+let memoriaTorneosCache: { data: Torneo[]; timestamp: number } | null = null
+const memoriaInscripcionesPorTorneo = new Map<string, { data: any[]; timestamp: number }>()
+const memoriaMisInscripciones = new Map<string, { data: any[]; timestamp: number }>()
+const memoriaPartidosPorTorneo = new Map<string, { data: any[]; timestamp: number }>()
+
+export const invalidarCacheTorneos = (): void => {
+  memoriaTorneosCache = null
+  memoriaInscripcionesPorTorneo.clear()
+  memoriaMisInscripciones.clear()
+  memoriaPartidosPorTorneo.clear()
+}
+
+/**
+ * Obtiene torneos inmediatamente de la memoria o del localStorage sin esperar la red
+ */
+export const leerCacheTorneosInmediato = (): Torneo[] => {
+  if (memoriaTorneosCache && memoriaTorneosCache.data.length > 0) {
+    return memoriaTorneosCache.data
+  }
+  return leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
+}
+
+/**
+ * Obtiene inscripciones del usuario inmediatamente de la memoria o del localStorage
+ */
+export const leerCacheMisInscripcionesInmediato = (usuarioId: string): any[] => {
+  if (!usuarioId) return []
+  const cached = memoriaMisInscripciones.get(usuarioId)
+  if (cached && cached.data.length > 0) return cached.data
+  return leerCacheLocal<any[]>(`spinapp_mis_inscripciones_${usuarioId}`) || []
+}
+
+/**
  * Limpia recursivamente objetos y arreglos para Firestore:
  * - Reemplaza 'undefined' por 'null' para evitar errores fatales "Unsupported field value: undefined"
  * - Maneja objetos anidados, arreglos de sets, y previene que setDoc falle silenciosamente
@@ -67,9 +103,13 @@ export const sanearParaFirestore = <T = any>(obj: T): T => {
 }
 
 /**
- * Obtiene todos los torneos registrados en la base de datos con respaldo de caché local
+ * Obtiene todos los torneos registrados en la base de datos con respaldo de caché local y en memoria
  */
-export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
+export const obtenerTorneosDB = async (forzarRefresco = false): Promise<Torneo[]> => {
+  if (!forzarRefresco && memoriaTorneosCache && Date.now() - memoriaTorneosCache.timestamp < CACHE_TTL_MS) {
+    return memoriaTorneosCache.data
+  }
+
   const torneosCache = leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
 
   try {
@@ -80,6 +120,7 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
       torneos.push({ id: documento.id, ...documento.data() } as Torneo)
     })
     if (torneos.length > 0) {
+      memoriaTorneosCache = { data: torneos, timestamp: Date.now() }
       guardarCacheLocal('spinapp_torneos_cache', torneos)
       return torneos
     }
@@ -92,6 +133,7 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
         torneos.push({ id: documento.id, ...documento.data() } as Torneo)
       })
       if (torneos.length > 0) {
+        memoriaTorneosCache = { data: torneos, timestamp: Date.now() }
         guardarCacheLocal('spinapp_torneos_cache', torneos)
         return torneos
       }
@@ -107,6 +149,7 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
  * Guarda un nuevo torneo creado en Firestore y en caché local
  */
 export const guardarTorneoDB = async (torneo: Torneo): Promise<void> => {
+  memoriaTorneosCache = null
   try {
     const torneoRef = doc(db, COLECCION_TORNEOS, torneo.id)
     await setDoc(torneoRef, torneo)
@@ -125,6 +168,7 @@ export const guardarTorneoDB = async (torneo: Torneo): Promise<void> => {
  * Actualiza el estado oficial de un torneo (por iniciar, en curso, finalizado)
  */
 export const actualizarEstadoTorneoDB = async (id: string, nuevoEstado: EstadoTorneo): Promise<void> => {
+  memoriaTorneosCache = null
   try {
     const torneoRef = doc(db, COLECCION_TORNEOS, id)
     await updateDoc(torneoRef, { estado: nuevoEstado })
@@ -142,6 +186,7 @@ export const actualizarEstadoTorneoDB = async (id: string, nuevoEstado: EstadoTo
  * Elimina un torneo de la base de datos
  */
 export const eliminarTorneoDB = async (id: string): Promise<void> => {
+  memoriaTorneosCache = null
   try {
     const torneoRef = doc(db, COLECCION_TORNEOS, id)
     await deleteDoc(torneoRef)
@@ -155,9 +200,14 @@ export const eliminarTorneoDB = async (id: string): Promise<void> => {
 }
 
 /**
- * Obtiene las inscripciones de un torneo con respaldo de caché local
+ * Obtiene las inscripciones de un torneo con respaldo de caché local y en memoria
  */
-export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> => {
+export const obtenerInscripcionesDB = async (torneoId: string, forzarRefresco = false): Promise<any[]> => {
+  const cachedMem = memoriaInscripcionesPorTorneo.get(torneoId)
+  if (!forzarRefresco && cachedMem && Date.now() - cachedMem.timestamp < CACHE_TTL_MS) {
+    return cachedMem.data
+  }
+
   const inscripcionesCache = leerCacheLocal<any[]>(`spinapp_inscripciones_${torneoId}`) || []
 
   try {
@@ -168,6 +218,7 @@ export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> =
       inscripciones.push({ id: documento.id, ...documento.data() })
     })
     if (inscripciones.length > 0) {
+      memoriaInscripcionesPorTorneo.set(torneoId, { data: inscripciones, timestamp: Date.now() })
       guardarCacheLocal(`spinapp_inscripciones_${torneoId}`, inscripciones)
       return inscripciones
     }
@@ -175,6 +226,41 @@ export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> =
   } catch (error) {
     console.warn('Error al obtener inscripciones de Firestore (posible cuota):', error)
     return inscripcionesCache
+  }
+}
+
+/**
+ * Obtiene directamente las inscripciones de un usuario en un solo query indexado O(1)
+ * Evita completamente el cuello de botella N+1 en celulares y conexiones lentas
+ */
+export const obtenerInscripcionesUsuarioDB = async (
+  usuarioId: string,
+  forzarRefresco = false,
+): Promise<any[]> => {
+  if (!usuarioId) return []
+
+  const claveCache = `spinapp_mis_inscripciones_${usuarioId}`
+  const cachedMem = memoriaMisInscripciones.get(usuarioId)
+  if (!forzarRefresco && cachedMem && Date.now() - cachedMem.timestamp < CACHE_TTL_MS) {
+    return cachedMem.data
+  }
+
+  const cacheLocal = leerCacheLocal<any[]>(claveCache) || []
+
+  try {
+    const q = query(collection(db, COLECCION_INSCRIPCIONES), where('jugadorId', '==', usuarioId))
+    const snap = await getDocs(q)
+    const inscripciones: any[] = []
+    snap.forEach((documento) => {
+      inscripciones.push({ id: documento.id, ...documento.data() })
+    })
+
+    memoriaMisInscripciones.set(usuarioId, { data: inscripciones, timestamp: Date.now() })
+    guardarCacheLocal(claveCache, inscripciones)
+    return inscripciones
+  } catch (error) {
+    console.warn('Error al obtener inscripciones del usuario en Firestore (posible cuota):', error)
+    return cacheLocal
   }
 }
 
@@ -195,6 +281,11 @@ export const guardarInscripcionDB = async (inscripcion: {
 }): Promise<void> => {
   const docId = inscripcion.id || `${inscripcion.torneoId}_${inscripcion.jugadorId}`
   const payload = { ...inscripcion, id: docId }
+
+  memoriaInscripcionesPorTorneo.delete(inscripcion.torneoId)
+  if (inscripcion.jugadorId) {
+    memoriaMisInscripciones.delete(inscripcion.jugadorId)
+  }
 
   try {
     const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, docId)
@@ -217,6 +308,8 @@ export const actualizarEstadoInscripcionDB = async (
   pagoValidado: boolean,
   subestado: string = 'INSCRITO'
 ): Promise<void> => {
+  memoriaInscripcionesPorTorneo.clear()
+  memoriaMisInscripciones.clear()
   const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, inscripcionId)
   await updateDoc(inscripcionRef, {
     pagoValidado,
@@ -225,6 +318,8 @@ export const actualizarEstadoInscripcionDB = async (
 }
 
 export const eliminarInscripcionDB = async (inscripcionId: string): Promise<void> => {
+  memoriaInscripcionesPorTorneo.clear()
+  memoriaMisInscripciones.clear()
   const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, inscripcionId)
   await deleteDoc(inscripcionRef)
 }
@@ -255,7 +350,12 @@ export const ordenarPartidosNumerico = (partidos: any[]): any[] => {
   })
 }
 
-export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
+export const obtenerPartidosDB = async (torneoId: string, forzarRefresco = false): Promise<any[]> => {
+  const cachedMem = memoriaPartidosPorTorneo.get(torneoId)
+  if (!forzarRefresco && cachedMem && Date.now() - cachedMem.timestamp < CACHE_TTL_MS) {
+    return cachedMem.data
+  }
+
   const cachePartidos = leerCacheLocal<any[]>(`spinapp_partidos_${torneoId}`) || []
 
   try {
@@ -267,6 +367,7 @@ export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
     })
     if (partidos.length > 0) {
       const ordenados = ordenarPartidosNumerico(partidos)
+      memoriaPartidosPorTorneo.set(torneoId, { data: ordenados, timestamp: Date.now() })
       guardarCacheLocal(`spinapp_partidos_${torneoId}`, ordenados)
       return ordenados
     }
@@ -813,90 +914,97 @@ export const obtenerEstadisticasJugadorDB = async (
     (t) => t.subestado !== 'PENDIENTE' && t.estado === 'finalizado'
   ).length
 
-  // 2. Partidos y sets en cada torneo
-  for (const torneo of torneosInscritos) {
-    if (torneo.subestado === 'PENDIENTE') continue
+  // 2. Carga concurrente y paralela de partidos y tablas de torneos (optimización extrema móvil)
+  const torneosValidos = torneosInscritos.filter((t) => t.subestado !== 'PENDIENTE')
+  const datosTorneos = await Promise.all(
+    torneosValidos.map(async (torneo) => {
+      try {
+        const [partidos, tabla] = await Promise.all([
+          obtenerPartidosDB(torneo.id).catch(() => []),
+          torneo.estado === 'finalizado'
+            ? obtenerTablaPosicionesDB(torneo.id).catch(() => null)
+            : Promise.resolve(null),
+        ])
+        return { torneo, partidos, tabla }
+      } catch {
+        return { torneo, partidos: [], tabla: null }
+      }
+    }),
+  )
 
-    try {
-      const partidos = await obtenerPartidosDB(torneo.id)
-      const partidosJugados = partidos.filter((p) => p.estado === 'jugado')
+  for (const { partidos, tabla } of datosTorneos) {
+    const partidosJugados = partidos.filter((p: any) => p.estado === 'jugado')
 
-      for (const p of partidosJugados) {
-        const j1Id = String(p.jugador1?.id || p.jugador1Id || '')
-        const j2Id = String(p.jugador2?.id || p.jugador2Id || '')
-        const j1Nombre = p.jugador1?.nombre || ''
-        const j2Nombre = p.jugador2?.nombre || ''
+    for (const p of partidosJugados) {
+      const j1Id = String(p.jugador1?.id || p.jugador1Id || '')
+      const j2Id = String(p.jugador2?.id || p.jugador2Id || '')
+      const j1Nombre = p.jugador1?.nombre || ''
+      const j2Nombre = p.jugador2?.nombre || ''
 
-        const esJ1 =
-          (j1Id && (j1Id === usuarioId || j1Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j1Id))) ||
-          (usuarioNombre && j1Nombre && j1Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
-        const esJ2 =
-          (j2Id && (j2Id === usuarioId || j2Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j2Id))) ||
-          (usuarioNombre && j2Nombre && j2Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+      const esJ1 =
+        (j1Id && (j1Id === usuarioId || j1Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j1Id))) ||
+        (usuarioNombre && j1Nombre && j1Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+      const esJ2 =
+        (j2Id && (j2Id === usuarioId || j2Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j2Id))) ||
+        (usuarioNombre && j2Nombre && j2Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
 
-        if (esJ1 || esJ2) {
-          stats.partidosJugados++
-          const ganadorId = String(p.ganadorId || p.jugadorGanadorId || '')
-          const esGanador =
-            (ganadorId && (ganadorId === usuarioId || ganadorId.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + ganadorId))) ||
-            (esJ1 && p.marcador?.startsWith('2')) ||
-            (esJ2 && p.marcador?.endsWith('2'))
+      if (esJ1 || esJ2) {
+        stats.partidosJugados++
+        const ganadorId = String(p.ganadorId || p.jugadorGanadorId || '')
+        const esGanador =
+          (ganadorId && (ganadorId === usuarioId || ganadorId.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + ganadorId))) ||
+          (esJ1 && p.marcador?.startsWith('2')) ||
+          (esJ2 && p.marcador?.endsWith('2'))
 
-          if (esGanador) {
-            stats.partidosGanados++
-          } else if (ganadorId || p.marcador) {
-            stats.partidosPerdidos++
-          }
+        if (esGanador) {
+          stats.partidosGanados++
+        } else if (ganadorId || p.marcador) {
+          stats.partidosPerdidos++
+        }
 
-          // Conteo de sets
-          if (p.sets && Array.isArray(p.sets) && p.sets.length > 0) {
-            p.sets.forEach((s: any) => {
-              const ganoSet =
-                (s.ganadorId && (s.ganadorId === usuarioId || String(s.ganadorId).includes(usuarioId))) ||
-                (esJ1 && Number(s.puntosJugador1) > Number(s.puntosJugador2)) ||
-                (esJ2 && Number(s.puntosJugador2) > Number(s.puntosJugador1))
+        // Conteo de sets
+        if (p.sets && Array.isArray(p.sets) && p.sets.length > 0) {
+          p.sets.forEach((s: any) => {
+            const ganoSet =
+              (s.ganadorId && (s.ganadorId === usuarioId || String(s.ganadorId).includes(usuarioId))) ||
+              (esJ1 && Number(s.puntosJugador1) > Number(s.puntosJugador2)) ||
+              (esJ2 && Number(s.puntosJugador2) > Number(s.puntosJugador1))
 
-              if (ganoSet) {
-                stats.setsGanados++
-              } else {
-                stats.setsPerdidos++
-              }
-            })
-          } else if (p.marcador && typeof p.marcador === 'string') {
-            const partes = p.marcador.split('-').map((str: string) => parseInt(str.trim()))
-            if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
-              if (esJ1) {
-                stats.setsGanados += partes[0]
-                stats.setsPerdidos += partes[1]
-              } else {
-                stats.setsGanados += partes[1]
-                stats.setsPerdidos += partes[0]
-              }
+            if (ganoSet) {
+              stats.setsGanados++
+            } else {
+              stats.setsPerdidos++
+            }
+          })
+        } else if (p.marcador && typeof p.marcador === 'string') {
+          const partes = p.marcador.split('-').map((str: string) => parseInt(str.trim()))
+          if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
+            if (esJ1) {
+              stats.setsGanados += partes[0]
+              stats.setsPerdidos += partes[1]
+            } else {
+              stats.setsGanados += partes[1]
+              stats.setsPerdidos += partes[0]
             }
           }
         }
       }
+    }
 
-      // 3. Podios en torneos finalizados
-      if (torneo.estado === 'finalizado') {
-        const tabla = await obtenerTablaPosicionesDB(torneo.id)
-        if (tabla && tabla.posiciones) {
-          const miFila = tabla.posiciones.find((pos) => {
-            const posId = String(pos.jugadorId || '')
-            return (
-              posId === usuarioId ||
-              posId.endsWith('_' + usuarioId) ||
-              usuarioId.endsWith('_' + posId) ||
-              (usuarioNombre && pos.nombre && pos.nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
-            )
-          })
-          if (miFila && miFila.posicion > 0 && miFila.posicion <= 3) {
-            stats.podios++
-          }
-        }
+    // 3. Podios en torneos finalizados
+    if (tabla && tabla.posiciones) {
+      const miFila = tabla.posiciones.find((pos) => {
+        const posId = String(pos.jugadorId || '')
+        return (
+          posId === usuarioId ||
+          posId.endsWith('_' + usuarioId) ||
+          usuarioId.endsWith('_' + posId) ||
+          (usuarioNombre && pos.nombre && pos.nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+        )
+      })
+      if (miFila && miFila.posicion > 0 && miFila.posicion <= 3) {
+        stats.podios++
       }
-    } catch (e) {
-      console.warn(`Error al obtener estadísticas del torneo ${torneo.id}:`, e)
     }
   }
 
