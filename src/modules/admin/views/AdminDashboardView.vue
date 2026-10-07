@@ -125,7 +125,56 @@
 
     <!-- Contenido Principal: Torneos y Filtros -->
     <main class="flex-1 max-w-7xl 2xl:max-w-[1720px] w-full mx-auto px-4 sm:px-6 2xl:px-8 py-8 flex flex-col gap-6">
-      <section class="space-y-6">
+      <!-- Selector de Tabs Principales del Centro de Mando Admin -->
+      <div class="flex items-center gap-2 p-1.5 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs self-start w-full sm:w-auto">
+        <button
+          type="button"
+          :class="[
+            'flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer',
+            tabAdminActiva === 'torneos'
+              ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-500/25 font-black'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+          ]"
+          @click="tabAdminActiva = 'torneos'"
+        >
+          <Trophy class="w-4 h-4 shrink-0" />
+          <span>Gestión de Torneos</span>
+          <span
+            :class="[
+              'text-[10px] px-1.5 py-0.5 rounded-full font-bold ml-1',
+              tabAdminActiva === 'torneos'
+                ? 'bg-orange-950/60 text-orange-200'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+            ]"
+          >
+            {{ torneos.length }}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          :class="[
+            'flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer',
+            tabAdminActiva === 'partidos'
+              ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-md shadow-orange-500/25 font-black'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+          ]"
+          @click="tabAdminActiva = 'partidos'"
+        >
+          <Clock class="w-4 h-4 shrink-0" />
+          <span>Partidos y Vencimientos</span>
+          <span
+            v-if="conteoPartidosVencidos > 0"
+            class="text-[10px] px-2 py-0.5 rounded-full font-black bg-red-600 text-white animate-pulse shadow-xs"
+            title="Partidos vencidos (>2 días)"
+          >
+            {{ conteoPartidosVencidos }} Vencidos
+          </span>
+        </button>
+      </div>
+
+      <!-- PESTAÑA 1: GESTIÓN DE TORNEOS -->
+      <section v-if="tabAdminActiva === 'torneos'" class="space-y-6">
         <!-- Barra de Búsqueda y Filtros de Torneo con Efecto Glassmorphic -->
         <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white/90 dark:bg-[#0f172a]/90 backdrop-blur-md p-3.5 sm:p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
           <div class="relative flex-1">
@@ -376,6 +425,16 @@
           </div>
         </div>
       </section>
+
+      <!-- PESTAÑA 2: CONTROL DE PARTIDOS Y VENCIMIENTOS -->
+      <section v-else-if="tabAdminActiva === 'partidos'" class="space-y-6">
+        <TablaPartidosVencidos
+          :torneos="torneos"
+          @update:conteo-vencidos="(n) => conteoPartidosVencidos = n"
+          @resolver-partido="abrirResolverPartido"
+          @ver-torneo="abrirDetalleTorneo"
+        />
+      </section>
     </main>
 
     <!-- Footer -->
@@ -409,7 +468,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   Trophy,
   Plus,
@@ -425,6 +484,7 @@ import {
   ArrowRight,
   MapPin,
   ChevronDown,
+  Clock,
 } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
@@ -433,6 +493,7 @@ import ModalCrearTorneo from '../components/ModalCrearTorneo.vue'
 import ModalResolverPartidoAdmin from '../components/ModalResolverPartidoAdmin.vue'
 import ModalVerComprobante from '../components/ModalVerComprobante.vue'
 import ModalGestionarTorneo from '../components/ModalGestionarTorneo.vue'
+import TablaPartidosVencidos from './partials/TablaPartidosVencidos.vue'
 import type { Torneo } from '@/types'
 import {
   obtenerTorneosDB,
@@ -443,8 +504,13 @@ import {
   obtenerInscripcionesDB,
   obtenerPartidosDB,
   guardarTablaPosicionesDB,
+  suscribirTodosLosPartidosDB,
 } from '@/services/torneoDatabaseService';
-import { calcularTablaDesdePartidos } from '@/services/torneoAlgoritmos'
+import { calcularTablaDesdePartidos, sonMismoJugador } from '@/services/torneoAlgoritmos'
+
+const tabAdminActiva = ref<'torneos' | 'partidos'>('torneos')
+const conteoPartidosVencidos = ref(0)
+let unsubscribePartidosGlobales: (() => void) | null = null
 
 const busquedaTorneo = ref('')
 const filtroEstado = ref<'todos' | 'en curso' | 'por iniciar' | 'finalizado'>('todos')
@@ -504,6 +570,61 @@ onMounted(async () => {
     console.error('Error al cargar datos desde la base de datos:', error)
   } finally {
     cargandoTorneos.value = false
+  }
+
+  // Suscripción para alertar en tiempo real sobre partidos vencidos en el badge del tab
+  unsubscribePartidosGlobales = suscribirTodosLosPartidosDB((partidos) => {
+    const ahora = Date.now()
+    const vencidos = partidos.filter((p: any) => {
+      if (p.estado === 'jugado' || p.esBye) return false
+
+      const j1Id = p.jugador1?.id || p.jugador1Id
+      const j2Id = p.jugador2?.id || p.jugador2Id
+      if (!j1Id || !j2Id) return false
+
+      const rondaOficial = Number(p.ronda || p.jornada || 1)
+      const torneoId = p.torneoId
+
+      // Comprobar si tiene partidos pendientes en rondas estrictamente anteriores
+      const tienePendientesPrevios = partidos.some((otro: any) => {
+        if (otro.id === p.id) return false
+        if (otro.torneoId && torneoId && otro.torneoId !== torneoId) return false
+        const jA = otro.jugador1?.id || otro.jugador1Id
+        const jB = otro.jugador2?.id || otro.jugador2Id
+        const participa =
+          sonMismoJugador(jA, j1Id) ||
+          sonMismoJugador(jB, j1Id) ||
+          sonMismoJugador(jA, j2Id) ||
+          sonMismoJugador(jB, j2Id)
+        if (!participa) return false
+        const yaJugado =
+          otro.estado === 'jugado' ||
+          (!!otro.marcador && String(otro.marcador).includes('-') && otro.estado !== 'pendiente')
+        if (yaJugado) return false
+        const rOtro = Number(otro.ronda || otro.jornada || 1)
+        return rOtro < rondaOficial
+      })
+
+      if (tienePendientesPrevios) return false
+
+      if (p.estado === 'pendiente_admin') return true
+
+      const fLimite =
+        (typeof p.fechaLimite === 'number' ? p.fechaLimite : null) ||
+        (p.fechaLimite?.toMillis ? p.fechaLimite.toMillis() : null) ||
+        (p.fechaLimite?.seconds ? p.fechaLimite.seconds * 1000 : null) ||
+        (p.fechaLimite ? new Date(p.fechaLimite).getTime() : 0)
+
+      return fLimite > 0 && ahora >= fLimite
+    }).length
+    conteoPartidosVencidos.value = vencidos
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribePartidosGlobales) {
+    unsubscribePartidosGlobales()
+    unsubscribePartidosGlobales = null
   }
 })
 

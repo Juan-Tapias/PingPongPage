@@ -317,6 +317,93 @@ export const suscribirPartidosDB = (
 }
 
 /**
+ * Obtiene todos los partidos de todos los torneos con respaldo de caché
+ */
+export const obtenerTodosLosPartidosDB = async (): Promise<any[]> => {
+  const cacheTodos = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+
+  try {
+    const snap = await getDocs(collection(db, COLECCION_PARTIDOS))
+    const partidos: any[] = []
+    snap.forEach((documento) => {
+      partidos.push({ id: documento.id, ...documento.data() })
+    })
+    if (partidos.length > 0) {
+      const ordenados = ordenarPartidosNumerico(partidos)
+      guardarCacheLocal('spinapp_todos_partidos_cache', ordenados)
+      return ordenados
+    }
+    if (cacheTodos.length > 0) return cacheTodos
+
+    // Respaldo secundario: consolidar cachés de torneos conocidos
+    const torneosCache = leerCacheLocal<any[]>('spinapp_torneos_cache') || []
+    const acumulados: any[] = []
+    for (const t of torneosCache) {
+      const pTorneo = leerCacheLocal<any[]>(`spinapp_partidos_${t.id}`) || []
+      acumulados.push(...pTorneo)
+    }
+    return acumulados
+  } catch (error) {
+    console.warn('Error al obtener todos los partidos de Firestore (posible cuota):', error)
+    if (cacheTodos.length > 0) return cacheTodos
+    const torneosCache = leerCacheLocal<any[]>('spinapp_torneos_cache') || []
+    const acumulados: any[] = []
+    for (const t of torneosCache) {
+      const pTorneo = leerCacheLocal<any[]>(`spinapp_partidos_${t.id}`) || []
+      acumulados.push(...pTorneo)
+    }
+    return acumulados
+  }
+}
+
+/**
+ * Escucha en tiempo real todos los partidos de todos los torneos
+ */
+export const suscribirTodosLosPartidosDB = (
+  onActualizar: (partidos: any[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  const cacheTodos = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+  if (cacheTodos.length > 0) {
+    onActualizar(cacheTodos)
+  } else {
+    const torneosCache = leerCacheLocal<any[]>('spinapp_torneos_cache') || []
+    const acumulados: any[] = []
+    for (const t of torneosCache) {
+      const pTorneo = leerCacheLocal<any[]>(`spinapp_partidos_${t.id}`) || []
+      acumulados.push(...pTorneo)
+    }
+    if (acumulados.length > 0) {
+      onActualizar(acumulados)
+    }
+  }
+
+  const q = collection(db, COLECCION_PARTIDOS)
+  return onSnapshot(
+    q,
+    (snap) => {
+      const partidos: any[] = []
+      snap.forEach((documento) => {
+        partidos.push({ id: documento.id, ...documento.data() })
+      })
+      const ordenados = ordenarPartidosNumerico(partidos)
+      if (ordenados.length > 0) {
+        guardarCacheLocal('spinapp_todos_partidos_cache', ordenados)
+      }
+      onActualizar(ordenados)
+    },
+    (err) => {
+      console.warn('Error en listener en tiempo real de todos los partidos (posible cuota):', err)
+      const cached = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+      if (cached.length > 0) {
+        onActualizar(cached)
+      }
+      onError?.(err)
+    }
+  )
+}
+
+/**
  * Guarda los partidos generados en un torneo
  */
 export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
@@ -348,6 +435,13 @@ export const actualizarPartidoDB = async (partidoId: string, datos: any): Promis
       lista[idx] = { ...lista[idx], ...datosLimpios }
       guardarCacheLocal(`spinapp_partidos_${torneoId}`, lista)
     }
+  }
+
+  const todos = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+  const idxTodos = todos.findIndex((p) => p.id === partidoId)
+  if (idxTodos >= 0) {
+    todos[idxTodos] = { ...todos[idxTodos], ...datosLimpios }
+    guardarCacheLocal('spinapp_todos_partidos_cache', todos)
   }
 }
 
