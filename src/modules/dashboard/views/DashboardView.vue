@@ -238,7 +238,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Trophy, Compass } from 'lucide-vue-next'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
@@ -250,18 +250,24 @@ import FiltrosDisponibles from './partials/dashboard/FiltrosDisponibles.vue'
 import BannerSeguimientoMesas, { type PartidoEnVivo } from './partials/dashboard/BannerSeguimientoMesas.vue'
 import BannerReglamento from './partials/dashboard/BannerReglamento.vue'
 import KpiEstadisticas from './partials/dashboard/KpiEstadisticas.vue'
-import ModalInscripcionTorneo from './partials/dashboard/ModalInscripcionTorneo.vue'
-import ModalVerificacionPago from './partials/dashboard/ModalVerificacionPago.vue'
-import VistaParticipacionTorneo from './partials/participacion/VistaParticipacionTorneo.vue'
-import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmisionEnVivo.vue'
-import ModalCamaraTransmision from '@/modules/streaming/components/ModalCamaraTransmision.vue'
-import ModalVincularCamara from '@/modules/streaming/components/ModalVincularCamara.vue'
+
+// Componentes y modales secundarios diferidos (Lazy / Async) para reducir drasticamente el bundle inicial
+const ModalInscripcionTorneo = defineAsyncComponent(() => import('./partials/dashboard/ModalInscripcionTorneo.vue'))
+const ModalVerificacionPago = defineAsyncComponent(() => import('./partials/dashboard/ModalVerificacionPago.vue'))
+const VistaParticipacionTorneo = defineAsyncComponent(() => import('./partials/participacion/VistaParticipacionTorneo.vue'))
+const ModalTransmisionEnVivo = defineAsyncComponent(() => import('@/modules/streaming/components/ModalTransmisionEnVivo.vue'))
+const ModalCamaraTransmision = defineAsyncComponent(() => import('@/modules/streaming/components/ModalCamaraTransmision.vue'))
+const ModalVincularCamara = defineAsyncComponent(() => import('@/modules/streaming/components/ModalVincularCamara.vue'))
+
 import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
 import type { Torneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import {
   obtenerTorneosDB,
   obtenerInscripcionesDB,
+  obtenerInscripcionesUsuarioDB,
+  leerCacheTorneosInmediato,
+  leerCacheMisInscripcionesInmediato,
   guardarInscripcionDB,
   obtenerEstadisticasJugadorDB,
   suscribirPartidosEnVivoDB,
@@ -302,6 +308,35 @@ const torneoSeleccionado = ref<Torneo | null>(null)
 
 const misTorneos = ref<Torneo[]>([])
 const torneosDisponibles = ref<Torneo[]>([])
+
+// Hidratación reactiva instantánea (0ms) desde caché para celulares
+const userIdInicial = authStore.usuario?.id
+const torneosEnCache = leerCacheTorneosInmediato()
+if (torneosEnCache.length > 0) {
+  const misInscripcionesCache = userIdInicial ? leerCacheMisInscripcionesInmediato(userIdInicial) : []
+  const idsInscritosCache = new Set(misInscripcionesCache.map((ins: any) => ins.torneoId))
+  const mapaInscripcionesCache = new Map<string, any>(misInscripcionesCache.map((ins: any) => [ins.torneoId, ins]))
+
+  const inscritosCache: Torneo[] = []
+  const disponiblesCache: Torneo[] = []
+
+  for (const t of torneosEnCache) {
+    const miIns = mapaInscripcionesCache.get(t.id)
+    const estaInscrito = idsInscritosCache.has(t.id)
+    if (estaInscrito || authStore.esAdmin) {
+      inscritosCache.push({
+        ...t,
+        estaInscrito: true,
+        subestado: miIns?.subestado || t.subestado,
+      })
+    } else {
+      disponiblesCache.push({ ...t, estaInscrito: false })
+    }
+  }
+
+  misTorneos.value = inscritosCache
+  torneosDisponibles.value = disponiblesCache
+}
 
 const estadisticasJugador = ref<EstadisticasJugador>({
   torneosJugados: 0,
@@ -524,13 +559,68 @@ const iniciarSuscripcionMesas = () => {
   )
 }
 
+const cargarTorneos = async (silencioso = misTorneos.value.length > 0) => {
+  if (!silencioso) {
+    cargando.value = true
+  }
+
+  try {
+    const userId = authStore.usuario?.id
+    // Consultas concurrentes en paralelo O(1) que eliminan el cuello de botella N+1 en móviles
+    const [torneosRemotos, misInscripciones] = await Promise.all([
+      obtenerTorneosDB(),
+      userId ? obtenerInscripcionesUsuarioDB(userId) : Promise.resolve([]),
+    ])
+
+    const idsInscritos = new Set(misInscripciones.map((ins: any) => ins.torneoId))
+    const mapaInscripciones = new Map<string, any>(misInscripciones.map((ins: any) => [ins.torneoId, ins]))
+
+    const inscritos: Torneo[] = []
+    const disponibles: Torneo[] = []
+
+    for (const t of torneosRemotos) {
+      const miIns = mapaInscripciones.get(t.id)
+      const estaInscrito = idsInscritos.has(t.id)
+
+      if (estaInscrito || authStore.esAdmin) {
+        inscritos.push({
+          ...t,
+          estaInscrito: true,
+          subestado: miIns?.subestado || t.subestado,
+        })
+      } else {
+        disponibles.push({ ...t, estaInscrito: false })
+      }
+    }
+
+    misTorneos.value = inscritos
+    torneosDisponibles.value = disponibles
+
+    // Cargar estadísticas en segundo plano de manera no bloqueante
+    cargarEstadisticas()
+
+    // Restaurar torneo activo persistido en URL o localStorage tras recarga
+    const torneoIdPersistido = (route.query.torneo as string) || localStorage.getItem('spinapp_torneo_activo_id')
+    if (torneoIdPersistido) {
+      const encontrado = [...inscritos, ...disponibles].find((t) => t.id === torneoIdPersistido)
+      if (encontrado && encontrado.subestado !== 'PENDIENTE') {
+        torneoParticipacion.value = encontrado
+      }
+    }
+  } catch (err) {
+    console.error('Error al cargar torneos desde la base de datos:', err)
+  } finally {
+    cargando.value = false
+  }
+}
+
 // Reconectar la suscripción en cuanto se resuelva o cambie el usuario autenticado (crucial en incógnito)
 watch(
   () => authStore.usuario,
   (nuevoUsuario) => {
     if (nuevoUsuario?.id) {
       iniciarSuscripcionMesas()
-      cargarEstadisticas()
+      cargarTorneos(true)
     }
   },
 )
@@ -546,47 +636,7 @@ onUnmounted(() => {
 onMounted(async () => {
   // Iniciar suscripción en tiempo real a las mesas de juego con partidos en vivo
   iniciarSuscripcionMesas()
-
-  cargando.value = true
-  try {
-    const torneosRemotos = await obtenerTorneosDB()
-    const userId = authStore.usuario?.id
-
-    const inscritos: Torneo[] = []
-    const disponibles: Torneo[] = []
-
-    for (const t of torneosRemotos) {
-      let estaInscrito = false
-      if (userId) {
-        const inscripciones = await obtenerInscripcionesDB(t.id)
-        estaInscrito = inscripciones.some((ins: any) => ins.jugadorId === userId || ins.id === userId)
-      }
-
-      // Si el usuario está inscrito o es administrador del torneo, incluir en misTorneos
-      if (estaInscrito || authStore.esAdmin) {
-        inscritos.push({ ...t, estaInscrito: true })
-      } else {
-        disponibles.push({ ...t, estaInscrito: false })
-      }
-    }
-
-    misTorneos.value = inscritos
-    torneosDisponibles.value = disponibles
-    await cargarEstadisticas()
-
-    // Restaurar torneo activo persistido en URL o localStorage tras recarga
-    const torneoIdPersistido = (route.query.torneo as string) || localStorage.getItem('spinapp_torneo_activo_id')
-    if (torneoIdPersistido) {
-      const encontrado = [...inscritos, ...disponibles].find((t) => t.id === torneoIdPersistido)
-      if (encontrado && encontrado.subestado !== 'PENDIENTE') {
-        torneoParticipacion.value = encontrado
-      }
-    }
-  } catch (err) {
-    console.error('Error al cargar torneos desde la base de datos:', err)
-  } finally {
-    cargando.value = false
-  }
+  await cargarTorneos()
 })
 
 const misTorneosFiltrados = computed(() => {

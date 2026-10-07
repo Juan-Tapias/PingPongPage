@@ -468,7 +468,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import {
   Trophy,
   Plus,
@@ -489,14 +489,18 @@ import {
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
-import ModalCrearTorneo from '../components/ModalCrearTorneo.vue'
-import ModalResolverPartidoAdmin from '../components/ModalResolverPartidoAdmin.vue'
-import ModalVerComprobante from '../components/ModalVerComprobante.vue'
-import ModalGestionarTorneo from '../components/ModalGestionarTorneo.vue'
-import TablaPartidosVencidos from './partials/TablaPartidosVencidos.vue'
+
+// Carga asíncrona de componentes y modales pesados del panel administrativo
+const ModalCrearTorneo = defineAsyncComponent(() => import('../components/ModalCrearTorneo.vue'))
+const ModalResolverPartidoAdmin = defineAsyncComponent(() => import('../components/ModalResolverPartidoAdmin.vue'))
+const ModalVerComprobante = defineAsyncComponent(() => import('../components/ModalVerComprobante.vue'))
+const ModalGestionarTorneo = defineAsyncComponent(() => import('../components/ModalGestionarTorneo.vue'))
+const TablaPartidosVencidos = defineAsyncComponent(() => import('./partials/TablaPartidosVencidos.vue'))
+
 import type { Torneo } from '@/types'
 import {
   obtenerTorneosDB,
+  leerCacheTorneosInmediato,
   guardarTorneoDB,
   actualizarEstadoTorneoDB,
   eliminarTorneoDB,
@@ -506,7 +510,7 @@ import {
   guardarTablaPosicionesDB,
   suscribirTodosLosPartidosDB,
 } from '@/services/torneoDatabaseService';
-import { calcularTablaDesdePartidos, sonMismoJugador } from '@/services/torneoAlgoritmos'
+import { calcularTablaDesdePartidos, sonMismoJugador, calcularFechaLimiteHabiles } from '@/services/torneoAlgoritmos'
 
 const tabAdminActiva = ref<'torneos' | 'partidos'>('torneos')
 const conteoPartidosVencidos = ref(0)
@@ -522,7 +526,8 @@ const modalComprobanteRef = ref()
 const modalGestionarRef = ref()
 const torneoSeleccionado = ref<Torneo | null>(null)
 
-const torneos = ref<Torneo[]>([])
+const torneosEnCache = leerCacheTorneosInmediato()
+const torneos = ref<Torneo[]>(torneosEnCache)
 
 // Estadísticas del circuito en tiempo real para las tarjetas KPI
 const statsCircuito = computed(() => {
@@ -548,7 +553,9 @@ const calcularBolsaTorneo = (torneo: Torneo): number => {
 }
 
 onMounted(async () => {
-  cargandoTorneos.value = true
+  if (torneos.value.length === 0) {
+    cargandoTorneos.value = true
+  }
   try {
     const torneosObtenidos = await obtenerTorneosDB()
     
@@ -710,27 +717,51 @@ const abrirResolverPartido = (partido: any) => {
 }
 
 const handleResolverPartido = async (payload: any) => {
-  const partidoEnConflicto = partidosConflicto.value.find(p => p.id === payload.partidoId)
-  partidosConflicto.value = partidosConflicto.value.filter(p => p.id !== payload.partidoId)
+  const partidoId = payload.partidoId
+  const partidoEnConflicto = payload.partido || partidosConflicto.value.find((p: any) => p.id === partidoId)
+  partidosConflicto.value = partidosConflicto.value.filter((p: any) => p.id !== partidoId)
+
   try {
+    // Si la opción elegida es reprogramar / prórroga de +24h hábiles
+    if (payload.marcador === 'Reprogramar') {
+      const ahora = Date.now()
+      const nuevaFechaLimite = calcularFechaLimiteHabiles(ahora, 24)
+
+      await actualizarPartidoDB(partidoId, {
+        estado: 'pendiente',
+        fechaLimite: nuevaFechaLimite,
+        prorrogaOtorgada: true,
+        horasRestantes: 24,
+        diasRestantes: 1,
+        marcador: null,
+        marcadorDetallado: null,
+        sets: null,
+        esWalkover: false,
+        perdedorPorWId: null,
+        jugadorGanadorId: null,
+        observaciones: payload.observaciones || 'Prórroga de +24h hábiles otorgada por el administrador.',
+      })
+      return
+    }
+
     const esWO = String(payload.marcador || '').includes('W.O.')
-    const perdedorId = partidoEnConflicto
-      ? (payload.ganadorId === partidoEnConflicto.jugador1Id ? partidoEnConflicto.jugador2Id : partidoEnConflicto.jugador1Id)
-      : undefined
+    const j1Id = partidoEnConflicto?.jugador1?.id || partidoEnConflicto?.jugador1Id
+    const j2Id = partidoEnConflicto?.jugador2?.id || partidoEnConflicto?.jugador2Id
+    const perdedorId = payload.ganadorId === j1Id ? j2Id : j1Id
 
     const setsWO = esWO ? [
       {
         setNumero: 1,
-        puntosJugador1: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 11 : 6,
-        puntosJugador2: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 6 : 11,
+        puntosJugador1: payload.ganadorId === j1Id ? 11 : 6,
+        puntosJugador2: payload.ganadorId === j1Id ? 6 : 11,
         mallasJugador1: 0,
         mallasJugador2: 0,
         ganadorId: payload.ganadorId,
       },
       {
         setNumero: 2,
-        puntosJugador1: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 11 : 6,
-        puntosJugador2: payload.ganadorId === partidoEnConflicto?.jugador1Id ? 6 : 11,
+        puntosJugador1: payload.ganadorId === j1Id ? 11 : 6,
+        puntosJugador2: payload.ganadorId === j1Id ? 6 : 11,
         mallasJugador1: 0,
         mallasJugador2: 0,
         ganadorId: payload.ganadorId,
