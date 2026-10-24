@@ -138,7 +138,67 @@ export function usePlayoffs(
       ]
     }
 
-    // Formato Top 8: Cuartos de final estándar
+    // Formato Top 10+: Top 4 con BYE a Cuartos + Play-In (Repechaje) para puestos 5° al 12°
+    if (getCantidad() >= 10) {
+      const p1 = partidosPlayIn.value[0]
+      const p2 = partidosPlayIn.value[1]
+      const p3 = partidosPlayIn.value[2]
+      const p4 = partidosPlayIn.value[3]
+
+      const resolverRivalPlayIn = (partido: PartidoPlayoff | undefined, numLlave: number): JugadorTorneo => {
+        if (!partido) return crearPlaceholder(`g-playin-${numLlave}`, `Ganador Llave ${numLlave}`, `L${numLlave}`)
+        if (partido.estado === 'jugado' && partido.ganadorId) {
+          if (partido.jugador1?.id === partido.ganadorId) return partido.jugador1
+          if (partido.jugador2?.id === partido.ganadorId) return partido.jugador2
+        }
+        return crearPlaceholder(`g-playin-${numLlave}`, `Ganador Llave ${numLlave}`, `L${numLlave}`)
+      }
+
+      return [
+        {
+          id: 'cuartos-1',
+          ronda: 'cuartos',
+          numeroLlave: 1,
+          jugador1: list[0] || crearPlaceholder('p1', 'Puesto 1° (Top 1 BYE)', '#1'),
+          jugador2: resolverRivalPlayIn(p1, 1),
+          estado: 'pendiente',
+          anilloOrbital: 2,
+          siguientePartidoId: 'semi-1',
+        },
+        {
+          id: 'cuartos-2',
+          ronda: 'cuartos',
+          numeroLlave: 2,
+          jugador1: list[3] || crearPlaceholder('p4', 'Puesto 4° (Top 4 BYE)', '#4'),
+          jugador2: resolverRivalPlayIn(p2, 2),
+          estado: 'pendiente',
+          anilloOrbital: 2,
+          siguientePartidoId: 'semi-1',
+        },
+        {
+          id: 'cuartos-3',
+          ronda: 'cuartos',
+          numeroLlave: 3,
+          jugador1: list[1] || crearPlaceholder('p2', 'Puesto 2° (Top 2 BYE)', '#2'),
+          jugador2: resolverRivalPlayIn(p3, 3),
+          estado: 'pendiente',
+          anilloOrbital: 2,
+          siguientePartidoId: 'semi-2',
+        },
+        {
+          id: 'cuartos-4',
+          ronda: 'cuartos',
+          numeroLlave: 4,
+          jugador1: list[2] || crearPlaceholder('p3', 'Puesto 3° (Top 3 BYE)', '#3'),
+          jugador2: resolverRivalPlayIn(p4, 4),
+          estado: 'pendiente',
+          anilloOrbital: 2,
+          siguientePartidoId: 'semi-2',
+        },
+      ]
+    }
+
+    // Formato Top 8: Cuartos de final estándar (1v8, 4v5, 2v7, 3v6)
     return [
       {
         id: 'cuartos-1',
@@ -188,7 +248,16 @@ export function usePlayoffs(
     if (getCantidad() < 4) return []
     const list = clasificados.value
 
-    // Si hubo Cuartos previos (6 u 8):
+    const resolverGanadorCuartos = (partidoId: string, labelDefault: string, tag: string): JugadorTorneo => {
+      const p = partidosCuartos.value.find((c) => c.id === partidoId)
+      if (p && p.estado === 'jugado' && p.ganadorId) {
+        if (p.jugador1?.id === p.ganadorId) return p.jugador1
+        if (p.jugador2?.id === p.ganadorId) return p.jugador2
+      }
+      return crearPlaceholder(`g-${partidoId}`, labelDefault, tag)
+    }
+
+    // Si hubo Cuartos previos (6):
     if (getCantidad() === 6) {
       return [
         {
@@ -196,7 +265,7 @@ export function usePlayoffs(
           ronda: 'semifinal',
           numeroLlave: 1,
           jugador1: list[0] || crearPlaceholder('s1-j1', 'Puesto 1° (Top Seed)', '#1'),
-          jugador2: crearPlaceholder('s1-j2', 'Ganador Cuartos 1', 'G1'),
+          jugador2: resolverGanadorCuartos('cuartos-1', 'Ganador Cuartos 1', 'G1'),
           estado: 'pendiente',
           anilloOrbital: 2,
           siguientePartidoId: 'final-1',
@@ -206,7 +275,7 @@ export function usePlayoffs(
           ronda: 'semifinal',
           numeroLlave: 2,
           jugador1: list[1] || crearPlaceholder('s2-j1', 'Puesto 2° (Top Seed)', '#2'),
-          jugador2: crearPlaceholder('s2-j2', 'Ganador Cuartos 2', 'G2'),
+          jugador2: resolverGanadorCuartos('cuartos-2', 'Ganador Cuartos 2', 'G2'),
           estado: 'pendiente',
           anilloOrbital: 2,
           siguientePartidoId: 'final-1',
@@ -220,8 +289,8 @@ export function usePlayoffs(
           id: 'semi-1',
           ronda: 'semifinal',
           numeroLlave: 1,
-          jugador1: crearPlaceholder('s1-j1', 'Ganador Cuartos 1', 'G1'),
-          jugador2: crearPlaceholder('s1-j2', 'Ganador Cuartos 2', 'G2'),
+          jugador1: resolverGanadorCuartos('cuartos-1', 'Ganador Cuartos 1', 'G1'),
+          jugador2: resolverGanadorCuartos('cuartos-2', 'Ganador Cuartos 2', 'G2'),
           estado: 'pendiente',
           anilloOrbital: 2,
           siguientePartidoId: 'final-1',
@@ -230,8 +299,8 @@ export function usePlayoffs(
           id: 'semi-2',
           ronda: 'semifinal',
           numeroLlave: 2,
-          jugador1: crearPlaceholder('s2-j1', 'Ganador Cuartos 3', 'G3'),
-          jugador2: crearPlaceholder('s2-j2', 'Ganador Cuartos 4', 'G4'),
+          jugador1: resolverGanadorCuartos('cuartos-3', 'Ganador Cuartos 3', 'G3'),
+          jugador2: resolverGanadorCuartos('cuartos-4', 'Ganador Cuartos 4', 'G4'),
           estado: 'pendiente',
           anilloOrbital: 2,
           siguientePartidoId: 'final-1',
@@ -280,13 +349,22 @@ export function usePlayoffs(
       }
     }
 
+    const resolverGanadorSemi = (semiId: string, labelDefault: string, tag: string): JugadorTorneo => {
+      const p = partidosSemis.value.find((s) => s.id === semiId)
+      if (p && p.estado === 'jugado' && p.ganadorId) {
+        if (p.jugador1?.id === p.ganadorId) return p.jugador1
+        if (p.jugador2?.id === p.ganadorId) return p.jugador2
+      }
+      return crearPlaceholder(`g-${semiId}`, labelDefault, tag)
+    }
+
     // Si clasifican 4 o más: Ganador Semi 1 vs Ganador Semi 2
     return {
       id: 'final-1',
       ronda: 'final',
       numeroLlave: 1,
-      jugador1: crearPlaceholder('final-j1', 'Ganador Semifinal 1', 'S1'),
-      jugador2: crearPlaceholder('final-j2', 'Ganador Semifinal 2', 'S2'),
+      jugador1: resolverGanadorSemi('semi-1', 'Ganador Semifinal 1', 'S1'),
+      jugador2: resolverGanadorSemi('semi-2', 'Ganador Semifinal 2', 'S2'),
       estado: 'pendiente',
       anilloOrbital: 1,
     }
@@ -300,6 +378,55 @@ export function usePlayoffs(
     bolsaPremio: bolsaPremio.value,
   }))
 
+  const idsMiCamino = computed<Set<string>>(() => {
+    const ids = new Set<string>()
+
+    // 1. Play-in
+    const pPlayIn = partidosPlayIn.value.find(
+      (p) => p.jugador1?.esUsuarioActual || p.jugador2?.esUsuarioActual,
+    )
+    if (pPlayIn) {
+      ids.add(pPlayIn.id)
+      const num = pPlayIn.numeroLlave
+      ids.add(`cuartos-${num}`)
+      ids.add(num <= 2 ? 'semi-1' : 'semi-2')
+      ids.add('final-1')
+      return ids
+    }
+
+    // 2. Cuartos
+    const pCuartos = partidosCuartos.value.find(
+      (p) => p.jugador1?.esUsuarioActual || p.jugador2?.esUsuarioActual,
+    )
+    if (pCuartos) {
+      ids.add(pCuartos.id)
+      const num = pCuartos.numeroLlave
+      ids.add(num <= 2 ? 'semi-1' : 'semi-2')
+      ids.add('final-1')
+      return ids
+    }
+
+    // 3. Semifinal
+    const pSemi = partidosSemis.value.find(
+      (p) => p.jugador1?.esUsuarioActual || p.jugador2?.esUsuarioActual,
+    )
+    if (pSemi) {
+      ids.add(pSemi.id)
+      ids.add('final-1')
+      return ids
+    }
+
+    // 4. Final
+    if (
+      granFinal.value.jugador1?.esUsuarioActual ||
+      granFinal.value.jugador2?.esUsuarioActual
+    ) {
+      ids.add('final-1')
+    }
+
+    return ids
+  })
+
   const miCamino = computed<PartidoPlayoff[]>(() => {
     const todos = [
       ...partidosPlayIn.value,
@@ -308,9 +435,7 @@ export function usePlayoffs(
       granFinal.value,
     ]
 
-    return todos.filter(
-      (p) => p.jugador1?.esUsuarioActual || p.jugador2?.esUsuarioActual,
-    )
+    return todos.filter((p) => idsMiCamino.value.has(p.id))
   })
 
   return {
@@ -323,5 +448,6 @@ export function usePlayoffs(
     granFinal,
     cuadroCompleto,
     miCamino,
+    idsMiCamino,
   }
 }

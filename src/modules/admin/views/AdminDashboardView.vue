@@ -39,7 +39,15 @@
           </div>
 
           <!-- Acciones Principales con Alto Impacto Visual -->
-          <div class="flex items-center gap-3 shrink-0 w-full sm:w-auto">
+          <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0 w-full sm:w-auto">
+            <button
+              type="button"
+              class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-200 hover:text-white bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-orange-500/50 rounded-2xl shadow-sm transition-all cursor-pointer backdrop-blur-md"
+              @click="abrirCentroCorreos(null)"
+            >
+              <Mail class="w-4 h-4 text-orange-500" />
+              <span>Centro de Correos</span>
+            </button>
             <button
               type="button"
               class="w-full sm:w-auto flex items-center justify-center gap-2.5 px-5 py-2.5 text-xs sm:text-sm font-black text-white bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 hover:from-orange-500 hover:to-amber-400 rounded-2xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer ring-2 ring-orange-500/25"
@@ -404,6 +412,14 @@
       :torneo="torneoSeleccionado"
       @actualizar-estado="cambiarEstadoTorneo"
       @abrir-resolver-partido="abrirResolverPartido"
+      @abrir-correos="abrirCentroCorreos"
+    />
+
+    <!-- MODAL CENTRO DE NOTIFICACIONES Y CORREOS OFICIALES (spinApp 2026) -->
+    <ModalCentroCorreos
+      ref="modalCentroCorreosRef"
+      :torneo="torneoSeleccionado"
+      :posiciones="tablaPosicionesParaCorreos"
     />
   </div>
 </template>
@@ -425,6 +441,7 @@ import {
   ArrowRight,
   MapPin,
   ChevronDown,
+  Mail,
 } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
@@ -433,7 +450,8 @@ import ModalCrearTorneo from '../components/ModalCrearTorneo.vue'
 import ModalResolverPartidoAdmin from '../components/ModalResolverPartidoAdmin.vue'
 import ModalVerComprobante from '../components/ModalVerComprobante.vue'
 import ModalGestionarTorneo from '../components/ModalGestionarTorneo.vue'
-import type { Torneo } from '@/types'
+import ModalCentroCorreos from '../components/ModalCentroCorreos.vue'
+import type { Torneo, FilaPosicionOficial } from '@/types'
 import {
   obtenerTorneosDB,
   guardarTorneoDB,
@@ -445,6 +463,7 @@ import {
   guardarTablaPosicionesDB,
 } from '@/services/torneoDatabaseService';
 import { calcularTablaDesdePartidos } from '@/services/torneoAlgoritmos'
+import { procesarEventosAutomaticosTorneo } from '@/services/torneoOrquestadorCorreos'
 
 const busquedaTorneo = ref('')
 const filtroEstado = ref<'todos' | 'en curso' | 'por iniciar' | 'finalizado'>('todos')
@@ -454,7 +473,18 @@ const modalCrearTorneoRef = ref()
 const modalResolverRef = ref()
 const modalComprobanteRef = ref()
 const modalGestionarRef = ref()
+const modalCentroCorreosRef = ref<InstanceType<typeof ModalCentroCorreos> | null>(null)
 const torneoSeleccionado = ref<Torneo | null>(null)
+const tablaPosicionesParaCorreos = ref<FilaPosicionOficial[]>([])
+
+const abrirCentroCorreos = (torneo?: Torneo | null) => {
+  if (torneo) {
+    torneoSeleccionado.value = torneo
+  } else if (!torneoSeleccionado.value && torneos.value.length > 0) {
+    torneoSeleccionado.value = torneos.value[0] || null
+  }
+  modalCentroCorreosRef.value?.open()
+}
 
 const torneos = ref<Torneo[]>([])
 
@@ -637,6 +667,7 @@ const handleResolverPartido = async (payload: any) => {
         torneoSeleccionado.value.clasificadosPlayoffs || 4,
       )
       await guardarTablaPosicionesDB(torneoSeleccionado.value.id, tabla)
+      procesarEventosAutomaticosTorneo(torneoSeleccionado.value, partidos, tabla).catch(() => {})
     }
   } catch (err) {
     console.warn('Error al actualizar resolución de partido y tabla en base de datos:', err)

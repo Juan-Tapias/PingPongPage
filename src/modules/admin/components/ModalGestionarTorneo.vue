@@ -36,16 +36,29 @@
           </div>
         </div>
 
-        <!-- Indicador de Bolsa Acumulada 100% -->
-        <div class="flex items-center gap-3 sm:gap-3.5 px-3.5 sm:px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 dark:from-amber-950/60 dark:to-[#0f172a] border border-amber-300 dark:border-amber-700/80 shadow-xs shrink-0 self-start md:self-auto w-full sm:w-auto">
-          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-base sm:text-lg font-black shadow-xs shrink-0">
-            👑
-          </div>
-          <div class="flex flex-col">
-            <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">Bolsa 100% Campeón</span>
-            <span class="text-sm sm:text-base font-black font-mono text-amber-950 dark:text-amber-100 leading-tight">
-              ${{ bolsaTotalCalculada.toLocaleString('es-CO') }} COP
-            </span>
+        <div class="flex items-center gap-2">
+          <!-- Botón Acceso Rápido Correos -->
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 text-xs font-bold transition-all cursor-pointer"
+            title="Abrir Centro de Correos y Notificaciones"
+            @click="abrirCorreosTorneo"
+          >
+            <Mail class="w-4 h-4 text-orange-500" />
+            <span class="hidden sm:inline">Correos</span>
+          </button>
+
+          <!-- Indicador de Bolsa Acumulada 100% -->
+          <div class="flex items-center gap-3 sm:gap-3.5 px-3.5 sm:px-4 py-2 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 dark:from-amber-950/60 dark:to-[#0f172a] border border-amber-300 dark:border-amber-700/80 shadow-xs shrink-0 self-start md:self-auto w-full sm:w-auto">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-base sm:text-lg font-black shadow-xs shrink-0">
+              👑
+            </div>
+            <div class="flex flex-col">
+              <span class="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">Bolsa 100% Campeón</span>
+              <span class="text-sm sm:text-base font-black font-mono text-amber-950 dark:text-amber-100 leading-tight">
+                ${{ bolsaTotalCalculada.toLocaleString('es-CO') }} COP
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -85,12 +98,22 @@
       <div v-if="tabActiva === 'fases'" class="flex flex-col gap-4">
         
         <!-- ALERTA DE FIN DE FASE DE GRUPOS -->
-        <div v-if="faseGruposConcluida" class="p-4 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 flex items-start gap-3">
-          <CheckCircle2 class="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-          <div class="flex-1">
-            <h4 class="text-sm font-bold text-emerald-800 dark:text-emerald-300">¡Fase de Grupos (Todos contra Todos) Finalizada!</h4>
-            <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Todos los partidos del Round Robin han concluido. Configura la cantidad de clasificados en la sección de Eliminatorias e inicia los Playoffs.</p>
+        <div v-if="faseGruposConcluida" class="p-4 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <CheckCircle2 class="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div class="flex-1">
+              <h4 class="text-sm font-bold text-emerald-800 dark:text-emerald-300">¡Fase de Grupos (Todos contra Todos) Finalizada!</h4>
+              <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Todos los partidos del Round Robin han concluido. Despacha los correos a los clasificados e inicia los Playoffs.</p>
+            </div>
           </div>
+          <button
+            type="button"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-sm cursor-pointer shrink-0 transition-transform active:scale-95"
+            @click="abrirCorreosTorneo"
+          >
+            <Mail class="w-4 h-4" />
+            <span>Notificar Cierre Fase 1</span>
+          </button>
         </div>
 
         <!-- Barra de Estado y Cambio Rápido con Flexwrap -->
@@ -1291,6 +1314,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  Mail,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
@@ -1328,7 +1352,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'actualizar-estado', id: string, nuevoEstado: EstadoTorneo): void
   (e: 'abrir-resolver-partido', partido: any): void
+  (e: 'abrir-correos', torneo: Torneo): void
 }>()
+
+const abrirCorreosTorneo = () => {
+  if (props.torneo) {
+    emit('abrir-correos', props.torneo)
+  }
+}
 
 const modalRef = ref<InstanceType<typeof Modal> | null>(null)
 const tabActiva = ref<'fases' | 'partidos' | 'posiciones' | 'jugadores'>('fases')

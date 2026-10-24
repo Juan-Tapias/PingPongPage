@@ -12,6 +12,7 @@ export interface Usuario {
   createdAt: number
   puntosRanking?: number
   elo?: number
+  fotoUrl?: string
 }
 
 export interface CredencialesLogin {
@@ -60,6 +61,8 @@ export interface Torneo {
   posicionFinal?: string
   posicionActual?: string
   clasificadosPlayoffs?: number
+  transmisionEnVivoUrl?: string
+  linkTransmision?: string
 }
 
 
@@ -74,6 +77,7 @@ export interface JugadorTorneo {
   telefono: string
   tipo?: TipoUsuario
   esUsuarioActual?: boolean
+  fotoUrl?: string
 }
 
 export interface SetPartido {
@@ -231,3 +235,43 @@ export interface CuadroPlayoffs {
   campeon?: JugadorTorneo
   bolsaPremio: number          // $90.000 COP (100% de la bolsa acumulada)
 }
+
+// ==========================================
+// SISTEMA DE CORREOS Y NOTIFICACIONES (spinApp 2026)
+// ==========================================
+
+export type TipoPlantillaCorreo =
+  | 'recordatorio_partido'          // Correo 1
+  | 'cierre_fase1_top4'             // Correo 2
+  | 'cierre_fase1_playin'           // Correo 3
+  | 'cierre_fase1_eliminados'       // Correo 4
+  | 'cuartos_final'                 // Correo 5
+  | 'semifinales'                   // Correo 6
+  | 'gran_final'                    // Correo 7
+  | 'coronacion_campeon'            // Correo 8
+
+export type EstadoEnvioCorreo = 'pendiente' | 'enviado' | 'error'
+
+export interface DocumentoCorreoCola {
+  id?: string
+  to: string | string[]
+  subject: string
+  html: string
+  text?: string
+  tipoPlantilla: TipoPlantillaCorreo
+  torneoId?: string
+  partidoId?: string
+  destinatarioNombre?: string
+  estado: EstadoEnvioCorreo
+  fechaCreacion: number
+  enviadoEn?: number
+  error?: string
+  intentos?: number
+  // Compatible con la extensión Trigger Email (firestore-send-email)
+  message?: {
+    subject: string
+    html: string
+    text?: string
+  }
+  metadata?: Record<string, any>
+}

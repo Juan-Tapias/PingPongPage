@@ -89,5 +89,23 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthenticated();
     }
+
+    // Reglas para el Sistema de Notificaciones y Correos
+    match /cola_correos/{correoId} {
+      // Los usuarios autenticados pueden ver la lista (o solo admins)
+      allow read: if isAuthenticated();
+      // Cualquier usuario o admin autenticado puede encolar notificaciones
+      allow create: if isAuthenticated();
+      // Solo administradores pueden actualizar o eliminar correos de la cola
+      allow update, delete: if isAdmin();
+    }
+
+    // Reglas para extensión Trigger Email (firestore-send-email)
+    match /mail/{mailId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
   }
 }
+

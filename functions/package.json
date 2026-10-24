@@ -1,0 +1,14 @@
+{
+  "name": "spinapp-functions",
+  "description": "Cloud Functions para despacho seguro de correos y notificaciones de spinApp 2026",
+  "version": "1.0.0",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.0.1",
+    "nodemailer": "^6.9.16"
+  }
+}

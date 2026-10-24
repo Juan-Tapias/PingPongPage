@@ -9,13 +9,15 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
-    "type-check": "vue-tsc --build"
+    "type-check": "vue-tsc --build",
+    "email:worker": "node scripts/despachar-cola.mjs --watch"
   },
   "dependencies": {
     "@types/three": "^0.185.4",
     "@vee-validate/zod": "^4.15.1",
     "firebase": "^12.18.0",
     "lucide-vue-next": "^1.0.0",
+    "nodemailer": "^10.2.1",
     "pinia": "^4.0.3",
     "three": "^0.186.0",
     "vee-validate": "^4.15.1",

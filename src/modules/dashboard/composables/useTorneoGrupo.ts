@@ -33,6 +33,7 @@ import {
   calcularFechaLimiteHabiles,
   calcularTiempoRestanteHabil,
 } from '@/services/torneoAlgoritmos'
+import { procesarEventosAutomaticosTorneo } from '@/services/torneoOrquestadorCorreos'
 
 export interface MalleroTorneo {
   jugador: JugadorTorneo
@@ -790,6 +791,10 @@ export function useTorneoGrupo(torneo: Torneo) {
         torneo?.clasificadosPlayoffs || 4,
       )
       await actualizarTablaPosicionesDB(torneo.id, tablaNueva)
+      // Disparar procesamiento automático de correos (Cierre Fase 1, cruces, etc.)
+      procesarEventosAutomaticosTorneo(torneo, partidos.value, tablaNueva).catch((e) => {
+        console.warn('[AutoMail] Error en orquestador de correos:', e)
+      })
     } catch (err) {
       console.warn('Error al persistir resultado en base de datos:', err)
     }
