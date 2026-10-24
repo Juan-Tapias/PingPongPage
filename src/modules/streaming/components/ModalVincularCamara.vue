@@ -59,8 +59,9 @@
                   {{ partidoPreseleccionado.mesa || 'Mesa 1' }} • {{ partidoPreseleccionado.jugador1?.nombre || 'J1' }} vs {{ partidoPreseleccionado.jugador2?.nombre || 'J2' }}
                 </p>
               </div>
-              <span class="px-2 py-1 rounded-md text-[10px] font-mono font-black bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                🔴 En juego
+              <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono font-black bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                <span>En juego</span>
               </span>
             </div>
 
@@ -99,7 +100,7 @@
 
             <!-- Recomendación de Ubicación -->
             <div class="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60 text-sky-900 dark:text-sky-300 text-[11px] flex items-start gap-2">
-              <span class="text-base leading-none">📱</span>
+              <Smartphone class="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
               <p>
                 <strong>Consejo:</strong> Ubica el celular en horizontal apuntando a la mesa antes de iniciar la transmisión.
               </p>
@@ -132,7 +133,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { X, Radio, AlertTriangle } from 'lucide-vue-next'
+import { X, Radio, AlertTriangle, Smartphone } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import { buscarPartidoPorCodigoCamaraDB } from '@/services/torneoDatabaseService'
 import type { PartidoGrupo } from '@/types'
@@ -154,7 +155,7 @@ const partidoPreseleccionado = ref<PartidoGrupo | null>(null)
 const inputCodigoRef = ref<HTMLInputElement | null>(null)
 
 const open = (partido?: PartidoGrupo | null) => {
-  codigoInput.value = partido?.codigoCamara || ''
+  codigoInput.value = '' // NUNCA autocompletar el PIN para evitar que se filtre a otros celulares
   partidoPreseleccionado.value = partido || null
   mensajeError.value = null
   cargando.value = false
@@ -167,6 +168,7 @@ const open = (partido?: PartidoGrupo | null) => {
 
 const close = () => {
   visible.value = false
+  codigoInput.value = ''
   mensajeError.value = null
   cargando.value = false
   emit('close')
@@ -187,9 +189,17 @@ const handleVincular = async () => {
   mensajeError.value = null
 
   try {
-    // 1. Si tenemos partidos cargados en memoria, verificar primero localmente
     let partidoEncontrado: PartidoGrupo | null = null
-    if (props.partidosEnCurso && props.partidosEnCurso.length > 0) {
+
+    // 1. Si hay un partido preseleccionado (ej. Mesa 1), validar que el PIN pertenezca a esta mesa
+    if (partidoPreseleccionado.value) {
+      if (partidoPreseleccionado.value.codigoCamara && partidoPreseleccionado.value.codigoCamara !== pin) {
+        mensajeError.value = 'El código ingresado no coincide con el partido de esta mesa. Pídele el PIN de 4 dígitos al árbitro.'
+        cargando.value = false
+        return
+      }
+      partidoEncontrado = partidoPreseleccionado.value
+    } else if (props.partidosEnCurso && props.partidosEnCurso.length > 0) {
       partidoEncontrado = props.partidosEnCurso.find((p) => p.codigoCamara === pin) || null
     }
 

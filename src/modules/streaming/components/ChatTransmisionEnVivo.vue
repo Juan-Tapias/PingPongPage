@@ -1,44 +1,28 @@
 <template>
   <div
     :class="[
-      'flex flex-col bg-slate-950/95 dark:bg-[#080d1a]/95 text-white select-none transition-all duration-300 min-h-0',
-      esPantallaCompleta
-        ? 'absolute right-0 top-0 bottom-0 z-40 w-80 sm:w-96 bg-black/90 backdrop-blur-md border-l border-white/10 shadow-2xl animate-in slide-in-from-right'
-        : 'w-full lg:w-80 xl:w-96 flex-1 lg:flex-none h-full border-t lg:border-t-0 lg:border-l border-slate-800/80'
+      'flex flex-col text-white select-none transition-all duration-300 min-h-0',
+      esPantallaCompleta || esHorizontal
+        ? 'h-full w-full rounded-2xl sm:rounded-3xl bg-[#0c1527]/95 border border-slate-700/60 shadow-2xl overflow-hidden'
+        : 'w-full lg:w-80 xl:w-96 flex-1 lg:flex-none h-full bg-slate-950/95 border-t lg:border-t-0 lg:border-l border-slate-800/80'
     ]"
   >
-    <!-- CABECERA DEL CHAT (ESTILO TWITCH) -->
+    <!-- CABECERA DEL CHAT (ESTILO EXACTO AL MOCKUP: "LIVE CHAT") -->
     <div
-      class="flex items-center justify-between px-3.5 py-2.5 bg-slate-900/90 border-b border-slate-800/80 shrink-0"
+      class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 bg-[#091120] border-b border-white/10 shrink-0"
     >
       <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
-          title="Colapsar chat"
-          @click="emit('cerrar-chat')"
-        >
-          <ChevronRight class="w-4 h-4" />
-        </button>
-        <div class="flex items-center gap-1.5">
-          <MessageSquare class="w-4 h-4 text-sky-400" />
-          <h3 class="text-xs font-black uppercase tracking-wider text-slate-200">
-            Chat del partido
-          </h3>
-        </div>
+        <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+        <h3 class="text-xs sm:text-sm font-black uppercase tracking-widest text-white">
+          LIVE CHAT
+        </h3>
       </div>
 
-      <div class="flex items-center gap-2">
-        <span class="flex items-center gap-1 text-[11px] font-bold text-slate-400">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>En directo</span>
-        </span>
-
+      <div class="flex items-center gap-1.5">
         <button
-          v-if="esPantallaCompleta"
           type="button"
           class="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
-          title="Cerrar chat superpuesto"
+          title="Cerrar chat"
           @click="emit('cerrar-chat')"
         >
           <X class="w-4 h-4" />
@@ -46,67 +30,52 @@
       </div>
     </div>
 
-    <!-- FEED DE MENSAJES (ESTILO TWITCH / KICK) -->
+    <!-- FEED DE MENSAJES (CON AVATARES CIRCULARES ESTILO MOCKUP) -->
     <div
       ref="mensajesContainerRef"
-      class="flex-1 overflow-y-auto px-3.5 py-3 space-y-2.5 text-xs font-medium leading-relaxed custom-scrollbar select-text"
+      class="flex-1 overflow-y-auto px-2.5 sm:px-3 py-2 sm:py-2.5 space-y-2 text-xs font-medium leading-relaxed custom-scrollbar select-text"
       @scroll="handleScroll"
     >
-      <!-- Estado vacío si aún no hay mensajes -->
+      <!-- Lista de Mensajes (reales o de demostración inicial) -->
       <div
-        v-if="mensajes.length === 0"
-        class="h-full flex flex-col items-center justify-center text-center text-slate-500 p-4 gap-2 select-none"
-      >
-        <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
-          <MessageSquare class="w-5 h-5 text-sky-400/80" />
-        </div>
-        <p class="text-xs font-bold text-slate-300">¡Bienvenido al chat en vivo!</p>
-        <p class="text-[11px] text-slate-500 max-w-xs">
-          Comenta las mejores jugadas, apoya a los competidores o saluda a los demás espectadores.
-        </p>
-      </div>
-
-      <!-- Lista de Mensajes -->
-      <div
-        v-for="msg in mensajes"
+        v-for="msg in mensajesRenderizados"
         :key="msg.id || msg.timestamp"
-        class="group/msg hover:bg-white/[0.03] -mx-2 px-2 py-1 rounded-lg transition-colors break-words"
+        class="flex items-start gap-2 sm:gap-2.5 py-1 px-1 rounded-xl hover:bg-white/[0.04] transition-colors"
       >
-        <!-- Badge y Nombre del usuario -->
-        <span
-          v-if="msg.esArbitro"
-          class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 mr-1.5 align-middle select-none shadow-xs"
-          title="Árbitro de mesa"
+        <!-- Avatar circular con gradiente llamativo -->
+        <div
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-linear-to-tr shrink-0 flex items-center justify-center text-xs shadow-md border border-white/20 select-none"
+          :class="obtenerAvatarUsuario(msg.usuarioNombre).bg"
         >
-          <Shield class="w-2.5 h-2.5 text-amber-400" />
-          ÁRBITRO
-        </span>
+          <span>{{ msg.avatar || obtenerAvatarUsuario(msg.usuarioNombre).icon }}</span>
+        </div>
 
-        <span
-          v-else-if="msg.esJugador"
-          class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 mr-1.5 align-middle select-none shadow-xs"
-          title="Jugador del torneo"
-        >
-          🏓 JUGADOR
-        </span>
-
-        <span
-          class="font-black hover:underline cursor-pointer select-none"
-          :style="{ color: msg.colorNombre || obtenerColorUsuario(msg.usuarioNombre) }"
-        >
-          {{ msg.usuarioNombre }}
-        </span>
-        <span class="text-slate-400 font-bold mr-1">:</span>
-
-        <!-- Texto del Mensaje -->
-        <span class="text-slate-200 font-medium select-text break-all">
-          {{ msg.mensaje }}
-        </span>
-
-        <!-- Timestamp sutil al hover -->
-        <span class="text-[9px] text-slate-500 ml-1.5 opacity-0 group-hover/msg:opacity-100 transition-opacity font-mono select-none">
-          {{ formatearHora(msg.timestamp) }}
-        </span>
+        <!-- Contenido del mensaje -->
+        <div class="min-w-0 flex-1 leading-snug">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span
+              class="font-black text-xs hover:underline cursor-pointer select-none"
+              :style="{ color: msg.colorNombre || obtenerColorUsuario(msg.usuarioNombre) }"
+            >
+              {{ msg.usuarioNombre }}:
+            </span>
+            <span
+              v-if="msg.esArbitro"
+              class="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40"
+            >
+              ÁRBITRO
+            </span>
+            <span
+              v-else-if="msg.esJugador"
+              class="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[8px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/40"
+            >
+              JUGADOR
+            </span>
+          </div>
+          <p class="text-xs sm:text-[13px] text-slate-100 font-medium break-words mt-0.5 select-text">
+            {{ msg.mensaje }}
+          </p>
+        </div>
       </div>
     </div>
 
@@ -124,17 +93,17 @@
       </button>
     </div>
 
-    <!-- BARRA DE EMOJIS RÁPIDOS (DEPORTIVOS Y REACCIONES) -->
+    <!-- BARRA DE EMOJIS RÁPIDOS (EXACTAMENTE: 🏓 💪 🔥 😍 🏆) -->
     <div
-      class="flex items-center gap-1 px-3 py-1.5 bg-slate-900/60 border-t border-slate-800/80 overflow-x-auto no-scrollbar shrink-0"
+      class="flex items-center justify-center gap-2.5 sm:gap-4 px-3 py-1.5 bg-[#0a1120]/90 border-t border-white/10 shrink-0"
     >
       <button
         v-for="emoji in EMOJIS_RAPIDOS"
         :key="emoji"
         type="button"
-        class="px-2 py-0.5 rounded-lg hover:bg-white/10 active:scale-90 text-sm transition-all cursor-pointer select-none"
-        :title="`Enviar ${emoji}`"
-        @click="insertarEmoji(emoji)"
+        class="p-1 sm:p-1.5 rounded-xl hover:bg-white/10 active:scale-125 text-lg sm:text-xl transition-all cursor-pointer select-none"
+        :title="`Reaccionar con ${emoji}`"
+        @click="enviarReaccionRapida(emoji)"
       >
         {{ emoji }}
       </button>
@@ -142,7 +111,7 @@
 
     <!-- ÁREA DE INPUT PARA ENVIAR MENSAJE -->
     <form
-      class="p-2.5 sm:p-3 bg-slate-900/90 border-t border-slate-800 shrink-0"
+      class="p-2 sm:p-2.5 bg-[#090f1d] border-t border-white/10 shrink-0"
       @submit.prevent="handleEnviarMensaje"
     >
       <!-- Alerta visual si falla el envío -->
@@ -154,31 +123,28 @@
         <button type="button" class="text-rose-300 hover:text-white font-bold ml-2 cursor-pointer" @click="errorEnvio = ''">×</button>
       </div>
 
-      <div class="relative flex items-center gap-2">
+      <div class="relative flex items-center bg-[#070e1b] border border-slate-700/90 rounded-full px-3.5 py-1.5 focus-within:border-emerald-400/80 focus-within:ring-2 focus-within:ring-emerald-400/20 shadow-inner">
         <input
           ref="inputMensajeRef"
           v-model.trim="textoMensaje"
           type="text"
           maxlength="200"
-          placeholder="Enviar un mensaje..."
-          class="w-full pl-3.5 pr-10 py-2 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 outline-hidden text-xs text-white placeholder-slate-500 transition-all font-medium"
+          placeholder="Escribe tu comentario..."
+          class="w-full bg-transparent outline-hidden text-xs text-white placeholder-slate-400 font-medium pr-22 py-0.5"
           :disabled="enviando"
           @keydown.enter.prevent="handleEnviarMensaje"
         />
 
         <button
           type="submit"
-          class="absolute right-1.5 p-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 active:scale-95 disabled:opacity-40 disabled:hover:bg-sky-500 text-slate-950 transition-all cursor-pointer shadow-md disabled:cursor-not-allowed"
+          class="absolute right-2 px-2 py-0.5 rounded-full hover:bg-emerald-500/10 active:scale-95 disabled:opacity-40 text-emerald-400 hover:text-emerald-300 font-black text-xs transition-all cursor-pointer flex items-center gap-1 shrink-0"
           :disabled="!textoMensaje || enviando"
-          title="Enviar mensaje (Enter)"
+          title="Enviar comentario"
         >
-          <Send class="w-3.5 h-3.5" />
+          <span>[Enviar</span>
+          <Send class="w-3 h-3 text-emerald-400" />
+          <span>]</span>
         </button>
-      </div>
-
-      <div class="flex items-center justify-between mt-1 px-1 text-[10px] text-slate-500 font-medium">
-        <span>Pulsa Enter para enviar</span>
-        <span>{{ textoMensaje.length }}/200</span>
       </div>
     </form>
   </div>
@@ -187,10 +153,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import {
-  MessageSquare,
   Send,
-  ChevronRight,
-  Shield,
   X,
 } from 'lucide-vue-next'
 import {
@@ -215,12 +178,14 @@ export interface MensajeChatStream {
   colorNombre?: string
   esArbitro?: boolean
   esJugador?: boolean
+  avatar?: string
 }
 
 const props = defineProps<{
   partidoId?: string
   partido?: PartidoGrupo | null
   esPantallaCompleta?: boolean
+  esHorizontal?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -236,7 +201,81 @@ const mensajesContainerRef = ref<HTMLDivElement | null>(null)
 const inputMensajeRef = ref<HTMLInputElement | null>(null)
 const mostrarBotonBajar = ref(false)
 
-const EMOJIS_RAPIDOS = ['🏓', '🔥', '👏', '🎯', '⚡', '🏆', '😱', '💪']
+// Exactamente los 5 emojis de reacción rápida del diseño de referencia
+const EMOJIS_RAPIDOS = ['🏓', '💪', '🔥', '😍', '🏆']
+
+const MENSAJES_INICIALES_DEMO: MensajeChatStream[] = [
+  {
+    id: 'demo-1',
+    usuarioId: 'u_fan',
+    usuarioNombre: 'Fan_451',
+    mensaje: '🔥🏆 Qué puntazo!',
+    timestamp: Date.now() - 90000,
+    colorNombre: '#38bdf8',
+  },
+  {
+    id: 'demo-2',
+    usuarioId: 'u_spin',
+    usuarioNombre: 'SpinMaster',
+    mensaje: '🏓 ¡Vamos, María!',
+    timestamp: Date.now() - 60000,
+    colorNombre: '#fbbf24',
+  },
+  {
+    id: 'demo-3',
+    usuarioId: 'u_esport',
+    usuarioNombre: 'Esport_Pro',
+    mensaje: '💪 ¡Increíble!',
+    timestamp: Date.now() - 30000,
+    colorNombre: '#a855f7',
+  },
+  {
+    id: 'demo-4',
+    usuarioId: 'u_speed',
+    usuarioNombre: 'Speedster',
+    mensaje: '¡Ese revés! 🤩',
+    timestamp: Date.now() - 10000,
+    colorNombre: '#34d399',
+  },
+]
+
+const mensajesRenderizados = computed(() => {
+  if (mensajes.value.length === 0) {
+    return MENSAJES_INICIALES_DEMO
+  }
+  return mensajes.value
+})
+
+const AVATARES_PREDETERMINADOS = [
+  { bg: 'from-cyan-400 to-blue-600', icon: '👤' },
+  { bg: 'from-amber-400 to-orange-600', icon: '🏓' },
+  { bg: 'from-purple-400 to-pink-600', icon: '⚡' },
+  { bg: 'from-emerald-400 to-teal-600', icon: '🎾' },
+  { bg: 'from-rose-400 to-red-600', icon: '🔥' },
+  { bg: 'from-indigo-400 to-violet-600', icon: '🏆' },
+]
+
+function obtenerAvatarUsuario(nombre: string): { bg: string; icon: string } {
+  const fallback = AVATARES_PREDETERMINADOS[0] || { bg: 'from-cyan-400 to-blue-600', icon: '👤' }
+  if (!nombre) return fallback
+  const n = nombre.toLowerCase()
+  if (n.includes('spin')) return { bg: 'from-amber-400 to-orange-500', icon: '🏓' }
+  if (n.includes('esport')) return { bg: 'from-purple-400 to-pink-500', icon: '🎮' }
+  if (n.includes('speed')) return { bg: 'from-emerald-400 to-teal-500', icon: '⚡' }
+  if (n.includes('fan')) return { bg: 'from-cyan-400 to-blue-500', icon: '🔥' }
+
+  let hash = 0
+  for (let i = 0; i < nombre.length; i++) {
+    hash = (hash << 5) - hash + nombre.charCodeAt(i)
+  }
+  const idx = Math.abs(hash) % AVATARES_PREDETERMINADOS.length
+  return AVATARES_PREDETERMINADOS[idx] || fallback
+}
+
+const enviarReaccionRapida = async (emoji: string) => {
+  textoMensaje.value = emoji
+  await handleEnviarMensaje()
+}
 
 const PALETA_COLORES_TWITCH = [
   '#38bdf8', // Sky

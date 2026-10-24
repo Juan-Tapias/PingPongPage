@@ -28,9 +28,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/biblioteca',
-    name: 'biblioteca',
-    component: () => import('@/modules/biblioteca/views/BibliotecaView.vue'),
-    meta: { requiresAuth: true },
+    redirect: '/',
   },
 ]
 

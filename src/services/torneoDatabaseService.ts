@@ -40,9 +40,76 @@ const guardarCacheLocal = (clave: string, valor: any): void => {
 }
 
 /**
- * Obtiene todos los torneos registrados en la base de datos con respaldo de caché local
+ * Caché en memoria (RAM) de alta velocidad con TTL para navegación instantánea (0ms) en móviles
  */
-export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
+const CACHE_TTL_MS = 60 * 1000 // 60 segundos
+let memoriaTorneosCache: { data: Torneo[]; timestamp: number } | null = null
+const memoriaInscripcionesPorTorneo = new Map<string, { data: any[]; timestamp: number }>()
+const memoriaMisInscripciones = new Map<string, { data: any[]; timestamp: number }>()
+const memoriaPartidosPorTorneo = new Map<string, { data: any[]; timestamp: number }>()
+
+export const invalidarCacheTorneos = (): void => {
+  memoriaTorneosCache = null
+  memoriaInscripcionesPorTorneo.clear()
+  memoriaMisInscripciones.clear()
+  memoriaPartidosPorTorneo.clear()
+}
+
+/**
+ * Obtiene torneos inmediatamente de la memoria o del localStorage sin esperar la red
+ */
+export const leerCacheTorneosInmediato = (): Torneo[] => {
+  if (memoriaTorneosCache && memoriaTorneosCache.data.length > 0) {
+    return memoriaTorneosCache.data
+  }
+  return leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
+}
+
+/**
+ * Obtiene inscripciones del usuario inmediatamente de la memoria o del localStorage
+ */
+export const leerCacheMisInscripcionesInmediato = (usuarioId: string): any[] => {
+  if (!usuarioId) return []
+  const cached = memoriaMisInscripciones.get(usuarioId)
+  if (cached && cached.data.length > 0) return cached.data
+  return leerCacheLocal<any[]>(`spinapp_mis_inscripciones_${usuarioId}`) || []
+}
+
+/**
+ * Limpia recursivamente objetos y arreglos para Firestore:
+ * - Reemplaza 'undefined' por 'null' para evitar errores fatales "Unsupported field value: undefined"
+ * - Maneja objetos anidados, arreglos de sets, y previene que setDoc falle silenciosamente
+ */
+export const sanearParaFirestore = <T = any>(obj: T): T => {
+  if (obj === undefined) return null as unknown as T
+  if (obj === null || typeof obj !== 'object') return obj
+  if (obj instanceof Date) return obj
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanearParaFirestore(item)) as unknown as T
+  }
+
+  const limpio: Record<string, any> = {}
+  for (const [key, value] of Object.entries(obj as Record<string, any>)) {
+    if (value === undefined) {
+      limpio[key] = null
+    } else if (typeof value === 'object' && value !== null) {
+      limpio[key] = sanearParaFirestore(value)
+    } else {
+      limpio[key] = value
+    }
+  }
+  return limpio as T
+}
+
+/**
+ * Obtiene todos los torneos registrados en la base de datos con respaldo de caché local y en memoria
+ */
+export const obtenerTorneosDB = async (forzarRefresco = false): Promise<Torneo[]> => {
+  if (!forzarRefresco && memoriaTorneosCache && Date.now() - memoriaTorneosCache.timestamp < CACHE_TTL_MS) {
+    return memoriaTorneosCache.data
+  }
+
   const torneosCache = leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
 
   try {
@@ -53,6 +120,7 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
       torneos.push({ id: documento.id, ...documento.data() } as Torneo)
     })
     if (torneos.length > 0) {
+      memoriaTorneosCache = { data: torneos, timestamp: Date.now() }
       guardarCacheLocal('spinapp_torneos_cache', torneos)
       return torneos
     }
@@ -65,6 +133,7 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
         torneos.push({ id: documento.id, ...documento.data() } as Torneo)
       })
       if (torneos.length > 0) {
+        memoriaTorneosCache = { data: torneos, timestamp: Date.now() }
         guardarCacheLocal('spinapp_torneos_cache', torneos)
         return torneos
       }
@@ -80,6 +149,7 @@ export const obtenerTorneosDB = async (): Promise<Torneo[]> => {
  * Guarda un nuevo torneo creado en Firestore y en caché local
  */
 export const guardarTorneoDB = async (torneo: Torneo): Promise<void> => {
+  memoriaTorneosCache = null
   try {
     const torneoRef = doc(db, COLECCION_TORNEOS, torneo.id)
     await setDoc(torneoRef, torneo)
@@ -98,6 +168,7 @@ export const guardarTorneoDB = async (torneo: Torneo): Promise<void> => {
  * Actualiza el estado oficial de un torneo (por iniciar, en curso, finalizado)
  */
 export const actualizarEstadoTorneoDB = async (id: string, nuevoEstado: EstadoTorneo): Promise<void> => {
+  memoriaTorneosCache = null
   try {
     const torneoRef = doc(db, COLECCION_TORNEOS, id)
     await updateDoc(torneoRef, { estado: nuevoEstado })
@@ -115,6 +186,7 @@ export const actualizarEstadoTorneoDB = async (id: string, nuevoEstado: EstadoTo
  * Elimina un torneo de la base de datos
  */
 export const eliminarTorneoDB = async (id: string): Promise<void> => {
+  memoriaTorneosCache = null
   try {
     const torneoRef = doc(db, COLECCION_TORNEOS, id)
     await deleteDoc(torneoRef)
@@ -128,9 +200,14 @@ export const eliminarTorneoDB = async (id: string): Promise<void> => {
 }
 
 /**
- * Obtiene las inscripciones de un torneo con respaldo de caché local
+ * Obtiene las inscripciones de un torneo con respaldo de caché local y en memoria
  */
-export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> => {
+export const obtenerInscripcionesDB = async (torneoId: string, forzarRefresco = false): Promise<any[]> => {
+  const cachedMem = memoriaInscripcionesPorTorneo.get(torneoId)
+  if (!forzarRefresco && cachedMem && Date.now() - cachedMem.timestamp < CACHE_TTL_MS) {
+    return cachedMem.data
+  }
+
   const inscripcionesCache = leerCacheLocal<any[]>(`spinapp_inscripciones_${torneoId}`) || []
 
   try {
@@ -141,6 +218,7 @@ export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> =
       inscripciones.push({ id: documento.id, ...documento.data() })
     })
     if (inscripciones.length > 0) {
+      memoriaInscripcionesPorTorneo.set(torneoId, { data: inscripciones, timestamp: Date.now() })
       guardarCacheLocal(`spinapp_inscripciones_${torneoId}`, inscripciones)
       return inscripciones
     }
@@ -148,6 +226,41 @@ export const obtenerInscripcionesDB = async (torneoId: string): Promise<any[]> =
   } catch (error) {
     console.warn('Error al obtener inscripciones de Firestore (posible cuota):', error)
     return inscripcionesCache
+  }
+}
+
+/**
+ * Obtiene directamente las inscripciones de un usuario en un solo query indexado O(1)
+ * Evita completamente el cuello de botella N+1 en celulares y conexiones lentas
+ */
+export const obtenerInscripcionesUsuarioDB = async (
+  usuarioId: string,
+  forzarRefresco = false,
+): Promise<any[]> => {
+  if (!usuarioId) return []
+
+  const claveCache = `spinapp_mis_inscripciones_${usuarioId}`
+  const cachedMem = memoriaMisInscripciones.get(usuarioId)
+  if (!forzarRefresco && cachedMem && Date.now() - cachedMem.timestamp < CACHE_TTL_MS) {
+    return cachedMem.data
+  }
+
+  const cacheLocal = leerCacheLocal<any[]>(claveCache) || []
+
+  try {
+    const q = query(collection(db, COLECCION_INSCRIPCIONES), where('jugadorId', '==', usuarioId))
+    const snap = await getDocs(q)
+    const inscripciones: any[] = []
+    snap.forEach((documento) => {
+      inscripciones.push({ id: documento.id, ...documento.data() })
+    })
+
+    memoriaMisInscripciones.set(usuarioId, { data: inscripciones, timestamp: Date.now() })
+    guardarCacheLocal(claveCache, inscripciones)
+    return inscripciones
+  } catch (error) {
+    console.warn('Error al obtener inscripciones del usuario en Firestore (posible cuota):', error)
+    return cacheLocal
   }
 }
 
@@ -168,6 +281,11 @@ export const guardarInscripcionDB = async (inscripcion: {
 }): Promise<void> => {
   const docId = inscripcion.id || `${inscripcion.torneoId}_${inscripcion.jugadorId}`
   const payload = { ...inscripcion, id: docId }
+
+  memoriaInscripcionesPorTorneo.delete(inscripcion.torneoId)
+  if (inscripcion.jugadorId) {
+    memoriaMisInscripciones.delete(inscripcion.jugadorId)
+  }
 
   try {
     const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, docId)
@@ -190,6 +308,8 @@ export const actualizarEstadoInscripcionDB = async (
   pagoValidado: boolean,
   subestado: string = 'INSCRITO'
 ): Promise<void> => {
+  memoriaInscripcionesPorTorneo.clear()
+  memoriaMisInscripciones.clear()
   const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, inscripcionId)
   await updateDoc(inscripcionRef, {
     pagoValidado,
@@ -198,6 +318,8 @@ export const actualizarEstadoInscripcionDB = async (
 }
 
 export const eliminarInscripcionDB = async (inscripcionId: string): Promise<void> => {
+  memoriaInscripcionesPorTorneo.clear()
+  memoriaMisInscripciones.clear()
   const inscripcionRef = doc(db, COLECCION_INSCRIPCIONES, inscripcionId)
   await deleteDoc(inscripcionRef)
 }
@@ -228,7 +350,12 @@ export const ordenarPartidosNumerico = (partidos: any[]): any[] => {
   })
 }
 
-export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
+export const obtenerPartidosDB = async (torneoId: string, forzarRefresco = false): Promise<any[]> => {
+  const cachedMem = memoriaPartidosPorTorneo.get(torneoId)
+  if (!forzarRefresco && cachedMem && Date.now() - cachedMem.timestamp < CACHE_TTL_MS) {
+    return cachedMem.data
+  }
+
   const cachePartidos = leerCacheLocal<any[]>(`spinapp_partidos_${torneoId}`) || []
 
   try {
@@ -240,6 +367,7 @@ export const obtenerPartidosDB = async (torneoId: string): Promise<any[]> => {
     })
     if (partidos.length > 0) {
       const ordenados = ordenarPartidosNumerico(partidos)
+      memoriaPartidosPorTorneo.set(torneoId, { data: ordenados, timestamp: Date.now() })
       guardarCacheLocal(`spinapp_partidos_${torneoId}`, ordenados)
       return ordenados
     }
@@ -290,6 +418,93 @@ export const suscribirPartidosDB = (
 }
 
 /**
+ * Obtiene todos los partidos de todos los torneos con respaldo de caché
+ */
+export const obtenerTodosLosPartidosDB = async (): Promise<any[]> => {
+  const cacheTodos = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+
+  try {
+    const snap = await getDocs(collection(db, COLECCION_PARTIDOS))
+    const partidos: any[] = []
+    snap.forEach((documento) => {
+      partidos.push({ id: documento.id, ...documento.data() })
+    })
+    if (partidos.length > 0) {
+      const ordenados = ordenarPartidosNumerico(partidos)
+      guardarCacheLocal('spinapp_todos_partidos_cache', ordenados)
+      return ordenados
+    }
+    if (cacheTodos.length > 0) return cacheTodos
+
+    // Respaldo secundario: consolidar cachés de torneos conocidos
+    const torneosCache = leerCacheLocal<any[]>('spinapp_torneos_cache') || []
+    const acumulados: any[] = []
+    for (const t of torneosCache) {
+      const pTorneo = leerCacheLocal<any[]>(`spinapp_partidos_${t.id}`) || []
+      acumulados.push(...pTorneo)
+    }
+    return acumulados
+  } catch (error) {
+    console.warn('Error al obtener todos los partidos de Firestore (posible cuota):', error)
+    if (cacheTodos.length > 0) return cacheTodos
+    const torneosCache = leerCacheLocal<any[]>('spinapp_torneos_cache') || []
+    const acumulados: any[] = []
+    for (const t of torneosCache) {
+      const pTorneo = leerCacheLocal<any[]>(`spinapp_partidos_${t.id}`) || []
+      acumulados.push(...pTorneo)
+    }
+    return acumulados
+  }
+}
+
+/**
+ * Escucha en tiempo real todos los partidos de todos los torneos
+ */
+export const suscribirTodosLosPartidosDB = (
+  onActualizar: (partidos: any[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe => {
+  const cacheTodos = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+  if (cacheTodos.length > 0) {
+    onActualizar(cacheTodos)
+  } else {
+    const torneosCache = leerCacheLocal<any[]>('spinapp_torneos_cache') || []
+    const acumulados: any[] = []
+    for (const t of torneosCache) {
+      const pTorneo = leerCacheLocal<any[]>(`spinapp_partidos_${t.id}`) || []
+      acumulados.push(...pTorneo)
+    }
+    if (acumulados.length > 0) {
+      onActualizar(acumulados)
+    }
+  }
+
+  const q = collection(db, COLECCION_PARTIDOS)
+  return onSnapshot(
+    q,
+    (snap) => {
+      const partidos: any[] = []
+      snap.forEach((documento) => {
+        partidos.push({ id: documento.id, ...documento.data() })
+      })
+      const ordenados = ordenarPartidosNumerico(partidos)
+      if (ordenados.length > 0) {
+        guardarCacheLocal('spinapp_todos_partidos_cache', ordenados)
+      }
+      onActualizar(ordenados)
+    },
+    (err) => {
+      console.warn('Error en listener en tiempo real de todos los partidos (posible cuota):', err)
+      const cached = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+      if (cached.length > 0) {
+        onActualizar(cached)
+      }
+      onError?.(err)
+    }
+  )
+}
+
+/**
  * Guarda los partidos generados en un torneo
  */
 export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
@@ -305,17 +520,29 @@ export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
 }
 
 export const actualizarPartidoDB = async (partidoId: string, datos: any): Promise<void> => {
+  const datosLimpios = sanearParaFirestore(datos)
   try {
     const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
-    await setDoc(pRef, datos, { merge: true })
-  } catch {}
-  if (datos.torneoId) {
-    const lista = leerCacheLocal<any[]>(`spinapp_partidos_${datos.torneoId}`) || []
+    await setDoc(pRef, datosLimpios, { merge: true })
+  } catch (err) {
+    console.error(`[actualizarPartidoDB] Error al persistir partido ${partidoId} en Firestore:`, err)
+  }
+
+  const torneoId = datosLimpios.torneoId || (typeof partidoId === 'string' && partidoId.startsWith('p-') ? partidoId.split('-')[1] : null)
+  if (torneoId) {
+    const lista = leerCacheLocal<any[]>(`spinapp_partidos_${torneoId}`) || []
     const idx = lista.findIndex((p) => p.id === partidoId)
     if (idx >= 0) {
-      lista[idx] = { ...lista[idx], ...datos }
-      guardarCacheLocal(`spinapp_partidos_${datos.torneoId}`, lista)
+      lista[idx] = { ...lista[idx], ...datosLimpios }
+      guardarCacheLocal(`spinapp_partidos_${torneoId}`, lista)
     }
+  }
+
+  const todos = leerCacheLocal<any[]>('spinapp_todos_partidos_cache') || []
+  const idxTodos = todos.findIndex((p) => p.id === partidoId)
+  if (idxTodos >= 0) {
+    todos[idxTodos] = { ...todos[idxTodos], ...datosLimpios }
+    guardarCacheLocal('spinapp_todos_partidos_cache', todos)
   }
 }
 
@@ -349,15 +576,26 @@ export const actualizarMarcadorEnVivoDB = async (
       setsGanadosJ2: Number(marcadorEnVivo.setsGanadosJ2) || 0,
       mesa: String(marcadorEnVivo.mesa || 'Mesa 1'),
       servidorActual: Number(marcadorEnVivo.servidorActual) || 1,
+      finalizado: Boolean(marcadorEnVivo.finalizado),
+      ganadorId: marcadorEnVivo.ganadorId || null,
       actualizadoEn: Number(marcadorEnVivo.actualizadoEn) || Date.now(),
+      historialSets: marcadorEnVivo.historialSets ? sanearParaFirestore(marcadorEnVivo.historialSets) : [],
+      setsDetalle: marcadorEnVivo.setsDetalle || '',
+    }
+
+    const payloadPartido: Record<string, unknown> = {
+      marcadorEnVivo: marcadorLimpio,
+      mesa: marcadorLimpio.mesa,
+    }
+
+    if (marcadorEnVivo.historialSets && Array.isArray(marcadorEnVivo.historialSets) && marcadorEnVivo.historialSets.length > 0) {
+      payloadPartido.sets = sanearParaFirestore(marcadorEnVivo.historialSets)
+      payloadPartido.marcadorDetallado = marcadorEnVivo.historialSets.map((s: any) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
     }
 
     await setDoc(
       pRef,
-      {
-        marcadorEnVivo: marcadorLimpio,
-        mesa: marcadorLimpio.mesa,
-      },
+      sanearParaFirestore(payloadPartido),
       { merge: true },
     )
   } catch (error) {
@@ -491,6 +729,7 @@ export const limpiarPartidoZombiDB = async (partidoId: string): Promise<void> =>
       ultimaSenalEnVivo: 0,
       transmisorId: null,
       transmisorNombre: null,
+      arbitroActivoId: null,
     })
   } catch (err) {
     console.warn('Error al limpiar partido zombi en Firestore:', err)
@@ -571,18 +810,20 @@ export const guardarTablaPosicionesDB = async (
   totalPartidosJugados: number = 0,
 ): Promise<void> => {
   try {
+    const posicionesLimpias = sanearParaFirestore(posiciones)
     const tablaRef = doc(db, COLECCION_TABLAS_POSICIONES, torneoId)
     const payload: TablaPosicionesTorneo = {
       id: torneoId,
       torneoId,
       tipoFase: 'round_robin',
-      posiciones,
+      posiciones: posicionesLimpias,
       totalPartidosJugados,
       actualizadoEn: new Date().toISOString(),
     }
-    await setDoc(tablaRef, payload)
+    const payloadLimpio = sanearParaFirestore(payload)
+    await setDoc(tablaRef, payloadLimpio)
   } catch (error) {
-    console.warn('Error al guardar tabla de posiciones en la colección tablas_posiciones:', error)
+    console.error(`[guardarTablaPosicionesDB] Error al guardar tabla de posiciones en la colección tablas_posiciones (${torneoId}):`, error)
   }
 }
 
@@ -673,90 +914,97 @@ export const obtenerEstadisticasJugadorDB = async (
     (t) => t.subestado !== 'PENDIENTE' && t.estado === 'finalizado'
   ).length
 
-  // 2. Partidos y sets en cada torneo
-  for (const torneo of torneosInscritos) {
-    if (torneo.subestado === 'PENDIENTE') continue
+  // 2. Carga concurrente y paralela de partidos y tablas de torneos (optimización extrema móvil)
+  const torneosValidos = torneosInscritos.filter((t) => t.subestado !== 'PENDIENTE')
+  const datosTorneos = await Promise.all(
+    torneosValidos.map(async (torneo) => {
+      try {
+        const [partidos, tabla] = await Promise.all([
+          obtenerPartidosDB(torneo.id).catch(() => []),
+          torneo.estado === 'finalizado'
+            ? obtenerTablaPosicionesDB(torneo.id).catch(() => null)
+            : Promise.resolve(null),
+        ])
+        return { torneo, partidos, tabla }
+      } catch {
+        return { torneo, partidos: [], tabla: null }
+      }
+    }),
+  )
 
-    try {
-      const partidos = await obtenerPartidosDB(torneo.id)
-      const partidosJugados = partidos.filter((p) => p.estado === 'jugado')
+  for (const { partidos, tabla } of datosTorneos) {
+    const partidosJugados = partidos.filter((p: any) => p.estado === 'jugado')
 
-      for (const p of partidosJugados) {
-        const j1Id = String(p.jugador1?.id || p.jugador1Id || '')
-        const j2Id = String(p.jugador2?.id || p.jugador2Id || '')
-        const j1Nombre = p.jugador1?.nombre || ''
-        const j2Nombre = p.jugador2?.nombre || ''
+    for (const p of partidosJugados) {
+      const j1Id = String(p.jugador1?.id || p.jugador1Id || '')
+      const j2Id = String(p.jugador2?.id || p.jugador2Id || '')
+      const j1Nombre = p.jugador1?.nombre || ''
+      const j2Nombre = p.jugador2?.nombre || ''
 
-        const esJ1 =
-          (j1Id && (j1Id === usuarioId || j1Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j1Id))) ||
-          (usuarioNombre && j1Nombre && j1Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
-        const esJ2 =
-          (j2Id && (j2Id === usuarioId || j2Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j2Id))) ||
-          (usuarioNombre && j2Nombre && j2Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+      const esJ1 =
+        (j1Id && (j1Id === usuarioId || j1Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j1Id))) ||
+        (usuarioNombre && j1Nombre && j1Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+      const esJ2 =
+        (j2Id && (j2Id === usuarioId || j2Id.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + j2Id))) ||
+        (usuarioNombre && j2Nombre && j2Nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
 
-        if (esJ1 || esJ2) {
-          stats.partidosJugados++
-          const ganadorId = String(p.ganadorId || p.jugadorGanadorId || '')
-          const esGanador =
-            (ganadorId && (ganadorId === usuarioId || ganadorId.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + ganadorId))) ||
-            (esJ1 && p.marcador?.startsWith('2')) ||
-            (esJ2 && p.marcador?.endsWith('2'))
+      if (esJ1 || esJ2) {
+        stats.partidosJugados++
+        const ganadorId = String(p.ganadorId || p.jugadorGanadorId || '')
+        const esGanador =
+          (ganadorId && (ganadorId === usuarioId || ganadorId.endsWith('_' + usuarioId) || usuarioId.endsWith('_' + ganadorId))) ||
+          (esJ1 && p.marcador?.startsWith('2')) ||
+          (esJ2 && p.marcador?.endsWith('2'))
 
-          if (esGanador) {
-            stats.partidosGanados++
-          } else if (ganadorId || p.marcador) {
-            stats.partidosPerdidos++
-          }
+        if (esGanador) {
+          stats.partidosGanados++
+        } else if (ganadorId || p.marcador) {
+          stats.partidosPerdidos++
+        }
 
-          // Conteo de sets
-          if (p.sets && Array.isArray(p.sets) && p.sets.length > 0) {
-            p.sets.forEach((s: any) => {
-              const ganoSet =
-                (s.ganadorId && (s.ganadorId === usuarioId || String(s.ganadorId).includes(usuarioId))) ||
-                (esJ1 && Number(s.puntosJugador1) > Number(s.puntosJugador2)) ||
-                (esJ2 && Number(s.puntosJugador2) > Number(s.puntosJugador1))
+        // Conteo de sets
+        if (p.sets && Array.isArray(p.sets) && p.sets.length > 0) {
+          p.sets.forEach((s: any) => {
+            const ganoSet =
+              (s.ganadorId && (s.ganadorId === usuarioId || String(s.ganadorId).includes(usuarioId))) ||
+              (esJ1 && Number(s.puntosJugador1) > Number(s.puntosJugador2)) ||
+              (esJ2 && Number(s.puntosJugador2) > Number(s.puntosJugador1))
 
-              if (ganoSet) {
-                stats.setsGanados++
-              } else {
-                stats.setsPerdidos++
-              }
-            })
-          } else if (p.marcador && typeof p.marcador === 'string') {
-            const partes = p.marcador.split('-').map((str: string) => parseInt(str.trim()))
-            if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
-              if (esJ1) {
-                stats.setsGanados += partes[0]
-                stats.setsPerdidos += partes[1]
-              } else {
-                stats.setsGanados += partes[1]
-                stats.setsPerdidos += partes[0]
-              }
+            if (ganoSet) {
+              stats.setsGanados++
+            } else {
+              stats.setsPerdidos++
+            }
+          })
+        } else if (p.marcador && typeof p.marcador === 'string') {
+          const partes = p.marcador.split('-').map((str: string) => parseInt(str.trim()))
+          if (partes.length === 2 && !isNaN(partes[0]) && !isNaN(partes[1])) {
+            if (esJ1) {
+              stats.setsGanados += partes[0]
+              stats.setsPerdidos += partes[1]
+            } else {
+              stats.setsGanados += partes[1]
+              stats.setsPerdidos += partes[0]
             }
           }
         }
       }
+    }
 
-      // 3. Podios en torneos finalizados
-      if (torneo.estado === 'finalizado') {
-        const tabla = await obtenerTablaPosicionesDB(torneo.id)
-        if (tabla && tabla.posiciones) {
-          const miFila = tabla.posiciones.find((pos) => {
-            const posId = String(pos.jugadorId || '')
-            return (
-              posId === usuarioId ||
-              posId.endsWith('_' + usuarioId) ||
-              usuarioId.endsWith('_' + posId) ||
-              (usuarioNombre && pos.nombre && pos.nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
-            )
-          })
-          if (miFila && miFila.posicion > 0 && miFila.posicion <= 3) {
-            stats.podios++
-          }
-        }
+    // 3. Podios en torneos finalizados
+    if (tabla && tabla.posiciones) {
+      const miFila = tabla.posiciones.find((pos) => {
+        const posId = String(pos.jugadorId || '')
+        return (
+          posId === usuarioId ||
+          posId.endsWith('_' + usuarioId) ||
+          usuarioId.endsWith('_' + posId) ||
+          (usuarioNombre && pos.nombre && pos.nombre.toLowerCase().includes(usuarioNombre.toLowerCase()))
+        )
+      })
+      if (miFila && miFila.posicion > 0 && miFila.posicion <= 3) {
+        stats.podios++
       }
-    } catch (e) {
-      console.warn(`Error al obtener estadísticas del torneo ${torneo.id}:`, e)
     }
   }
 

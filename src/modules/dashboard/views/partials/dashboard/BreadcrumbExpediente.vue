@@ -35,7 +35,7 @@
       <button
         v-if="torneoNombre"
         type="button"
-        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+        class="inline-flex sm:hidden items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
         title="Volver a mis torneos"
         @click="$emit('volver')"
       >

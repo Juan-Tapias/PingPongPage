@@ -330,23 +330,21 @@ export function estanJugadoresLibresParaPartido(
       const participa = sonMismoJugador(jA, jugadorId) || sonMismoJugador(jB, jugadorId)
       if (!participa) continue
 
-      // a) Si el jugador está jugando activamente otro partido en curso
-      if (p.estado === 'en_curso') {
-        return false
-      }
-
+      // 1. Si el partido ya fue jugado o ya tiene marcador final registrado, el jugador no está retenido aquí
       const pJugado =
         p.estado === 'jugado' ||
         (!!p.marcador && String(p.marcador).includes('-') && p.estado !== 'pendiente')
       if (pJugado) continue
 
-      // b) Si el partido está pendiente y pertenece a una ronda estrictamente anterior
+      if (p.estado === 'en_curso') {
+        return false
+      }
+
       const rP = Number(p.ronda || p.jornada || 1)
       if (rP < rondaPartido) {
         return false
       }
 
-      // c) Si pertenece a la misma ronda pero tiene un número de partido anterior prioritario
       if (
         rP === rondaPartido &&
         numPartido !== null &&

@@ -12,8 +12,12 @@
           <!-- BARRA SUPERIOR DE INFORMACIÓN -->
           <div class="flex flex-wrap items-center justify-between px-3 py-1 text-white font-heading gap-2">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span class="text-xs sm:text-sm font-black tracking-wide uppercase">
+              <span class="w-2.5 h-2.5 rounded-full" :class="partidoTerminado ? 'bg-amber-400 animate-bounce' : 'bg-emerald-400 animate-pulse'"></span>
+              <span v-if="partidoTerminado" class="text-xs sm:text-sm font-black tracking-wide uppercase text-amber-300 flex items-center gap-1.5 animate-pulse">
+                <Trophy class="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Partido Definido • Victoria {{ setsGanadosJ1 }} - {{ setsGanadosJ2 }}</span>
+              </span>
+              <span v-else class="text-xs sm:text-sm font-black tracking-wide uppercase">
                 Marcador Virtual Oficial • Set {{ numeroSetActual }} (Mejor de 3)
               </span>
 
@@ -58,7 +62,17 @@
                 </span>
               </button>
 
-              <span class="text-[11px] font-bold bg-black/30 px-2.5 py-0.5 rounded-full text-sky-100 hidden sm:inline">
+              <button
+                v-if="partidoTerminado"
+                type="button"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-linear-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-xs shadow-lg cursor-pointer animate-pulse transition-all active:scale-95"
+                title="Finalizar y registrar resultado"
+                @click="abrirModalFinPartido"
+              >
+                <Trophy class="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                <span>Finalizar Partido</span>
+              </button>
+              <span v-else class="text-[11px] font-bold bg-black/30 px-2.5 py-0.5 rounded-full text-sky-100 hidden sm:inline">
                 Primero en ganar 2 sets gana el partido
               </span>
               <button type="button"
@@ -240,14 +254,37 @@
                 <span class="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider hidden xs:inline">Reset 0-0</span>
               </button>
 
-              <!-- BOTÓN TERMINAR SET -->
-              <button type="button" :disabled="!puedeFinalizarSet" :class="[
-                'w-full py-2 sm:py-3.5 border rounded-lg sm:rounded-2xl font-black flex flex-col items-center justify-center gap-0.5 transition-all shadow-xl',
-                puedeFinalizarSet
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border-2 border-white text-white cursor-pointer active:scale-95 animate-pulse'
-                  : 'bg-slate-900 border-white/10 text-slate-500 cursor-not-allowed opacity-50'
-              ]" :title="puedeFinalizarSet ? 'Finalizar set y sumar al marcador' : textoEstadoSet"
-                @click="handleTerminarSet">
+              <!-- BOTÓN TERMINAR PARTIDO (CUANDO YA ALGUIEN ALCANZÓ 2 SETS) -->
+              <button
+                v-if="partidoTerminado"
+                type="button"
+                class="w-full py-2.5 sm:py-3.5 bg-linear-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 border-2 border-white text-white rounded-lg sm:rounded-2xl font-black flex flex-col items-center justify-center gap-1 transition-all shadow-[0_0_25px_rgba(52,211,153,0.7)] cursor-pointer active:scale-95 animate-pulse"
+                title="Partido definido al mejor de 3 sets. Toca para registrar la victoria."
+                @click="abrirModalFinPartido"
+              >
+                <Trophy class="w-5 h-5 sm:w-6 sm:h-6 text-amber-300 shrink-0" />
+                <span class="text-[9px] sm:text-xs md:text-sm font-black uppercase tracking-wider text-center leading-none">
+                  Finalizar Partido
+                </span>
+                <span class="text-[8px] sm:text-[10px] font-bold text-emerald-100 truncate w-full px-1 text-center">
+                  Gana {{ ganadorPartido?.nombre.split(' ')[0] }} ({{ setsGanadosJ1 }}-{{ setsGanadosJ2 }})
+                </span>
+              </button>
+
+              <!-- BOTÓN TERMINAR SET (MIENTRAS EL PARTIDO ESTÉ EN JUEGO) -->
+              <button
+                v-else
+                type="button"
+                :disabled="!puedeFinalizarSet"
+                :class="[
+                  'w-full py-2 sm:py-3.5 border rounded-lg sm:rounded-2xl font-black flex flex-col items-center justify-center gap-0.5 transition-all shadow-xl',
+                  puedeFinalizarSet
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border-2 border-white text-white cursor-pointer active:scale-95 animate-pulse'
+                    : 'bg-slate-900 border-white/10 text-slate-500 cursor-not-allowed opacity-50'
+                ]"
+                :title="puedeFinalizarSet ? 'Finalizar set y sumar al marcador' : textoEstadoSet"
+                @click="handleTerminarSet"
+              >
                 <CheckCircle2 class="w-4 h-4 sm:w-5 sm:h-5 shrink-0"
                   :class="puedeFinalizarSet ? 'text-white' : 'text-slate-500'" />
                 <span
@@ -353,12 +390,27 @@
           </div>
 
           <!-- HISTORIAL DE SETS ANTERIORES -->
-          <div v-if="historialSets.length > 0" class="flex flex-wrap items-center justify-center gap-2 py-1">
-            <span class="text-[11px] font-extrabold text-sky-950 uppercase tracking-wider">Sets jugados:</span>
-            <span v-for="(s, idx) in historialSets" :key="idx"
-              class="px-3 py-1 rounded-xl bg-black/60 border border-white/20 font-mono font-bold text-xs text-white shadow-xs">
-              Set {{ s.setNumero }}: {{ s.puntosJugador1 }} - {{ s.puntosJugador2 }}
+          <div v-if="historialSets.length > 0" class="flex flex-wrap items-center justify-center gap-2 py-1.5 px-2 bg-black/40 rounded-2xl border border-white/10 mx-auto max-w-xl">
+            <span class="text-[10px] sm:text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+              <CheckCircle2 class="w-3.5 h-3.5" />
+              Sets registrados:
             </span>
+            <div
+              v-for="(s, idx) in historialSets"
+              :key="idx"
+              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900/90 border border-white/20 font-mono text-xs text-white shadow-md"
+            >
+              <span class="font-extrabold text-amber-300">Set {{ s.setNumero }}:</span>
+              <span class="font-black text-white">{{ s.puntosJugador1 }}</span>
+              <span class="text-slate-400">-</span>
+              <span class="font-black text-white">{{ s.puntosJugador2 }}</span>
+              <span
+                class="text-[9px] font-black uppercase px-1.5 py-0.2 rounded"
+                :class="s.ganadorId === matchActual?.jugador1.id ? 'bg-emerald-500/30 text-emerald-300' : 'bg-sky-500/30 text-sky-300'"
+              >
+                Gana {{ s.ganadorId === matchActual?.jugador1.id ? (matchActual?.jugador1.nombre.split(' ')[0] || 'J1') : (matchActual?.jugador2.nombre.split(' ')[0] || 'J2') }}
+              </span>
+            </div>
           </div>
 
           <!-- BANNER DE ALERTA EASTER EGG DE MALLAS -->
@@ -456,6 +508,64 @@
                     class="text-[11px] sm:text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer py-1 underline underline-offset-4"
                     @click="mostrarDisputaBola = false">
                     Omitir por ahora (asignar saque en la mesa)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Transition>
+
+          <!-- OVERLAY DIRECTO EN MESA DE PARTIDO FINALIZADO (VISIBLE AL 100%, SIN CONFLICTO DE Z-INDEX) -->
+          <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in"
+            leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
+            <div v-if="mostrarModalFinPartido && (matchActual || match) && ganadorPartido"
+              class="absolute inset-0 z-50 bg-black/95 backdrop-blur-md rounded-2xl sm:rounded-[36px] p-4 sm:p-6 flex flex-col items-center justify-center text-center overflow-y-auto overscroll-contain">
+              <div class="max-w-md w-full my-auto space-y-3 sm:space-y-4 relative py-2">
+                <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-linear-to-tr from-amber-400 to-emerald-400 text-slate-950 flex items-center justify-center mx-auto shadow-[0_0_35px_rgba(52,211,153,0.5)]">
+                  <Trophy class="w-9 h-9 sm:w-11 sm:h-11 text-slate-950" />
+                </div>
+                <div>
+                  <span class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-emerald-400 block">
+                    ¡Partido Concluido al Mejor de 3 Sets!
+                  </span>
+                  <h2 class="text-xl sm:text-3xl font-black text-white font-heading mt-1 leading-tight">
+                    {{ ganadorPartido.nombre }}
+                  </h2>
+                  <p class="text-xs sm:text-sm text-emerald-300 font-black mt-0.5">
+                    Victoria oficial {{ setsGanadosJ1 }} - {{ setsGanadosJ2 }}
+                  </p>
+                </div>
+
+                <!-- Resumen de Sets -->
+                <div class="bg-white/10 rounded-2xl p-3 border border-white/15 space-y-2">
+                  <span class="text-[10px] uppercase tracking-wider text-slate-300 font-bold block">Sets disputados</span>
+                  <div class="flex flex-wrap items-center justify-center gap-2">
+                    <span
+                      v-for="(s, idx) in historialSets"
+                      :key="idx"
+                      class="px-3 py-1 rounded-xl bg-black/70 border border-emerald-400/40 font-mono font-bold text-xs text-white"
+                    >
+                      Set {{ s.setNumero }}: <strong class="text-emerald-300">{{ s.puntosJugador1 }} - {{ s.puntosJugador2 }}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Botón de Confirmación y Registro -->
+                <div class="space-y-2 pt-2">
+                  <button
+                    type="button"
+                    class="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-98 text-white font-black text-sm sm:text-base transition-all shadow-xl shadow-emerald-950/60 cursor-pointer flex items-center justify-center gap-2"
+                    @click="confirmarRegistroFinal"
+                  >
+                    <CheckCircle2 class="w-5 h-5 text-white" />
+                    <span>Registrar Resultado Oficial y Guardar</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer py-1"
+                    @click="mostrarModalFinPartido = false"
+                  >
+                    Revisar mesa de juego
                   </button>
                 </div>
               </div>
@@ -742,7 +852,7 @@ const emit = defineEmits<{
       marcador?: string
       marcadorDetallado?: string
       perdedorPorWId?: string
-      ganadorBolaId?: string
+      ganadorBolaId?: string | null
     },
   ): void
   (
@@ -793,7 +903,6 @@ const mostrarDisputaBola = ref(false)
 const saqueInvertidoManualmente = ref(false)
 
 const historialSets = ref<SetPartido[]>([])
-const numeroSetActual = computed(() => historialSets.value.length + 1)
 
 const setsGanadosJ1 = computed(() => {
   if (!matchActual.value) return 0
@@ -808,6 +917,13 @@ const setsGanadosJ2 = computed(() => {
 // Mejor de 3 sets (primer jugador que alcance 2 sets)
 const partidoTerminado = computed(() => {
   return setsGanadosJ1.value >= 2 || setsGanadosJ2.value >= 2
+})
+
+const numeroSetActual = computed(() => {
+  if (partidoTerminado.value) {
+    return Math.max(1, Math.min(historialSets.value.length, 3))
+  }
+  return Math.min(historialSets.value.length + 1, 3)
 })
 
 const ganadorPartido = computed<JugadorTorneo | null>(() => {
@@ -961,24 +1077,42 @@ const textoEstadoSet = computed<string>(() => {
 
 const emitirMarcadorEnVivo = () => {
   if (!matchActual.value?.partido.id) return
+
+  const setsFormateados = historialSets.value.map((s) => ({
+    setNumero: Number(s.setNumero) || 1,
+    puntosJugador1: Number(s.puntosJugador1) || 0,
+    puntosJugador2: Number(s.puntosJugador2) || 0,
+    mallasJugador1: Number(s.mallasJugador1) || 0,
+    mallasJugador2: Number(s.mallasJugador2) || 0,
+    ganadorId: s.ganadorId || '',
+    ganadorBolaId: s.ganadorBolaId || null,
+  }))
+
   emit('actualizar-marcador-en-vivo', {
     partidoId: matchActual.value.partido.id,
     marcadorEnVivo: {
       puntosJ1: puntosJ1.value,
       puntosJ2: puntosJ2.value,
-      setActual: `Set ${numeroSetActual.value}`,
+      setActual: partidoTerminado.value ? 'Finalizado' : `Set ${numeroSetActual.value}`,
       numeroSet: numeroSetActual.value,
       setsGanadosJ1: setsGanadosJ1.value,
       setsGanadosJ2: setsGanadosJ2.value,
       mesa: matchActual.value.partido.mesa || `Mesa ${matchActual.value.partido.numeroPartido || 1}`,
       servidorActual: servidorActual.value,
+      finalizado: partidoTerminado.value,
+      ganadorId: ganadorPartido.value?.id || null,
       actualizadoEn: Date.now(),
+      historialSets: setsFormateados,
+      setsDetalle: setsFormateados.map((s) => `S${s.setNumero}: ${s.puntosJugador1}-${s.puntosJugador2}`).join(' | '),
     },
   })
 }
 
-// Bloqueo estricto: Una vez alcanzada la diferencia reglamentaria de 2 con 11+ puntos, no se pueden sumar más puntos
+// Bloqueo estricto: Si el partido ya concluyó o el set actual alcanzó la victoria, no se pueden sumar más puntos
 const puedeSumarPunto = (_jugador: 1 | 2): boolean => {
+  if (partidoTerminado.value) {
+    return false
+  }
   if (puedeFinalizarSet.value) {
     return false
   }
@@ -1094,7 +1228,7 @@ const registrarMalla = (jugador: 1 | 2) => {
   }, 2500)
 }
 
-const handleTerminarSet = () => {
+const handleTerminarSet = async () => {
   if (!matchActual.value) return
 
   if (puntosJ1.value === puntosJ2.value) {
@@ -1115,7 +1249,7 @@ const handleTerminarSet = () => {
     mallasJugador1: mallasJ1.value,
     mallasJugador2: mallasJ2.value,
     ganadorId: ganadorSetId,
-    ganadorBolaId: ganadorBola.value?.id,
+    ganadorBolaId: ganadorBola.value?.id || null,
   }
 
   historialSets.value.push(nuevoSet)
@@ -1125,16 +1259,54 @@ const handleTerminarSet = () => {
   mallasJ2.value = 0
   saqueInvertidoManualmente.value = false
 
-  ladosInvertidos.value = !ladosInvertidos.value
+  // Si alguno de los dos jugadores ya alcanzó 2 sets ganados, el partido se da por terminado
+  if (setsGanadosJ1.value >= 2 || setsGanadosJ2.value >= 2) {
+    mostrarModalFinPartido.value = true
+    modalFinPartidoRef.value?.open()
+  } else {
+    ladosInvertidos.value = !ladosInvertidos.value
+  }
+
+  // Persistir de forma inmediata el set jugado en la base de datos Firestore
+  if (matchActual.value.partido.id) {
+    try {
+      const setsLimpios = historialSets.value.map((s) => ({
+        setNumero: Number(s.setNumero) || 1,
+        puntosJugador1: Number(s.puntosJugador1) || 0,
+        puntosJugador2: Number(s.puntosJugador2) || 0,
+        mallasJugador1: Number(s.mallasJugador1) || 0,
+        mallasJugador2: Number(s.mallasJugador2) || 0,
+        ganadorId: s.ganadorId || '',
+        ganadorBolaId: s.ganadorBolaId || null,
+      }))
+      await actualizarPartidoDB(matchActual.value.partido.id, {
+        torneoId: matchActual.value.partido.torneoId,
+        sets: setsLimpios,
+        marcadorDetallado: setsLimpios.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', '),
+      })
+    } catch (err) {
+      console.error('[ModalMarcadorVirtual] Error al guardar set terminado en base de datos:', err)
+    }
+  }
+
   emitirMarcadorEnVivo()
 }
 
+// Modal y overlay de partido finalizado
+const mostrarModalFinPartido = ref(false)
 const modalFinPartidoRef = ref<InstanceType<typeof Modal> | null>(null)
+
+const abrirModalFinPartido = () => {
+  mostrarModalFinPartido.value = true
+  modalFinPartidoRef.value?.open()
+}
 
 watch(partidoTerminado, (terminado) => {
   if (terminado) {
+    mostrarModalFinPartido.value = true
     modalFinPartidoRef.value?.open()
   } else {
+    mostrarModalFinPartido.value = false
     modalFinPartidoRef.value?.close()
   }
 })
@@ -1146,15 +1318,40 @@ const open = (partidoDirecto?: PartidoArbitrable) => {
     matchInterno.value = props.match
   }
 
-  puntosJ1.value = 0
-  puntosJ2.value = 0
+  // Restaurar historial de sets previos si el partido ya contaba con sets registrados
+  const setsPrevios =
+    matchActual.value?.partido.sets && Array.isArray(matchActual.value.partido.sets) && matchActual.value.partido.sets.length > 0
+      ? matchActual.value.partido.sets
+      : matchActual.value?.partido.marcadorEnVivo?.historialSets && Array.isArray(matchActual.value.partido.marcadorEnVivo.historialSets)
+        ? matchActual.value.partido.marcadorEnVivo.historialSets
+        : []
+
+  historialSets.value = setsPrevios.map((s: any) => ({
+    setNumero: Number(s.setNumero) || 1,
+    puntosJugador1: Number(s.puntosJugador1) || 0,
+    puntosJugador2: Number(s.puntosJugador2) || 0,
+    mallasJugador1: Number(s.mallasJugador1) || 0,
+    mallasJugador2: Number(s.mallasJugador2) || 0,
+    ganadorId: s.ganadorId || '',
+    ganadorBolaId: s.ganadorBolaId || null,
+  }))
+
+  const mLive = matchActual.value?.partido.marcadorEnVivo
+  puntosJ1.value = Number(mLive?.puntosJ1) || 0
+  puntosJ2.value = Number(mLive?.puntosJ2) || 0
   mallasJ1.value = 0
   mallasJ2.value = 0
-  historialSets.value = []
-  ladosInvertidos.value = false
+  ladosInvertidos.value = historialSets.value.length % 2 === 1
   saqueInvertidoManualmente.value = false
   easterEggMensaje.value = ''
-  modalFinPartidoRef.value?.close()
+
+  if (partidoTerminado.value) {
+    mostrarModalFinPartido.value = true
+    modalFinPartidoRef.value?.open()
+  } else {
+    mostrarModalFinPartido.value = false
+    modalFinPartidoRef.value?.close()
+  }
 
   // Revisar si ya había ganador de bola guardado en el partido
   if (matchActual.value?.partido.ganadorBolaId) {
@@ -1165,7 +1362,7 @@ const open = (partidoDirecto?: PartidoArbitrable) => {
     mostrarDisputaBola.value = false
   } else {
     ganadorBola.value = null
-    mostrarDisputaBola.value = true
+    mostrarDisputaBola.value = historialSets.value.length === 0
   }
 
   // Asegurar que el partido tenga su código de cámara de 4 dígitos generado
@@ -1181,6 +1378,7 @@ const open = (partidoDirecto?: PartidoArbitrable) => {
 
 const close = () => {
   visible.value = false
+  mostrarModalFinPartido.value = false
   modalFinPartidoRef.value?.close()
   emit('close')
 }
@@ -1205,14 +1403,30 @@ const invertirLados = () => {
 const confirmarRegistroFinal = () => {
   if (!matchActual.value || !ganadorPartido.value) return
 
+  mostrarModalFinPartido.value = false
   modalFinPartidoRef.value?.close()
+
+  const setsLimpios: SetPartido[] = historialSets.value.map((s) => ({
+    setNumero: s.setNumero,
+    puntosJugador1: s.puntosJugador1,
+    puntosJugador2: s.puntosJugador2,
+    mallasJugador1: s.mallasJugador1 || 0,
+    mallasJugador2: s.mallasJugador2 || 0,
+    ganadorId: s.ganadorId,
+    ganadorBolaId: s.ganadorBolaId || null,
+  }))
+
+  const marcadorStr = `${setsGanadosJ1.value} - ${setsGanadosJ2.value}`
+  const marcadorDet = setsLimpios.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
 
   emit('partido-finalizado', {
     partidoId: matchActual.value.partido.id,
-    sets: historialSets.value,
+    sets: setsLimpios,
     ganadorId: ganadorPartido.value.id,
     esWalkover: false,
-    ganadorBolaId: ganadorBola.value?.id,
+    marcador: marcadorStr,
+    marcadorDetallado: marcadorDet,
+    ganadorBolaId: ganadorBola.value?.id || null,
   })
 
   close()

@@ -2,6 +2,7 @@
 import { ref, onMounted, defineAsyncComponent } from 'vue'
 
 const show3D = ref(false)
+const esMobile = ref(false)
 const PingPongTable3D = defineAsyncComponent(() => import('@/components/PingPongTable3D.vue'))
 
 defineProps<{
@@ -10,9 +11,13 @@ defineProps<{
 
 onMounted(() => {
   if (typeof window !== 'undefined') {
-    setTimeout(() => {
-      show3D.value = true
-    }, 300)
+    esMobile.value = window.innerWidth < 1024
+    // Solo inicializar Three.js en pantallas desktop para aligerar la app en móviles (ahorro de ~633 kB de bundle)
+    if (!esMobile.value) {
+      setTimeout(() => {
+        show3D.value = true
+      }, 200)
+    }
   }
 })
 </script>
@@ -74,15 +79,56 @@ onMounted(() => {
     <div class="absolute top-1/4 -right-20 w-72 h-72 bg-purple-600/30 rounded-full blur-3xl pointer-events-none"></div>
 
 
-    <!-- Modelo 3D de la Mesa de Ping Pong (Google Poly) -->
+    <!-- Modelo de Mesa de Ping Pong: 3D en Desktop y Vectorial Ligero en Móvil -->
     <div class="relative z-10 w-full flex-1 flex flex-col items-center justify-center my-2 lg:my-3">
-      <div class="w-full h-[180px] sm:h-[220px] lg:h-[320px] relative">
+      <div class="w-full h-[180px] sm:h-[220px] lg:h-[320px] relative flex items-center justify-center">
+        <!-- Render 3D Three.js en Pantallas Grandes (Desktop) -->
         <Transition name="fade-slide">
           <PingPongTable3D v-if="show3D" />
         </Transition>
+
+        <!-- Ilustración Vectorial Deportiva Ultra-Liviana para Celulares -->
+        <div v-if="!show3D" class="w-full h-full flex items-center justify-center p-2 relative animate-in fade-in duration-300">
+          <svg class="w-full max-w-[280px] sm:max-w-[340px] h-auto drop-shadow-2xl" viewBox="0 0 360 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="tableGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0284c7" />
+                <stop offset="100%" stop-color="#0369a1" />
+              </linearGradient>
+              <linearGradient id="ballGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fdba74" />
+                <stop offset="100%" stop-color="#ea580c" />
+              </linearGradient>
+            </defs>
+
+            <!-- Sombra de la Mesa -->
+            <polygon points="60,170 300,170 340,140 100,140" fill="rgba(0,0,0,0.35)" />
+
+            <!-- Patas de la Mesa ITTF -->
+            <line x1="80" y1="120" x2="80" y2="155" stroke="#475569" stroke-width="4" stroke-linecap="round" />
+            <line x1="280" y1="120" x2="280" y2="155" stroke="#475569" stroke-width="4" stroke-linecap="round" />
+            <line x1="180" y1="125" x2="180" y2="158" stroke="#334155" stroke-width="5" stroke-linecap="round" />
+            <line x1="95" y1="145" x2="265" y2="145" stroke="#64748b" stroke-width="2" />
+
+            <!-- Superficie de la Mesa en Perspectiva Isométrica -->
+            <polygon points="50,115 310,115 340,65 80,65" fill="url(#tableGradient)" stroke="#ffffff" stroke-width="2" />
+
+            <!-- Línea Central Reglamentaria ITTF -->
+            <line x1="65" y1="90" x2="325" y2="90" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="4 2" />
+
+            <!-- Red de Tenis de Mesa Reglamentaria -->
+            <polygon points="179,58 179,122 181,122 181,58" fill="#ffffff" />
+            <polygon points="178,60 178,120 182,120 182,60" fill="rgba(255,255,255,0.4)" stroke="#e2e8f0" stroke-width="1" />
+            <line x1="177" y1="60" x2="183" y2="60" stroke="#ffffff" stroke-width="2" />
+
+            <!-- Pelota Neón de Competición ITTF 40mm+ con brillo -->
+            <circle class="animate-pulse" cx="130" cy="74" r="6" fill="url(#ballGlow)" />
+            <ellipse class="opacity-40" cx="130" cy="98" rx="7" ry="2.5" fill="#000000" />
+          </svg>
+        </div>
       </div>
 
-      <!-- Subtítulo oficial bajo la mesa 3D -->
+      <!-- Subtítulo oficial bajo la mesa -->
       <div class="text-center mt-1 lg:mt-2">
         <span class="text-[10px] sm:text-xs font-black uppercase tracking-widest text-orange-400">
           Mesa Reglamentaria ITTF

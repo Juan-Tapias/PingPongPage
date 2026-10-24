@@ -81,6 +81,18 @@
           </div>
         </div>
 
+        <!-- Historial de sets jugados en vivo -->
+        <div v-if="primerPartido.historialSets && primerPartido.historialSets.length > 0" class="flex items-center gap-1.5 pt-2 flex-wrap">
+          <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Sets:</span>
+          <span
+            v-for="(st, sIdx) in primerPartido.historialSets"
+            :key="sIdx"
+            class="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-emerald-300 font-mono font-bold border border-slate-700/80 shadow-xs"
+          >
+            S{{ st.setNumero }}: {{ st.puntosJugador1 }}-{{ st.puntosJugador2 }}
+          </span>
+        </div>
+
         <!-- Botón Ver o Iniciar Transmisión -->
         <div class="mt-3 pt-2.5 border-t border-slate-800/80">
           <button
@@ -108,7 +120,7 @@
             @click="emit('iniciar-transmision-partido', primerPartido.partidoOriginal || primerPartido)"
           >
             <Radio class="w-3.5 h-3.5" />
-            <span>Transmitir Mesa con Trípode (Ingresar PIN) 📹</span>
+            <span>Transmitir Mesa con Trípode (Ingresar PIN)</span>
           </button>
         </div>
       </div>
@@ -194,6 +206,18 @@
                 </span>
               </div>
             </div>
+
+            <!-- Historial de sets jugados en vivo -->
+            <div v-if="partido.historialSets && partido.historialSets.length > 0" class="flex items-center gap-1.5 pt-2 flex-wrap">
+              <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Sets:</span>
+              <span
+                v-for="(st, sIdx) in partido.historialSets"
+                :key="sIdx"
+                class="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-emerald-300 font-mono font-bold border border-slate-700/80 shadow-xs"
+              >
+                S{{ st.setNumero }}: {{ st.puntosJugador1 }}-{{ st.puntosJugador2 }}
+              </span>
+            </div>
           </div>
 
           <!-- Botón Ver o Iniciar Transmisión -->
@@ -205,7 +229,7 @@
               @click="emit('abrir-transmision-general')"
             >
               <Radio class="w-3.5 h-3.5 animate-pulse text-white" />
-              <span>Ver Mi Cámara Transmitiendo 📹</span>
+              <span>Ver Mi Cámara Transmitiendo</span>
             </button>
             <button
               v-else-if="partido.transmisionActiva"
@@ -223,7 +247,7 @@
               @click="emit('iniciar-transmision-partido', partido.partidoOriginal || partido)"
             >
               <Radio class="w-3.5 h-3.5" />
-              <span>Transmitir Mesa (Ingresar PIN) 📹</span>
+              <span>Transmitir Mesa (Ingresar PIN)</span>
             </button>
           </div>
         </div>
@@ -251,6 +275,8 @@ export interface PartidoEnVivo {
   jugador2: JugadorMarcador
   transmisionActiva?: boolean
   partidoOriginal?: any
+  historialSets?: any[]
+  setsDetalle?: string
 }
 
 interface Props {

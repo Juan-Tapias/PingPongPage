@@ -10,9 +10,19 @@
 
       <!-- Zona Derecha: Switcher, Theme Toggle y Dropdown de Usuario con Opción de Salir -->
       <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-        <!-- Switcher visual: Panel Admin <-> Vista Jugador -->
+        <!-- Switcher visual: Panel Admin <-> Vista Jugador / Volver a Torneos -->
         <RouterLink
-          v-if="esRutaAdmin"
+          v-if="esRutaBiblioteca"
+          to="/"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200/60 dark:border-slate-700/60"
+          title="Volver a la Página Principal"
+        >
+          <ArrowLeft class="w-3.5 h-3.5 text-orange-500" />
+          <span class="hidden sm:inline">Inicio</span>
+        </RouterLink>
+
+        <RouterLink
+          v-else-if="esRutaAdmin"
           to="/"
           class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
           title="Cambiar a Vista de Jugador"
@@ -31,15 +41,18 @@
           <span class="hidden sm:inline">Panel Admin</span>
         </RouterLink>
 
-        <!-- Enlace a Biblioteca de Videos y Clips -->
-        <RouterLink
-          to="/biblioteca"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-400 bg-slate-100/80 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 transition-colors"
-          title="Biblioteca de Videos y Repeticiones"
+        <!-- Botón Biblioteca de Videos (Bloqueado / Próximamente) -->
+        <button
+          type="button"
+          disabled
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border shrink-0 select-none min-h-[36px] opacity-60 cursor-not-allowed text-slate-400 dark:text-slate-500 bg-slate-100/60 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-700/60 transition-all"
+          title="Biblioteca de Videos (Próximamente)"
         >
-          <Film class="w-3.5 h-3.5 text-orange-500" />
-          <span class="hidden sm:inline">Biblioteca</span>
-        </RouterLink>
+          <Film class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+          <span class="hidden md:inline">Biblioteca</span>
+          <span class="hidden sm:inline md:hidden">Clips</span>
+          <Lock class="w-3 h-3 text-slate-400 dark:text-slate-500 ml-0.5" />
+        </button>
 
         <!-- Botón Especial de Modo Oscuro / Claro con Pelota Rebotando sobre la Mesa -->
         <ThemeTogglePingPong />
@@ -144,6 +157,21 @@
                 <span>Mis Torneos y Partidos</span>
               </RouterLink>
 
+              <!-- Biblioteca de Videos (Bloqueada) -->
+              <div
+                class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed font-semibold text-xs select-none"
+                title="Biblioteca de Videos (Próximamente)"
+              >
+                <div class="flex items-center gap-2.5">
+                  <Film class="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                  <span>Biblioteca de Videos</span>
+                </div>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <Lock class="w-2.5 h-2.5" />
+                  Próximamente
+                </span>
+              </div>
+
               <!-- Conmutador Admin / Jugador en caso de ser Administrador -->
               <template v-if="authStore.esAdmin">
                 <RouterLink
@@ -212,6 +240,8 @@ import {
   GraduationCap,
   Briefcase,
   Film,
+  ArrowLeft,
+  Lock,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useReglamento } from '@/composables/useReglamento'
@@ -227,6 +257,7 @@ const menuUsuarioAbierto = ref(false)
 const navUsuarioRef = ref<HTMLElement | null>(null)
 
 const esRutaAdmin = computed(() => route.path.startsWith('/admin'))
+const esRutaBiblioteca = computed(() => route.path.startsWith('/biblioteca'))
 
 const userInitials = computed(() => {
   const nombre = authStore.usuario?.nombre?.[0] || 'P'

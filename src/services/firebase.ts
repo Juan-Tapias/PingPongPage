@@ -1,6 +1,13 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth'
-import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore'
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  connectFirestoreEmulator,
+  type Firestore,
+} from 'firebase/firestore'
+import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,11 +21,18 @@ const firebaseConfig = {
 export const app: FirebaseApp = initializeApp(firebaseConfig)
 
 const dbId = import.meta.env.VITE_FIREBASE_DATABASE_ID
+const firestoreSettings = {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+}
+
 export const db: Firestore =
   dbId && dbId !== '(default)'
-    ? getFirestore(app, dbId)
-    : getFirestore(app)
+    ? initializeFirestore(app, firestoreSettings, dbId)
+    : initializeFirestore(app, firestoreSettings)
 export const auth: Auth = getAuth(app)
+export const storage: FirebaseStorage = getStorage(app)
 
 if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
   connectFirestoreEmulator(db, '127.0.0.1', 8080)
