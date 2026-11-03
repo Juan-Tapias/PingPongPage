@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/perfil',
+    name: 'perfil',
+    component: () => import('@/modules/perfil/views/PerfilView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/biblioteca',
     redirect: '/',
   },

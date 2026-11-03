@@ -10,6 +10,52 @@
 
       <!-- Zona Derecha: Switcher, Theme Toggle y Dropdown de Usuario con Opción de Salir -->
       <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+        <!-- Badge Pulsante de Transmisión en Vivo (Live Stream Fase 2) -->
+        <a
+          v-if="torneosEnVivo.length === 1 && torneosEnVivo[0]"
+          :href="torneosEnVivo[0].enlaceTransmision"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-500 hover:to-rose-500 shadow-md shadow-red-500/30 animate-pulse border border-red-400/50 cursor-pointer transition-all shrink-0"
+          :title="`🔴 EN VIVO: ${torneosEnVivo[0].nombre}`"
+        >
+          <span class="w-2 h-2 rounded-full bg-white animate-ping" />
+          <span class="hidden sm:inline">🔴 EN VIVO | Ver Torneo</span>
+          <span class="sm:hidden">🔴 EN VIVO</span>
+          <ExternalLink class="w-3.5 h-3.5 ml-0.5" />
+        </a>
+
+        <!-- Varias transmisiones simultáneas: selector desplegable -->
+        <div v-else-if="torneosEnVivo.length > 1" ref="navEnVivoRef" class="relative shrink-0">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black text-white bg-gradient-to-r from-red-600 via-rose-600 to-red-500 shadow-md shadow-red-500/30 border border-red-400/50 cursor-pointer"
+            title="Hay varias transmisiones en vivo"
+            @click="menuEnVivoAbierto = !menuEnVivoAbierto"
+          >
+            <span class="w-2 h-2 rounded-full bg-white animate-ping" />
+            <span>🔴 EN VIVO ({{ torneosEnVivo.length }})</span>
+            <ChevronDown class="w-3.5 h-3.5" :class="{ 'rotate-180': menuEnVivoAbierto }" />
+          </button>
+          <div
+            v-if="menuEnVivoAbierto"
+            class="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#0c1222] border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-1.5"
+          >
+            <a
+              v-for="t in torneosEnVivo"
+              :key="t.id"
+              :href="t.enlaceTransmision"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-950/40"
+              @click="menuEnVivoAbierto = false"
+            >
+              <span class="truncate">{{ t.nombre }}</span>
+              <ExternalLink class="w-3.5 h-3.5 text-red-500 shrink-0" />
+            </a>
+          </div>
+        </div>
+
         <!-- Switcher visual: Panel Admin <-> Vista Jugador / Volver a Torneos -->
         <RouterLink
           v-if="esRutaBiblioteca"
@@ -69,9 +115,12 @@
           >
             <!-- Avatar con Indicador En Línea -->
             <div class="relative">
-              <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-sky-600 to-blue-500 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0 ring-2 ring-sky-500/20 group-hover:ring-sky-500/40 transition-all">
-                {{ userInitials }}
-              </div>
+              <AvatarJugador
+                :foto-url="authStore.usuario?.fotoUrl"
+                :nombre="authStore.usuario?.nombre"
+                size="sm"
+                ring-class="ring-2 ring-sky-500/20 group-hover:ring-sky-500/40"
+              />
               <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0f172a]" />
             </div>
 
@@ -97,9 +146,12 @@
             <!-- Cabecera de la Ficha de Jugador -->
             <div class="p-4 bg-gradient-to-br from-slate-50 via-white to-slate-100/60 dark:from-slate-900/90 dark:via-[#0c1222] dark:to-slate-900/50 border-b border-slate-200/70 dark:border-slate-800/80">
               <div class="flex items-start gap-3">
-                <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-600 via-blue-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-md shadow-sky-500/20 shrink-0">
-                  {{ userInitials }}
-                </div>
+                <AvatarJugador
+                  :foto-url="authStore.usuario?.fotoUrl"
+                  :nombre="authStore.usuario?.nombre"
+                  size="lg"
+                  ring-class="shadow-md shadow-sky-500/20"
+                />
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5">
                     <p class="text-sm font-black text-slate-900 dark:text-white truncate font-heading">
@@ -155,6 +207,16 @@
               >
                 <Trophy class="w-4 h-4 text-orange-500 shrink-0" />
                 <span>Mis Torneos y Partidos</span>
+              </RouterLink>
+
+              <!-- Acceso a Perfil y Avatar -->
+              <RouterLink
+                to="/perfil"
+                class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all font-semibold"
+                @click="menuUsuarioAbierto = false"
+              >
+                <UserCircle class="w-4 h-4 text-sky-500 shrink-0" />
+                <span>Mi Perfil / Avatar</span>
               </RouterLink>
 
               <!-- Biblioteca de Videos (Bloqueada) -->
@@ -242,11 +304,16 @@ import {
   Film,
   ArrowLeft,
   Lock,
+  UserCircle,
+  ExternalLink,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useReglamento } from '@/composables/useReglamento'
 import ThemeTogglePingPong from '@/components/ThemeTogglePingPong.vue'
 import Logo from '@/components/Logo.vue'
+import AvatarJugador from '@/components/AvatarJugador.vue'
+import { storeToRefs } from 'pinia'
+import { useTorneosEnVivoStore } from '@/stores/torneosEnVivo'
 
 const router = useRouter()
 const route = useRoute()
@@ -255,6 +322,13 @@ const { abrirReglamento } = useReglamento()
 
 const menuUsuarioAbierto = ref(false)
 const navUsuarioRef = ref<HTMLElement | null>(null)
+
+const menuEnVivoAbierto = ref(false)
+const navEnVivoRef = ref<HTMLElement | null>(null)
+
+// Suscripción compartida (Pinia) filtrada a torneos con transmisión activa
+const torneosEnVivoStore = useTorneosEnVivoStore()
+const { torneosEnVivo } = storeToRefs(torneosEnVivoStore)
 
 const esRutaAdmin = computed(() => route.path.startsWith('/admin'))
 const esRutaBiblioteca = computed(() => route.path.startsWith('/biblioteca'))
@@ -269,6 +343,9 @@ const handleClickOutside = (event: MouseEvent) => {
   if (navUsuarioRef.value && !navUsuarioRef.value.contains(event.target as Node)) {
     menuUsuarioAbierto.value = false
   }
+  if (navEnVivoRef.value && !navEnVivoRef.value.contains(event.target as Node)) {
+    menuEnVivoAbierto.value = false
+  }
 }
 
 const handleAbrirReglamento = () => {
@@ -278,10 +355,12 @@ const handleAbrirReglamento = () => {
 
 onMounted(() => {
   window.addEventListener('click', handleClickOutside)
+  torneosEnVivoStore.iniciar()
 })
 
 onUnmounted(() => {
   window.removeEventListener('click', handleClickOutside)
+  torneosEnVivoStore.detener()
 })
 
 const handleLogout = async () => {

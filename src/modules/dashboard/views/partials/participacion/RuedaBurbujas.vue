@@ -25,6 +25,24 @@
           <stop offset="0%" stop-color="#1e293b" />
           <stop offset="100%" stop-color="#0f172a" />
         </linearGradient>
+
+        <!-- Fallback Gradiente Reglamentario #f97316 a #38bdf8 -->
+        <linearGradient id="fallback-gradiente-avatar" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f97316" />
+          <stop offset="100%" stop-color="#38bdf8" />
+        </linearGradient>
+
+        <clipPath id="clip-centro">
+          <circle cx="0" cy="0" r="58" />
+        </clipPath>
+
+        <clipPath
+          v-for="(item, idx) in posicionesRivales"
+          :key="'clip-r-' + idx"
+          :id="'clip-rival-' + idx"
+        >
+          <circle cx="0" cy="0" :r="radioBurbuja" />
+        </clipPath>
       </defs>
 
       <!-- HAZ DE LUZ RADIAL HACIA EL RIVAL DE TURNO (A LAS 12 EN PUNTO) -->
@@ -66,10 +84,41 @@
             class="filter drop-shadow-[0_12px_18px_rgba(0,0,0,0.4)] transition-transform duration-300 group-hover:scale-105"
           />
 
-          <!-- Pelota del Rival -->
+          <!-- Fondo del Rival: Avatar con foto/preset si existe, o gradiente dinámico con iniciales -->
+          <image
+            v-if="item.burbuja.jugador.fotoUrl"
+            :href="item.burbuja.jugador.fotoUrl"
+            :x="-radioBurbuja"
+            :y="-radioBurbuja"
+            :width="radioBurbuja * 2"
+            :height="radioBurbuja * 2"
+            preserveAspectRatio="xMidYMid slice"
+            :clip-path="`url(#clip-rival-${idx})`"
+          />
+          <g v-else>
+            <circle
+              :r="radioBurbuja"
+              fill="url(#fallback-gradiente-avatar)"
+            />
+            <text
+              x="0"
+              :y="radioBurbuja > 24 ? -6 : 0"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              fill="#ffffff"
+              :class="[
+                'font-black tracking-wider uppercase pointer-events-none select-none drop-shadow-xs',
+                radioBurbuja > 30 ? 'text-sm' : radioBurbuja > 22 ? 'text-xs' : 'text-[9px]'
+              ]"
+            >
+              {{ item.burbuja.jugador.iniciales }}
+            </text>
+          </g>
+
+          <!-- Borde exterior de estado reglamentario -->
           <circle
             :r="radioBurbuja"
-            fill="#1e293b"
+            fill="none"
             :stroke="obtenerColorBorde(item.burbuja)"
             :stroke-width="obtenerGrosorBorde(item.burbuja)"
             class="transition-all duration-300 group-hover:stroke-width-[5px]"
@@ -104,31 +153,28 @@
             stroke-width="2"
           />
 
-          <text
-            x="0"
-            :y="radioBurbuja > 24 ? -6 : 0"
-            text-anchor="middle"
-            dominant-baseline="middle"
-            fill="#ffffff"
-            :class="[
-              'font-black tracking-wider uppercase pointer-events-none select-none',
-              radioBurbuja > 30 ? 'text-sm' : radioBurbuja > 22 ? 'text-xs' : 'text-[9px]'
-            ]"
-          >
-            {{ item.burbuja.jugador.iniciales }}
-          </text>
-
-          <text
-            v-if="radioBurbuja > 24"
-            x="0"
-            y="12"
-            text-anchor="middle"
-            dominant-baseline="middle"
-            fill="#94a3b8"
-            class="text-[9px] font-semibold pointer-events-none select-none"
-          >
-            {{ formatearNombre(item.burbuja.jugador.nombre) }}
-          </text>
+          <!-- Etiqueta de Nombre del Rival -->
+          <g v-if="radioBurbuja > 24">
+            <rect
+              x="-35"
+              y="5"
+              width="70"
+              height="14"
+              rx="4"
+              fill="#0f172a"
+              fill-opacity="0.85"
+            />
+            <text
+              x="0"
+              y="12"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              fill="#ffffff"
+              class="text-[9px] font-bold pointer-events-none select-none"
+            >
+              {{ formatearNombre(item.burbuja.jugador.nombre) }}
+            </text>
+          </g>
         </g>
       </g>
 
@@ -142,45 +188,66 @@
           class="drop-shadow-2xl"
         />
 
+        <!-- Foto del Jugador Central con Clip circular -->
+        <image
+          v-if="jugadorCentroFoto"
+          :href="jugadorCentroFoto"
+          x="-58"
+          y="-58"
+          width="116"
+          height="116"
+          preserveAspectRatio="xMidYMid slice"
+          clip-path="url(#clip-centro)"
+        />
+
+        <!-- Fallback dinámico con degradado reglamentario #f97316 a #38bdf8 -->
+        <g v-else>
+          <circle
+            r="58"
+            fill="url(#fallback-gradiente-avatar)"
+          />
+          <text
+            x="0"
+            y="-8"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            fill="#ffffff"
+            class="text-2xl font-black tracking-wider uppercase drop-shadow-md"
+          >
+            {{ jugadorCentro.iniciales }}
+          </text>
+        </g>
+
+        <!-- Anillo exterior de la burbuja central -->
         <circle
           r="58"
-          :fill="esVistaRival ? 'url(#centro-rival-gradiente)' : 'url(#centro-gradiente)'"
+          fill="none"
           :stroke="esVistaRival ? '#38bdf8' : '#10b981'"
           stroke-width="4"
           class="drop-shadow-lg"
         />
 
+        <!-- Pastilla de TÚ / Vista Rival -->
+        <rect
+          x="-45"
+          y="18"
+          width="90"
+          height="22"
+          rx="11"
+          fill="#0f172a"
+          fill-opacity="0.85"
+          stroke="rgba(255,255,255,0.2)"
+          stroke-width="1"
+        />
         <text
           x="0"
-          y="-10"
+          y="29"
           text-anchor="middle"
           dominant-baseline="middle"
-          fill="#ffffff"
-          class="text-2xl font-black tracking-wider uppercase drop-shadow-sm"
+          :fill="esVistaRival ? '#38bdf8' : '#34d399'"
+          class="text-[9px] font-black uppercase tracking-wider"
         >
-          {{ jugadorCentro.iniciales }}
-        </text>
-
-        <text
-          x="0"
-          y="16"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          fill="#a7f3d0"
-          class="text-[10px] font-bold uppercase tracking-wide"
-        >
-          {{ esVistaRival ? formatearNombre(jugadorCentro.nombre) : 'TÚ (CENTRAL)' }}
-        </text>
-
-        <text
-          x="0"
-          y="28"
-          text-anchor="middle"
-          dominant-baseline="middle"
-          fill="#e2e8f0"
-          class="text-[8px] font-medium opacity-80"
-        >
-          {{ esVistaRival ? 'Vista de Rival' : 'Jugador Principal' }}
+          {{ esVistaRival ? formatearNombre(jugadorCentro.nombre) : 'TÚ' }}
         </text>
       </g>
     </svg>
@@ -190,6 +257,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { BurbujaRival, JugadorTorneo, Torneo } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const props = defineProps<{
   torneo: Torneo
@@ -197,6 +267,13 @@ const props = defineProps<{
   rivales: BurbujaRival[]
   esVistaRival: boolean
 }>()
+
+const jugadorCentroFoto = computed(() => {
+  return (
+    props.jugadorCentro.fotoUrl ||
+    (props.jugadorCentro.esUsuarioActual ? authStore.usuario?.fotoUrl : undefined)
+  )
+})
 
 const emit = defineEmits<{
   (e: 'seleccionar-rival', rival: BurbujaRival): void

@@ -155,6 +155,63 @@
           </div>
         </div>
 
+        <!-- Control de Transmisión en Vivo de este Torneo (Live Stream Fase 2) -->
+        <div class="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-white to-slate-50 dark:from-red-950/30 dark:via-[#0c1222] dark:to-slate-900 border border-red-500/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-xs">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-3 h-3 rounded-full bg-red-600 animate-ping shrink-0" />
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  Transmisión en Vivo (Live Stream)
+                </span>
+                <span
+                  v-if="torneo.transmisionEnVivoActiva"
+                  class="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-red-600 text-white animate-pulse"
+                >
+                  EN VIVO
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                Conecta YouTube Live, Twitch o Meet para los espectadores y el correo de la Gran Final
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-1 max-w-md">
+            <input
+              v-model="enlaceTransmisionLocal"
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              class="flex-1 text-xs px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none"
+            />
+            <button
+              type="button"
+              :disabled="guardandoTransmision || (!torneo.transmisionEnVivoActiva && !enlaceTransmisionLocal.trim())"
+              :title="!enlaceTransmisionLocal.trim() ? 'Ingresa un enlace para poder activar EN VIVO' : ''"
+              :class="[
+                'px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed',
+                torneo.transmisionEnVivoActiva
+                  ? 'bg-red-600 text-white shadow-xs animate-pulse'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+              ]"
+              @click="toggleTransmisionTorneo"
+            >
+              {{ torneo.transmisionEnVivoActiva ? '🔴 Detener' : 'Activar Live' }}
+            </button>
+            <button
+              type="button"
+              :disabled="guardandoTransmision"
+              class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              @click="guardarEnlaceTransmisionTorneo"
+            >
+              Guardar
+            </button>
+          </div>
+        </div>
+        <p v-if="errorTransmision" class="-mt-2 text-xs font-bold text-red-600 dark:text-red-400">
+          {{ errorTransmision }}
+        </p>
+
         <!-- Dos Columnas Principales: Fase 1 (Berger) vs Fase 2 (Playoffs) -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <!-- Tarjeta Fase 1: Algoritmo Berger -->
@@ -319,19 +376,86 @@
             <Button
               variant="outline"
               size="md"
-              :disabled="!fixtureGenerado"
-              :title="!fixtureGenerado ? 'Debes generar los partidos de Fase 1 primero' : 'Habilitar Playoffs'"
+              :disabled="!fixtureGenerado || playoffsAbiertos || abriendoPlayoffs || !faseGruposConcluida"
+              :title="!fixtureGenerado ? 'Debes generar los partidos de Fase 1 primero' : !faseGruposConcluida ? 'Faltan resultados de la fase de grupos' : 'Habilitar Playoffs'"
               :class="[
                 'w-full justify-center gap-2 font-bold mt-2 transition-all',
-                !fixtureGenerado
+                !fixtureGenerado || !faseGruposConcluida
                   ? 'opacity-40 cursor-not-allowed border-slate-300 dark:border-slate-700 text-slate-400'
                   : 'cursor-pointer border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30'
               ]"
-              @click="fixtureGenerado && abrirPlayoffs()"
+              @click="abrirPlayoffs"
             >
               <Crown class="w-4 h-4 text-amber-500" />
-              <span>{{ playoffsAbiertos ? 'Playoffs en Curso' : 'Habilitar Llaves de Eliminatorias' }}</span>
+              <span>{{ playoffsAbiertos ? 'Playoffs en Curso' : abriendoPlayoffs ? 'Generando cuadro…' : 'Cerrar Grupos y Habilitar Eliminatorias' }}</span>
             </Button>
+            <p v-if="errorPlayoffs" class="text-xs font-bold text-red-600 dark:text-red-400">{{ errorPlayoffs }}</p>
+          </div>
+        </div>
+
+        <!-- Gestión de llaves de Playoffs persistidas (solo admin) -->
+        <div
+          v-if="playoffsAbiertos"
+          class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-amber-300/70 dark:border-amber-800 shadow-xs flex flex-col gap-3"
+        >
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <h4 class="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Crown class="w-4 h-4 text-amber-500" />
+              Llaves de Eliminatorias (al mejor de 3 sets)
+            </h4>
+            <span
+              v-if="campeonPlayoffs"
+              class="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500 text-slate-950"
+            >
+              🏆 Campeón: {{ campeonPlayoffs }}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <div
+              v-for="p in partidosPlayoffsOrdenados"
+              :key="p.id"
+              class="p-3 rounded-xl border text-xs flex flex-col gap-2"
+              :class="p.estado === 'jugado' ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-700'"
+            >
+              <div class="flex items-center justify-between font-black">
+                <span class="text-slate-700 dark:text-slate-200">{{ NOMBRE_RONDA_PLAYOFF[p.ronda] }} {{ p.numeroLlave }}</span>
+                <span class="text-[10px] uppercase" :class="p.estado === 'jugado' ? 'text-emerald-600' : 'text-slate-400'">
+                  {{ p.estado === 'jugado' ? `Final ${p.marcador}` : 'Por jugar' }}
+                </span>
+              </div>
+              <div class="flex flex-col gap-0.5 font-bold text-slate-800 dark:text-slate-200">
+                <span :class="p.ganadorId && p.ganadorId === p.jugador1?.id ? 'text-emerald-600' : ''">
+                  <template v-if="p.semilla1">#{{ p.semilla1 }} </template>{{ p.jugador1?.nombre || 'Por definir' }}
+                </span>
+                <span :class="p.ganadorId && p.ganadorId === p.jugador2?.id ? 'text-emerald-600' : ''">
+                  <template v-if="p.semilla2">#{{ p.semilla2 }} </template>{{ p.jugador2?.nombre || 'Por definir' }}
+                </span>
+              </div>
+              <div v-if="p.estado !== 'jugado' && p.jugador1?.id && p.jugador2?.id" class="flex flex-wrap items-center gap-1.5">
+                <select v-model.number="obtenerMarcadorPlayoff(p.id).s1" class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                  <option v-for="n in [0, 1, 2]" :key="`a${n}`" :value="n">{{ n }}</option>
+                </select>
+                <span class="font-black">-</span>
+                <select v-model.number="obtenerMarcadorPlayoff(p.id).s2" class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                  <option v-for="n in [0, 1, 2]" :key="`b${n}`" :value="n">{{ n }}</option>
+                </select>
+                <input
+                  v-model="obtenerMarcadorPlayoff(p.id).detalle"
+                  type="text"
+                  placeholder="11-8, 9-11, 11-7"
+                  class="flex-1 min-w-24 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                />
+                <button
+                  type="button"
+                  class="px-2.5 py-1 rounded-lg font-black bg-amber-500 text-slate-950 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                  :disabled="resolviendoPlayoffId === p.id || !!errorMarcadorPlayoff(p.id)"
+                  @click="registrarResultadoPlayoff(p)"
+                >
+                  {{ resolviendoPlayoffId === p.id ? 'Guardando…' : 'Registrar' }}
+                </button>
+                <span v-if="errorMarcadorPlayoff(p.id)" class="w-full text-[10px] text-red-600 font-bold">{{ errorMarcadorPlayoff(p.id) }}</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1304,6 +1428,7 @@ import {
   guardarPartidosDB,
   eliminarPartidosTorneoDB,
   actualizarEstadoTorneoDB,
+  actualizarTransmisionTorneoDB,
   actualizarEstadoInscripcionDB,
   eliminarInscripcionDB,
   actualizarClasificadosPlayoffsDB,
@@ -1312,14 +1437,21 @@ import {
   guardarTablaPosicionesDB,
   eliminarTablaPosicionesDB,
   ordenarPartidosNumerico,
+  suscribirPartidosPlayoffsDB,
+  abrirPlayoffsDB,
+  resolverPartidoPlayoffDB,
+  eliminarPlayoffsTorneoDB,
 } from '@/services/torneoDatabaseService'
 import {
   calcularTablaDesdePartidos,
   generarFixtureBerger,
   generarCodigoSeguridad,
   calcularFechaLimiteHabiles,
+  generarCuadroPlayoffs,
+  resolverAvancePlayoff,
+  validarMarcadorPlayoff,
 } from '@/services/torneoAlgoritmos'
-import type { FilaPosicionOficial } from '@/types'
+import type { FilaPosicionOficial, PartidoPlayoff, RondaPlayoff } from '@/types'
 
 const props = defineProps<{
   torneo: Torneo | null
@@ -1328,6 +1460,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'actualizar-estado', id: string, nuevoEstado: EstadoTorneo): void
   (e: 'abrir-resolver-partido', partido: any): void
+  (e: 'torneo-actualizado', id: string, cambios: Partial<Torneo>): void
 }>()
 
 const modalRef = ref<InstanceType<typeof Modal> | null>(null)
@@ -1336,7 +1469,15 @@ const filtroPartidos = ref<'todos' | 'en_curso' | 'pendientes' | 'conflictos' | 
 const rondaSeleccionada = ref<'todas' | number>(1)
 const busquedaJugador = ref('')
 const fixtureGenerado = ref(false)
-const playoffsAbiertos = ref(false)
+// Fase 2 persistida: se deriva del documento del torneo y de las llaves reales en Firestore
+const partidosPlayoffs = ref<PartidoPlayoff[]>([])
+const playoffsAbiertos = computed(
+  () => Boolean(props.torneo?.playoffsAbiertos) || partidosPlayoffs.value.length > 0,
+)
+const abriendoPlayoffs = ref(false)
+const errorPlayoffs = ref('')
+const marcadoresPlayoff = ref<Record<string, { s1: number; s2: number; detalle: string }>>({})
+const resolviendoPlayoffId = ref<string | null>(null)
 const animandoGeneracion = ref(false)
 const mensajeEstado = ref('')
 
@@ -1347,6 +1488,61 @@ const subfiltrosPartidos = [
   { id: 'conflictos' as const, nombre: 'En Conflicto (>48h)' },
   { id: 'jugados' as const, nombre: 'Jugados' },
 ]
+
+// Control de Transmisión en Vivo de este Torneo
+const enlaceTransmisionLocal = ref('')
+const guardandoTransmision = ref(false)
+
+watch(
+  () => props.torneo,
+  (t) => {
+    if (t) {
+      enlaceTransmisionLocal.value = t.enlaceTransmision || ''
+    }
+  },
+  { immediate: true }
+)
+
+const errorTransmision = ref('')
+
+// No se mutan props: se persiste y se notifica al padre con 'torneo-actualizado'
+const guardarEnlaceTransmisionTorneo = async () => {
+  if (!props.torneo?.id) return
+  guardandoTransmision.value = true
+  errorTransmision.value = ''
+  try {
+    const enlace = enlaceTransmisionLocal.value.trim()
+    const activa = Boolean(props.torneo.transmisionEnVivoActiva) && !!enlace
+    await actualizarTransmisionTorneoDB(props.torneo.id, enlace, activa)
+    emit('torneo-actualizado', props.torneo.id, { enlaceTransmision: enlace, transmisionEnVivoActiva: activa })
+  } catch (err: any) {
+    console.error('Error al guardar enlace en torneo:', err)
+    errorTransmision.value = err?.message || 'No se pudo guardar el enlace.'
+  } finally {
+    guardandoTransmision.value = false
+  }
+}
+
+const toggleTransmisionTorneo = async () => {
+  if (!props.torneo?.id) return
+  const nuevoEstado = !props.torneo.transmisionEnVivoActiva
+  const enlace = (enlaceTransmisionLocal.value.trim() || props.torneo.enlaceTransmision || '').trim()
+  if (nuevoEstado && !enlace) {
+    errorTransmision.value = 'Ingresa el enlace de transmisión antes de activar "EN VIVO".'
+    return
+  }
+  guardandoTransmision.value = true
+  errorTransmision.value = ''
+  try {
+    await actualizarTransmisionTorneoDB(props.torneo.id, enlace, nuevoEstado)
+    emit('torneo-actualizado', props.torneo.id, { enlaceTransmision: enlace, transmisionEnVivoActiva: nuevoEstado })
+  } catch (err: any) {
+    console.error('Error al conmutar transmisión en vivo:', err)
+    errorTransmision.value = err?.message || 'No se pudo cambiar la transmisión.'
+  } finally {
+    guardandoTransmision.value = false
+  }
+}
 
 // Lista reactiva de participantes y partidos según el torneo seleccionado
 const jugadoresTorneo = ref<any[]>([])
@@ -1363,6 +1559,7 @@ const faseGruposConcluida = computed(() => {
 
 let unsubscribeAdminPartidos: (() => void) | null = null
 let unsubscribeAdminTabla: (() => void) | null = null
+let unsubscribeAdminPlayoffs: (() => void) | null = null
 
 const limpiarAdminSuscripciones = () => {
   if (unsubscribeAdminPartidos) {
@@ -1373,6 +1570,10 @@ const limpiarAdminSuscripciones = () => {
     unsubscribeAdminTabla()
     unsubscribeAdminTabla = null
   }
+  if (unsubscribeAdminPlayoffs) {
+    unsubscribeAdminPlayoffs()
+    unsubscribeAdminPlayoffs = null
+  }
 }
 
 onUnmounted(() => {
@@ -1380,10 +1581,14 @@ onUnmounted(() => {
 })
 
 // Cargar datos reales y suscripciones en tiempo real del torneo desde Firestore
+// Se observa solo el id: los cambios de campos (estado, transmisión) no reinician las suscripciones
 watch(
-  () => props.torneo,
-  async (torneoActual) => {
+  () => props.torneo?.id,
+  async () => {
+    const torneoActual = props.torneo
     limpiarAdminSuscripciones()
+    partidosPlayoffs.value = []
+    errorPlayoffs.value = ''
     if (!torneoActual?.id) {
       jugadoresTorneo.value = []
       partidosTorneo.value = []
@@ -1418,7 +1623,12 @@ watch(
         }
       })
 
-      // 3. Suscripción en tiempo real a la tabla oficial de posiciones
+      // 3. Llaves de playoffs persistidas (Fase 2)
+      unsubscribeAdminPlayoffs = suscribirPartidosPlayoffsDB(torneoActual.id, (lista) => {
+        partidosPlayoffs.value = lista
+      })
+
+      // 4. Suscripción en tiempo real a la tabla oficial de posiciones
       unsubscribeAdminTabla = suscribirTablaPosicionesDB(torneoActual.id, (tablaDoc) => {
         if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
           tablaPosicionesRemota.value = tablaDoc.posiciones
@@ -1543,6 +1753,11 @@ const obtenerClaseDestino = (destino?: string, idx: number = 0): string => {
 }
 
 const cambiarClasificadosPlayoffs = async (valor: number) => {
+  if (playoffsAbiertos.value) {
+    mensajeEstado.value = 'El cuadro de playoffs ya fue generado: no se puede cambiar el número de clasificados.'
+    setTimeout(() => { mensajeEstado.value = '' }, 3500)
+    return
+  }
   clasificadosSeleccionados.value = valor
   if (props.torneo?.id) {
     await actualizarClasificadosPlayoffsDB(props.torneo.id, valor)
@@ -1553,6 +1768,7 @@ const cambiarClasificadosPlayoffs = async (valor: number) => {
     )
     tablaPosicionesRemota.value = tablaActualizada
     await guardarTablaPosicionesDB(props.torneo.id, tablaActualizada)
+    emit('torneo-actualizado', props.torneo.id, { clasificadosPlayoffs: valor })
     mensajeEstado.value = `¡Formato de Playoffs actualizado! Clasifican Top ${valor}.`
     setTimeout(() => { mensajeEstado.value = '' }, 3500)
   }
@@ -1597,6 +1813,7 @@ const totalRondasEstimadas = computed(() => {
 
 const faseActualTexto = computed(() => {
   if (props.torneo?.estado === 'por iniciar') return 'Fase de Convocatoria y Validación de Pagos ($6.000 COP)'
+  if (props.torneo?.estado === 'en curso' && playoffsAbiertos.value) return 'Fase 2 Activa: Eliminatorias directas al mejor de 3 sets'
   if (props.torneo?.estado === 'en curso') return 'Fase 1 Activa: Todos contra Todos (Round Robin) con plazos de 48h'
   return 'Torneo Clausurado • 100% de la Bolsa entregada al Campeón'
 })
@@ -1901,13 +2118,20 @@ const confirmarYEliminarPartidos = async () => {
   try {
     await eliminarPartidosTorneoDB(props.torneo.id)
     await eliminarTablaPosicionesDB(props.torneo.id)
+    await eliminarPlayoffsTorneoDB(props.torneo.id)
+    emit('torneo-actualizado', props.torneo.id, {
+      faseActual: 'grupos',
+      playoffsAbiertos: false,
+      campeonId: null,
+      campeonNombre: null,
+    })
     await actualizarEstadoTorneoDB(props.torneo.id, 'por iniciar')
     emit('actualizar-estado', props.torneo.id, 'por iniciar')
 
     partidosTorneo.value = []
     tablaPosicionesRemota.value = []
     fixtureGenerado.value = false
-    playoffsAbiertos.value = false
+    partidosPlayoffs.value = []
 
     modalConfirmarLimpiarRef.value?.close()
 
@@ -2009,12 +2233,111 @@ const generarPartidos = async () => {
   }, 700)
 }
 
-const abrirPlayoffs = () => {
-  playoffsAbiertos.value = true
-  mensajeEstado.value = '¡Cuadro de Playoffs habilitado para los clasificados de la fase regular!'
-  setTimeout(() => {
-    mensajeEstado.value = ''
-  }, 5000)
+// ==========================================
+// FASE 2: APERTURA Y RESOLUCIÓN DE LLAVES (persistido en 'partidos_playoffs')
+// ==========================================
+const abrirPlayoffs = async () => {
+  if (!props.torneo?.id || playoffsAbiertos.value) return
+  errorPlayoffs.value = ''
+  if (!faseGruposConcluida.value) {
+    errorPlayoffs.value = 'Aún hay partidos de la fase de grupos sin resultado. Ciérralos antes de abrir los playoffs.'
+    return
+  }
+  abriendoPlayoffs.value = true
+  try {
+    const cuadro = generarCuadroPlayoffs(posicionesTorneo.value, clasificadosSeleccionados.value, props.torneo.id)
+    // Persistir también la tabla final que se usó como siembra
+    await guardarTablaPosicionesDB(props.torneo.id, posicionesTorneo.value)
+    const cambios = await abrirPlayoffsDB(props.torneo.id, cuadro.partidos, cuadro.semillas, cuadro.clasificados)
+    emit('torneo-actualizado', props.torneo.id, cambios)
+    mensajeEstado.value = `¡Cuadro de Playoffs Top ${cuadro.clasificados} creado con ${cuadro.partidos.length} llaves!`
+    setTimeout(() => {
+      mensajeEstado.value = ''
+    }, 5000)
+  } catch (err: any) {
+    console.error('Error al abrir playoffs:', err)
+    errorPlayoffs.value = err?.message || 'No se pudo generar el cuadro de playoffs.'
+  } finally {
+    abriendoPlayoffs.value = false
+  }
+}
+
+const NOMBRE_RONDA_PLAYOFF: Record<RondaPlayoff, string> = {
+  play_in: 'Play-In',
+  cuartos: 'Cuartos de Final',
+  semifinal: 'Semifinal',
+  final: 'Gran Final',
+}
+
+const partidosPlayoffsOrdenados = computed(() =>
+  [...partidosPlayoffs.value].sort(
+    (a, b) => (a.ordenRonda || 0) - (b.ordenRonda || 0) || a.numeroLlave - b.numeroLlave,
+  ),
+)
+
+const campeonPlayoffs = computed(() => {
+  if (props.torneo?.campeonNombre) return props.torneo.campeonNombre
+  const final = partidosPlayoffs.value.find((p) => p.ronda === 'final' && p.estado === 'jugado')
+  if (!final?.ganadorId) return null
+  return final.jugador1?.id === final.ganadorId ? final.jugador1?.nombre : final.jugador2?.nombre
+})
+
+// Inicializa el formulario de marcador de cada llave fuera del render
+watch(
+  partidosPlayoffs,
+  (lista) => {
+    lista.forEach((p) => {
+      if (p.estado !== 'jugado' && !marcadoresPlayoff.value[p.id]) {
+        marcadoresPlayoff.value[p.id] = { s1: 2, s2: 0, detalle: '' }
+      }
+    })
+  },
+  { immediate: true },
+)
+
+const obtenerMarcadorPlayoff = (id: string) => {
+  if (!marcadoresPlayoff.value[id]) {
+    marcadoresPlayoff.value[id] = { s1: 2, s2: 0, detalle: '' }
+  }
+  return marcadoresPlayoff.value[id]!
+}
+
+const errorMarcadorPlayoff = (id: string): string | null => {
+  const m = marcadoresPlayoff.value[id]
+  if (!m) return null
+  return validarMarcadorPlayoff(Number(m.s1), Number(m.s2))
+}
+
+const registrarResultadoPlayoff = async (partido: PartidoPlayoff) => {
+  if (!props.torneo?.id) return
+  const m = obtenerMarcadorPlayoff(partido.id)
+  errorPlayoffs.value = ''
+  resolviendoPlayoffId.value = partido.id
+  try {
+    const { actualizaciones, campeon } = resolverAvancePlayoff(
+      partidosPlayoffs.value,
+      partido.id,
+      Number(m.s1),
+      Number(m.s2),
+      m.detalle,
+    )
+    const cambiosTorneo = await resolverPartidoPlayoffDB(props.torneo.id, actualizaciones, campeon)
+    if (cambiosTorneo) {
+      emit('torneo-actualizado', props.torneo.id, cambiosTorneo)
+      mensajeEstado.value = `🏆 ¡${campeon?.nombre} es el campeón del torneo!`
+    } else {
+      mensajeEstado.value = 'Resultado registrado y ganador avanzado a la siguiente llave.'
+    }
+    delete marcadoresPlayoff.value[partido.id]
+    setTimeout(() => {
+      mensajeEstado.value = ''
+    }, 5000)
+  } catch (err: any) {
+    console.error('Error al registrar resultado de playoffs:', err)
+    errorPlayoffs.value = err?.message || 'No se pudo registrar el resultado.'
+  } finally {
+    resolviendoPlayoffId.value = null
+  }
 }
 
 const resolverPartido = (partido: any) => {

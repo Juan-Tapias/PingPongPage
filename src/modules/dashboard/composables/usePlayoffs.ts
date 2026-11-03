@@ -1,26 +1,42 @@
-import { computed, isRef, type Ref } from 'vue'
+import { computed, isRef, ref, watch, onUnmounted, type Ref } from 'vue'
 import type {
   FilaPosicion,
   JugadorTorneo,
   PartidoPlayoff,
   CuadroPlayoffs,
+  RondaPlayoff,
   Torneo,
 } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+import { suscribirPartidosPlayoffsDB } from '@/services/torneoDatabaseService'
+import { generarEsqueletoPlayoffs, sonMismoJugador } from '@/services/torneoAlgoritmos'
 
-const crearPlaceholder = (id: string, nombre: string, iniciales: string): JugadorTorneo => ({
-  id,
-  nombre,
-  iniciales,
-  telefono: '',
-  tipo: 'camper',
-  esUsuarioActual: false,
-})
+export interface RondaCuadro {
+  ronda: RondaPlayoff
+  nombre: string
+  partidos: PartidoPlayoff[]
+}
 
+const NOMBRES_RONDA: Record<RondaPlayoff, string> = {
+  play_in: 'Play-In',
+  cuartos: 'Cuartos de Final',
+  semifinal: 'Semifinales',
+  final: 'Gran Final',
+}
+
+/**
+ * Cuadro de eliminatorias de un torneo.
+ * - Fuente oficial: documentos persistidos en 'partidos_playoffs' (tiempo real).
+ * - Mientras el admin no abra los playoffs, se muestra una PROYECCIÓN calculada con
+ *   `generarCuadroPlayoffs` sobre la tabla actual (marcada como no oficial, sin resultados).
+ */
 export function usePlayoffs(
   filasPosiciones: FilaPosicion[] | Ref<FilaPosicion[]> | (() => FilaPosicion[]),
   cantidadClasificados: number | Ref<number> | (() => number) = 4,
   torneo?: Torneo | null | Ref<Torneo | null | undefined> | (() => Torneo | null | undefined)
 ) {
+  const authStore = useAuthStore()
+
   const getFilas = (): FilaPosicion[] => {
     if (typeof filasPosiciones === 'function') return filasPosiciones()
     return isRef(filasPosiciones) ? filasPosiciones.value : filasPosiciones || []
@@ -37,291 +53,142 @@ export function usePlayoffs(
     return isRef(torneo) ? torneo.value : torneo
   }
 
+  // ---- Suscripción a llaves persistidas ----
+  const partidosPersistidos = ref<PartidoPlayoff[]>([])
+  const cargando = ref(false)
+  const errorCarga = ref<string | null>(null)
+  let unsubscribe: (() => void) | null = null
+
+  const limpiar = () => {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
+  watch(
+    () => getTorneo()?.id,
+    (torneoId) => {
+      limpiar()
+      partidosPersistidos.value = []
+      errorCarga.value = null
+      if (!torneoId) return
+      cargando.value = true
+      try {
+        unsubscribe = suscribirPartidosPlayoffsDB(
+          torneoId,
+          (lista) => {
+            partidosPersistidos.value = lista
+            cargando.value = false
+          },
+          (err) => {
+            errorCarga.value = err.message
+            cargando.value = false
+          },
+        )
+      } catch (err: any) {
+        errorCarga.value = err?.message || 'No se pudo cargar el cuadro de playoffs.'
+        cargando.value = false
+      }
+    },
+    { immediate: true },
+  )
+
+  onUnmounted(limpiar)
+
+  const esOficial = computed(() => partidosPersistidos.value.length > 0)
+
+  // ---- Proyección (solo si aún no hay cuadro oficial) ----
+  const proyeccion = computed<{ partidos: PartidoPlayoff[]; error: string | null }>(() => {
+    if (esOficial.value) return { partidos: [], error: null }
+    // Sin cuadro oficial NO se siembran jugadores reales: solo el esqueleto (slots Top N / Ganador ...)
+    try {
+      return {
+        partidos: generarEsqueletoPlayoffs(getCantidad(), getTorneo()?.id || 'proyeccion'),
+        error: null,
+      }
+    } catch (err: any) {
+      return { partidos: [], error: err?.message || 'No se pudo proyectar el cuadro.' }
+    }
+  })
+  const partidosProyeccion = computed(() => proyeccion.value.partidos)
+  const errorProyeccion = computed(() => proyeccion.value.error)
+
+  const marcarUsuario = (j?: JugadorTorneo | null): JugadorTorneo | null => {
+    if (!j) return null
+    const uid = authStore.usuario?.id
+    return { ...j, esUsuarioActual: !!uid && sonMismoJugador(j.id, uid) }
+  }
+
+  const partidos = computed<PartidoPlayoff[]>(() => {
+    const base = esOficial.value ? partidosPersistidos.value : partidosProyeccion.value
+    return base.map((p) => ({ ...p, jugador1: marcarUsuario(p.jugador1), jugador2: marcarUsuario(p.jugador2) }))
+  })
+
+  // Columnas dinámicas: solo las rondas que existen en el formato elegido
+  const rondas = computed<RondaCuadro[]>(() => {
+    const orden: RondaPlayoff[] = ['play_in', 'cuartos', 'semifinal', 'final']
+    return orden
+      .map((r) => ({
+        ronda: r,
+        nombre: NOMBRES_RONDA[r],
+        partidos: partidos.value.filter((p) => p.ronda === r).sort((a, b) => a.numeroLlave - b.numeroLlave),
+      }))
+      .filter((r) => r.partidos.length > 0)
+  })
+
+  const porRonda = (r: RondaPlayoff) => computed(() => partidos.value.filter((p) => p.ronda === r))
+  const partidosPlayIn = porRonda('play_in')
+  const partidosCuartos = porRonda('cuartos')
+  const partidosSemis = porRonda('semifinal')
+  const granFinal = computed<PartidoPlayoff | null>(() => partidos.value.find((p) => p.ronda === 'final') || null)
+
+  const campeon = computed<JugadorTorneo | null>(() => {
+    const f = granFinal.value
+    if (!f || f.estado !== 'jugado' || !f.ganadorId) return null
+    return (f.jugador1?.id === f.ganadorId ? f.jugador1 : f.jugador2) || null
+  })
+
   // Bolsa acumulada dinámica según participantes reales y costo de inscripción del torneo
   const bolsaPremio = computed<number>(() => {
     const t = getTorneo()
     const filas = getFilas()
     const costo = Number(t?.costoInscripcion) || 6000
-    const totalParticipantes = Math.max(
-      filas.length,
-      Number(t?.cuposTomados) || 0
-    )
+    const totalParticipantes = Math.max(filas.length, Number(t?.cuposTomados) || 0)
     return Math.max(0, totalParticipantes * costo)
   })
 
-  const bolsaPremioFormateada = computed<string>(() => {
-    return bolsaPremio.value.toLocaleString('es-CO')
-  })
-
-  // Verificar si la fase regular ya comenzó con partidos disputados
-  const hayPartidosJugados = computed(() => {
-    return getFilas().some((f) => f.pj > 0 || f.pg > 0 || f.pp > 0)
-  })
-
-  // Mapear los jugadores clasificados desde las posiciones reales de la tabla
-  const clasificados = computed<JugadorTorneo[]>(() => {
-    if (!hayPartidosJugados.value) {
-      return []
-    }
-    return getFilas().map((f) => ({
-      id: f.jugadorId,
-      nombre: f.nombre,
-      iniciales: f.nombre
-        .split(' ')
-        .map((p) => p[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase(),
-      telefono: '',
-      tipo: 'camper' as const,
-      esUsuarioActual: f.esUsuarioActual,
-    }))
-  })
-
-  // Partidos del Play-in: Solo aplica si el admin eligió formato de 12 clasificados
-  const partidosPlayIn = computed<PartidoPlayoff[]>(() => {
-    if (getCantidad() < 10) return []
-    const list = clasificados.value
-
-    const matches: PartidoPlayoff[] = []
-    const numPlayIn = Math.min(4, Math.max(1, Math.floor((list.length - 4) / 2)))
-
-    for (let i = 0; i < numPlayIn; i++) {
-      const idx1 = 4 + i
-      const idx2 = list.length - 1 - i
-      matches.push({
-        id: `playin-${i + 1}`,
-        ronda: 'play_in',
-        numeroLlave: i + 1,
-        jugador1: list[idx1] || crearPlaceholder(`seed-${idx1 + 1}`, `Puesto ${idx1 + 1}°`, `#${idx1 + 1}`),
-        jugador2: list[idx2] || crearPlaceholder(`seed-${idx2 + 1}`, `Puesto ${idx2 + 1}°`, `#${idx2 + 1}`),
-        estado: 'pendiente',
-        anilloOrbital: 3,
-        siguientePartidoId: `cuartos-${i + 1}`,
-      })
-    }
-
-    return matches
-  })
-
-  // Partidos de Cuartos de Final: Aplica para 6 u 8 clasificados
-  const partidosCuartos = computed<PartidoPlayoff[]>(() => {
-    if (getCantidad() < 5) return []
-    const list = clasificados.value
-
-    // Formato Top 6:
-    // Cuartos 1: Puesto 3° vs Puesto 6°
-    // Cuartos 2: Puesto 4° vs Puesto 5°
-    // (Puestos 1° y 2° esperan en Semis con BYE)
-    if (getCantidad() <= 6) {
-      return [
-        {
-          id: 'cuartos-1',
-          ronda: 'cuartos',
-          numeroLlave: 1,
-          jugador1: list[2] || crearPlaceholder('p3', 'Puesto 3°', '#3'),
-          jugador2: list[5] || crearPlaceholder('p6', getCantidad() === 5 ? 'Pase Directo' : 'Puesto 6°', '#6'),
-          estado: 'pendiente',
-          anilloOrbital: 2,
-          siguientePartidoId: 'semi-1',
-        },
-        {
-          id: 'cuartos-2',
-          ronda: 'cuartos',
-          numeroLlave: 2,
-          jugador1: list[3] || crearPlaceholder('p4', 'Puesto 4°', '#4'),
-          jugador2: list[4] || crearPlaceholder('p5', 'Puesto 5°', '#5'),
-          estado: 'pendiente',
-          anilloOrbital: 2,
-          siguientePartidoId: 'semi-2',
-        },
-      ]
-    }
-
-    // Formato Top 8: Cuartos de final estándar
-    return [
-      {
-        id: 'cuartos-1',
-        ronda: 'cuartos',
-        numeroLlave: 1,
-        jugador1: list[0] || crearPlaceholder('p1', 'Puesto 1° (Top Seed)', '#1'),
-        jugador2: list[7] || crearPlaceholder('p8', 'Puesto 8°', '#8'),
-        estado: 'pendiente',
-        anilloOrbital: 2,
-        siguientePartidoId: 'semi-1',
-      },
-      {
-        id: 'cuartos-2',
-        ronda: 'cuartos',
-        numeroLlave: 2,
-        jugador1: list[3] || crearPlaceholder('p4', 'Puesto 4°', '#4'),
-        jugador2: list[4] || crearPlaceholder('p5', 'Puesto 5°', '#5'),
-        estado: 'pendiente',
-        anilloOrbital: 2,
-        siguientePartidoId: 'semi-1',
-      },
-      {
-        id: 'cuartos-3',
-        ronda: 'cuartos',
-        numeroLlave: 3,
-        jugador1: list[1] || crearPlaceholder('p2', 'Puesto 2° (Top Seed)', '#2'),
-        jugador2: list[6] || crearPlaceholder('p7', 'Puesto 7°', '#7'),
-        estado: 'pendiente',
-        anilloOrbital: 2,
-        siguientePartidoId: 'semi-2',
-      },
-      {
-        id: 'cuartos-4',
-        ronda: 'cuartos',
-        numeroLlave: 4,
-        jugador1: list[2] || crearPlaceholder('p3', 'Puesto 3°', '#3'),
-        jugador2: list[5] || crearPlaceholder('p6', 'Puesto 6°', '#6'),
-        estado: 'pendiente',
-        anilloOrbital: 2,
-        siguientePartidoId: 'semi-2',
-      },
-    ]
-  })
-
-  // Semifinales: Solo si clasifican 4 o más
-  const partidosSemis = computed<PartidoPlayoff[]>(() => {
-    if (getCantidad() < 4) return []
-    const list = clasificados.value
-
-    // Si hubo Cuartos previos (6 u 8):
-    if (getCantidad() === 6) {
-      return [
-        {
-          id: 'semi-1',
-          ronda: 'semifinal',
-          numeroLlave: 1,
-          jugador1: list[0] || crearPlaceholder('s1-j1', 'Puesto 1° (Top Seed)', '#1'),
-          jugador2: crearPlaceholder('s1-j2', 'Ganador Cuartos 1', 'G1'),
-          estado: 'pendiente',
-          anilloOrbital: 2,
-          siguientePartidoId: 'final-1',
-        },
-        {
-          id: 'semi-2',
-          ronda: 'semifinal',
-          numeroLlave: 2,
-          jugador1: list[1] || crearPlaceholder('s2-j1', 'Puesto 2° (Top Seed)', '#2'),
-          jugador2: crearPlaceholder('s2-j2', 'Ganador Cuartos 2', 'G2'),
-          estado: 'pendiente',
-          anilloOrbital: 2,
-          siguientePartidoId: 'final-1',
-        },
-      ]
-    }
-
-    if (getCantidad() >= 8) {
-      return [
-        {
-          id: 'semi-1',
-          ronda: 'semifinal',
-          numeroLlave: 1,
-          jugador1: crearPlaceholder('s1-j1', 'Ganador Cuartos 1', 'G1'),
-          jugador2: crearPlaceholder('s1-j2', 'Ganador Cuartos 2', 'G2'),
-          estado: 'pendiente',
-          anilloOrbital: 2,
-          siguientePartidoId: 'final-1',
-        },
-        {
-          id: 'semi-2',
-          ronda: 'semifinal',
-          numeroLlave: 2,
-          jugador1: crearPlaceholder('s2-j1', 'Ganador Cuartos 3', 'G3'),
-          jugador2: crearPlaceholder('s2-j2', 'Ganador Cuartos 4', 'G4'),
-          estado: 'pendiente',
-          anilloOrbital: 2,
-          siguientePartidoId: 'final-1',
-        },
-      ]
-    }
-
-    // Top 4 directo:
-    return [
-      {
-        id: 'semi-1',
-        ronda: 'semifinal',
-        numeroLlave: 1,
-        jugador1: list[0] || crearPlaceholder('s1-j1', 'Puesto 1° (Top Seed)', '#1'),
-        jugador2: list[3] || crearPlaceholder('s1-j2', 'Puesto 4°', '#4'),
-        estado: 'pendiente',
-        anilloOrbital: 2,
-        siguientePartidoId: 'final-1',
-      },
-      {
-        id: 'semi-2',
-        ronda: 'semifinal',
-        numeroLlave: 2,
-        jugador1: list[1] || crearPlaceholder('s2-j1', 'Puesto 2° (Top Seed)', '#2'),
-        jugador2: list[2] || crearPlaceholder('s2-j2', 'Puesto 3°', '#3'),
-        estado: 'pendiente',
-        anilloOrbital: 2,
-        siguientePartidoId: 'final-1',
-      },
-    ]
-  })
-
-  // Gran Final:
-  const granFinal = computed<PartidoPlayoff>(() => {
-    const list = clasificados.value
-    // Si solo clasifican 2: Final directa entre los dos mejores
-    if (getCantidad() === 2) {
-      return {
-        id: 'final-1',
-        ronda: 'final',
-        numeroLlave: 1,
-        jugador1: list[0] || crearPlaceholder('final-j1', 'Puesto 1°', '#1'),
-        jugador2: list[1] || crearPlaceholder('final-j2', 'Puesto 2°', '#2'),
-        estado: 'pendiente',
-        anilloOrbital: 1,
-      }
-    }
-
-    // Si clasifican 4 o más: Ganador Semi 1 vs Ganador Semi 2
-    return {
-      id: 'final-1',
-      ronda: 'final',
-      numeroLlave: 1,
-      jugador1: crearPlaceholder('final-j1', 'Ganador Semifinal 1', 'S1'),
-      jugador2: crearPlaceholder('final-j2', 'Ganador Semifinal 2', 'S2'),
-      estado: 'pendiente',
-      anilloOrbital: 1,
-    }
-  })
+  const bolsaPremioFormateada = computed<string>(() => bolsaPremio.value.toLocaleString('es-CO'))
 
   const cuadroCompleto = computed<CuadroPlayoffs>(() => ({
     playIn: partidosPlayIn.value,
     cuartos: partidosCuartos.value,
     semifinales: partidosSemis.value,
     granFinal: granFinal.value,
+    campeon: campeon.value || undefined,
     bolsaPremio: bolsaPremio.value,
+    persistido: esOficial.value,
   }))
 
-  const miCamino = computed<PartidoPlayoff[]>(() => {
-    const todos = [
-      ...partidosPlayIn.value,
-      ...partidosCuartos.value,
-      ...partidosSemis.value,
-      granFinal.value,
-    ]
-
-    return todos.filter(
-      (p) => p.jugador1?.esUsuarioActual || p.jugador2?.esUsuarioActual,
-    )
-  })
+  const miCamino = computed<PartidoPlayoff[]>(() =>
+    partidos.value.filter((p) => p.jugador1?.esUsuarioActual || p.jugador2?.esUsuarioActual),
+  )
 
   return {
     bolsaPremio,
     bolsaPremioFormateada,
-    clasificados,
+    partidos,
+    rondas,
     partidosPlayIn,
     partidosCuartos,
     partidosSemis,
     granFinal,
+    campeon,
     cuadroCompleto,
     miCamino,
+    esOficial,
+    cargando,
+    errorCarga,
+    errorProyeccion,
   }
 }

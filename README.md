@@ -50,7 +50,7 @@ El proyecto se encuentra en una fase funcional y avanzada, con los siguientes hi
 | **Inscripciones y Pagos** | ✅ Completo | Flujo de solicitud de cupo, subida/revisión de comprobantes y validación de estados de pago. |
 | **Visualización Radial (Rueda de Burbujas)** | ✅ Completo | Posicionamiento trigonométrico de rivales alrededor del jugador central con estados cromáticos (verde, rojo, naranja, azul pulsante). |
 | **Tabla de Posiciones en Vivo** | ✅ Completo | Clasificación Round Robin con desempates reglamentarios oficiales ITTF (PJ, PG, PP, Sets a Favor, Sets en Contra, Diferencial y Puntos). |
-| **Fase 2: Eliminatorias Concéntricas** | ✅ Completo | Visualización de playoffs en 3 anillos orbitales concéntricos (Play-In, Cuartos/Semis y Gran Final hacia la Corona). |
+| **Fase 2: Eliminatorias Concéntricas** | 🟡 Implementado (pendiente prueba E2E en emulador) | El admin cierra grupos y genera el cuadro Top 2/4/6/8/12 (BYEs reales, Play-In → Cuartos) persistido en `partidos_playoffs`; registra resultados al mejor de 3 (sin empates) y el ganador avanza por transacción hasta coronar al campeón. Los jugadores ven el cuadro real en tiempo real (o una proyección no oficial antes de abrirlo). |
 | **Sistema de Arbitraje y Marcador Virtual** | ✅ Completo | Registro de sets al mejor de 3, validación por código PIN dinámico contra suplantación y registro de "mallas" para premio especial al Mallero Mayor. |
 | **Panel de Administración** | ✅ Completo | Creación de torneos, cambio de fases, gestión de inscripciones, resolución manual de empates/conflictos y generador de datos demo. |
 | **Sistema de Temas (Theming)** | ✅ Completo | Soporte para Modo Claro y Modo Oscuro (*Olympic Table & Neon Ball*) con paleta personalizada de tenis de mesa. |
@@ -232,6 +232,9 @@ El enrutador (`src/router/index.ts`) cuenta con un guard global `beforeEach` que
   - **Anillo 3 (Exterior)**: Play-In para puestos intermedios.
   - **Anillo 2 (Intermedio)**: Cuartos de final y Semifinales.
   - **Anillo 1 (Núcleo)**: Gran Final orientada a coronar al campeón con entrega de bolsa de premios acumulada.
+  - **Modelo persistido**: al cerrar la fase de grupos el admin crea las llaves en la colección `partidos_playoffs` (`fase: 'playoff'`, `ronda`, `numeroLlave`, `siguientePartidoId`, `siguienteSlot`, semillas) y el torneo queda con `faseActual: 'playoffs'` / `playoffsAbiertos: true` y la foto de la siembra (`semillasPlayoffs`).
+  - **Algoritmo puro**: `generarCuadroPlayoffs(tabla, N)` en `src/services/torneoAlgoritmos.ts` (formatos válidos 2, 4, 6, 8, 12; cualquier otro N se rechaza con error explícito). Pruebas en `src/services/torneoAlgoritmos.spec.ts` (`npm test`).
+  - **Avance**: `resolverAvancePlayoff` + `resolverPartidoPlayoffDB` (transacción) escriben el ganador en la siguiente llave; en la final se guarda `campeonId`/`campeonNombre` y el torneo pasa a `finalizado`.
 - **Arbitraje Seguro por Pares (P2P)**:
   - Cada partido genera un **código PIN de 5 dígitos dinámico** por cada jugador mediante una función hash basada en los IDs de los contrincantes (`generarCodigoSeguridad`).
   - Para asentar o validar el resultado del partido, el árbitro asignado debe ingresar el PIN dictado por los jugadores, evitando alteraciones no autorizadas.
@@ -379,3 +382,30 @@ El proyecto está configurado para desplegarse de manera continua en **Firebase 
 ---
 
 *Desarrollado con pasión para la comunidad de Tenis de Mesa.* 🏓
+
+---
+
+## 📧 Envío de correos (Cloud Functions)
+
+El cliente Vite **no puede** guardar la contraseña de Gmail (todo lo `VITE_*` llega al navegador), por eso los correos se envían desde **Firebase Cloud Functions** (`functions/`) con nodemailer + Gmail SMTP (contraseña de aplicación).
+
+- `notificarCorreosTorneo` (Firestore onUpdate `torneos/{id}`, base `default`):
+  - Cuando el torneo obtiene `campeonId` (Gran Final resuelta) → correo a Felipe (`GMAIL_USER` + `MAIL_ADMIN_TO`) y en BCC a los inscritos con pago verificado (`MAIL_NOTIFY_PARTICIPANTS`).
+  - Cuando `transmisionEnVivoActiva` pasa a `true` con enlace → correo "EN VIVO" a Felipe/admins.
+  - Deduplicación en la colección `correos_enviados` (solo la escribe el Admin SDK).
+- `enviarCorreoPrueba` (callable, solo usuarios con `rol: 'admin'`) → prueba que va **solo** a GMAIL_USER / MAIL_ADMIN_TO.
+
+### Configuración
+1. `cd functions && npm install`
+2. Copia `functions/.env.example` a `functions/.env` (GMAIL_USER, MAIL_ADMIN_TO, MAIL_NOTIFY_PARTICIPANTS, MAIL_DRY_RUN, APP_URL).
+3. Secreto: `npx firebase-tools functions:secrets:set GMAIL_APP_PASSWORD` (en el emulador usa `functions/.secret.local`, ignorado por git).
+4. Deploy (requiere plan Blaze): `npx firebase-tools deploy --only functions`
+
+### Probar
+- Tests sin envíos reales: `cd functions && npm test`
+- `MAIL_DRY_RUN=true` compone y registra el correo sin enviarlo.
+- Como admin, en la app:
+  ```js
+  import { getFunctions, httpsCallable } from 'firebase/functions'
+  await httpsCallable(getFunctions(undefined, 'us-central1'), 'enviarCorreoPrueba')()
+  ```

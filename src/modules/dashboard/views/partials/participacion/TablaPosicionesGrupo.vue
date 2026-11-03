@@ -122,18 +122,19 @@
                 <div class="relative z-10 flex items-center gap-2.5 min-w-0">
                   <!-- Avatar con aro metálico y micro-badge -->
                   <div class="relative shrink-0">
-                    <div
-                      class="w-7.5 h-7.5 rounded-full text-white font-black text-[10px] flex items-center justify-center shadow-md ring-2"
-                      :class="[
+                    <AvatarJugador
+                      :foto-url="obtenerFotoFila(fila)"
+                      :nombre="fila.nombre"
+                      size="sm"
+                      :ring-class="[
+                        'ring-2',
                         esInvicto(fila)
-                          ? 'bg-gradient-to-br from-emerald-500 to-teal-800 ring-emerald-300/80 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
+                          ? 'ring-emerald-300/80 shadow-[0_0_8px_rgba(52,211,153,0.4)]'
                           : esReyMalla(fila)
-                          ? 'bg-gradient-to-br from-amber-400 to-amber-800 ring-amber-300/80 shadow-[0_0_8px_rgba(251,191,36,0.4)]'
-                          : 'bg-gradient-to-br from-rose-500 to-rose-900 ring-rose-300/80 shadow-[0_0_8px_rgba(251,113,133,0.4)]'
+                          ? 'ring-amber-300/80 shadow-[0_0_8px_rgba(251,191,36,0.4)]'
+                          : 'ring-rose-300/80 shadow-[0_0_8px_rgba(251,113,133,0.4)]'
                       ]"
-                    >
-                      {{ obtenerIniciales(fila.nombre) }}
-                    </div>
+                    />
                     <!-- Micro badge status en esquina del avatar -->
                     <span
                       class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full flex items-center justify-center text-[7px] text-white shadow-xs border border-slate-950 font-bold"
@@ -211,9 +212,11 @@
 
               <!-- Jugador REGULAR (Sin banner fondito) -->
               <div v-else class="flex items-center gap-2.5 py-1 px-1">
-                <div class="w-7 h-7 rounded-full bg-slate-900 dark:bg-slate-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                  {{ obtenerIniciales(fila.nombre) }}
-                </div>
+                <AvatarJugador
+                  :foto-url="obtenerFotoFila(fila)"
+                  :nombre="fila.nombre"
+                  size="sm"
+                />
                 <div class="flex items-center gap-1.5 min-w-0">
                   <span class="font-bold text-slate-900 dark:text-white truncate text-xs">{{ fila.nombre }}</span>
                   <span
@@ -244,10 +247,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { FilaPosicion } from '@/types'
+import AvatarJugador from '@/components/AvatarJugador.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const props = defineProps<{
   posiciones: FilaPosicion[]
 }>()
+
+const obtenerFotoFila = (fila: FilaPosicion): string | undefined => {
+  if (fila.fotoUrl) return fila.fotoUrl
+  if (fila.esUsuarioActual && authStore.usuario?.fotoUrl) {
+    return authStore.usuario.fotoUrl
+  }
+  return undefined
+}
 
 const maxMallasTorneo = computed(() => {
   let max = 0

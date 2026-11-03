@@ -32,6 +32,7 @@ import {
   esFinDeSemana,
   calcularFechaLimiteHabiles,
   calcularTiempoRestanteHabil,
+  normalizarFotoUrl,
 } from '@/services/torneoAlgoritmos'
 
 export interface MalleroTorneo {
@@ -51,6 +52,7 @@ export function useTorneoGrupo(torneo: Torneo) {
         iniciales: `${u.nombre?.[0] || 'J'}${u.apellido?.[0] || ''}`.toUpperCase(),
         telefono: u.telefono || '',
         tipo: u.tipo || 'camper',
+        fotoUrl: u.fotoUrl,
         esUsuarioActual: true,
       }
     : null
@@ -100,6 +102,10 @@ export function useTorneoGrupo(torneo: Torneo) {
               iniciales: ins.iniciales || (ins.nombre ? ins.nombre.substring(0, 2).toUpperCase() : 'JG'),
               telefono: ins.telefono || '',
               tipo: ins.tipo || 'camper',
+              fotoUrl: normalizarFotoUrl(
+                ins.fotoUrl,
+                idJugador === authStore.usuario?.id ? authStore.usuario?.fotoUrl : undefined,
+              ),
               esUsuarioActual: idJugador === authStore.usuario?.id,
             })
           }
@@ -121,10 +127,18 @@ export function useTorneoGrupo(torneo: Torneo) {
       // Suscribir en tiempo real a la tabla oficial de posiciones
       unsubscribeTabla = suscribirTablaPosicionesDB(torneo.id, (tablaDoc) => {
         if (tablaDoc && tablaDoc.posiciones && tablaDoc.posiciones.length > 0) {
-          tablaPosicionesRemota.value = tablaDoc.posiciones.map((pos) => ({
-            ...pos,
-            esUsuarioActual: usuarioActual ? sonMismoJugador(pos.jugadorId, usuarioActual.id) : false,
-          }))
+          tablaPosicionesRemota.value = tablaDoc.posiciones.map((pos) => {
+            const jEncontrado = jugadores.value.find((j) => sonMismoJugador(j.id, pos.jugadorId))
+            return {
+              ...pos,
+              fotoUrl: normalizarFotoUrl(
+                pos.fotoUrl,
+                jEncontrado?.fotoUrl,
+                usuarioActual && sonMismoJugador(pos.jugadorId, usuarioActual.id) ? authStore.usuario?.fotoUrl : undefined,
+              ),
+              esUsuarioActual: usuarioActual ? sonMismoJugador(pos.jugadorId, usuarioActual.id) : false,
+            }
+          })
         }
       })
 
@@ -307,6 +321,10 @@ export function useTorneoGrupo(torneo: Torneo) {
         iniciales: fallbackObj.iniciales || fallbackObj.nombre.substring(0, 2).toUpperCase(),
         telefono: fallbackObj.telefono || '',
         tipo: fallbackObj.tipo || 'camper',
+        fotoUrl: normalizarFotoUrl(
+          fallbackObj.fotoUrl,
+          sonMismoJugador(fallbackObj.id || id, authStore.usuario?.id) ? authStore.usuario?.fotoUrl : undefined,
+        ),
       }
     }
 
@@ -807,8 +825,9 @@ export function useTorneoGrupo(torneo: Torneo) {
         motivoWO: datosExtra?.motivoWO || null,
       })
 
-      // Calcular y persistir inmediatamente la tabla oficial de posiciones actualizada en Firestore
-      if (torneo?.id) {
+      // Persistir la tabla oficial: 'tablas_posiciones' es solo-admin en firestore.rules.
+      // Los jugadores calculan la tabla localmente desde 'partidos' (ver tablaPosiciones).
+      if (torneo?.id && authStore.esAdmin) {
         const tablaNueva = calcularTablaDesdePartidos(
           jugadores.value,
           partidos.value,
@@ -923,6 +942,8 @@ export function useTorneoGrupo(torneo: Torneo) {
     () => [partidos.value, jugadores.value],
     async () => {
       if (!torneo?.id || jugadores.value.length === 0) return
+      // Solo un admin puede escribir 'tablas_posiciones' (firestore.rules)
+      if (!authStore.esAdmin) return
 
       const hayPartidosJugados = partidos.value.some(
         (p) => p.estado === 'jugado' || (!!p.marcador && String(p.marcador).includes('-') && p.estado !== 'pendiente'),
