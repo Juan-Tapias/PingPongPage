@@ -44,3 +44,6 @@ __screenshots__/
 !.env.example
 # Firebase
 .firebase/
+# Cloud Functions
+.secret.local
+functions/node_modules/

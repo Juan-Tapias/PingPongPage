@@ -1,4 +1,11 @@
-import type { FilaPosicionOficial } from '@/types'
+import type {
+  FilaPosicionOficial,
+  JugadorTorneo,
+  PartidoPlayoff,
+  RondaPlayoff,
+  SemillaPlayoff,
+  SlotPlayoff,
+} from '@/types'
 
 // ==========================================
 // UTILIDADES DE COMPARACIÓN Y SEGURIDAD
@@ -238,6 +245,7 @@ export const calcularTablaDesdePartidos = (
       puntos,
       destino: '',
       mallas,
+      fotoUrl: normalizarFotoUrl(jugador.fotoUrl),
     }
   })
 
@@ -487,3 +495,335 @@ export function calcularTiempoRestanteHabil(
   }
 }
 
+
+// ==========================================
+// FOTO DE PERFIL: NORMALIZACIÓN ÚNICA
+// ==========================================
+
+/**
+ * Devuelve la primera URL de foto válida (string no vacío) entre los candidatos,
+ * o `undefined` si ninguno sirve. Se usa en inscripciones, authStore y tablas_posiciones
+ * para que todas las vistas resuelvan la foto con la misma prioridad.
+ * Antes de escribir en Firestore se debe pasar por `sanearParaFirestore` (undefined -> null).
+ */
+export function normalizarFotoUrl(...candidatos: Array<string | null | undefined>): string | undefined {
+  for (const c of candidatos) {
+    if (typeof c === 'string' && c.trim().length > 0) return c.trim()
+  }
+  return undefined
+}
+
+// ==========================================
+// FASE 2: GENERACIÓN DEL CUADRO DE PLAYOFFS (PURO)
+// ==========================================
+
+/** Formatos de clasificados soportados por el producto (selector del admin). */
+export const FORMATOS_PLAYOFF_VALIDOS = [2, 4, 6, 8, 12] as const
+
+/** Los partidos de playoffs se juegan al mejor de 3 sets (igual que la fase de grupos). */
+export const SETS_PARA_GANAR_PLAYOFF = 2
+
+const ANILLO_POR_RONDA: Record<RondaPlayoff, 3 | 2 | 1> = {
+  play_in: 3,
+  cuartos: 2,
+  semifinal: 2,
+  final: 1,
+}
+
+const ORDEN_RONDAS: RondaPlayoff[] = ['play_in', 'cuartos', 'semifinal', 'final']
+
+interface DestinoLlave {
+  ronda: RondaPlayoff
+  llave: number
+  slot: SlotPlayoff
+}
+
+interface PlantillaLlave {
+  ronda: RondaPlayoff
+  llave: number
+  semilla1: number | null // null = llega el ganador de otra llave
+  semilla2: number | null
+  destino: DestinoLlave | null
+}
+
+/**
+ * Plantillas fijas por formato. Las semillas con BYE NO juegan un partido ficticio:
+ * se colocan directamente en el slot de la ronda siguiente (BYE real).
+ *
+ * - Top 2:  Final 1v2.
+ * - Top 4:  Semis 1v4, 2v3 -> Final.
+ * - Top 6:  Cuartos 3v6, 4v5. 1 y 2 esperan en Semis (BYE).
+ * - Top 8:  Cuartos 1v8, 4v5, 2v7, 3v6 -> Semis (C1/C2, C3/C4) -> Final.
+ * - Top 12: Play-In 8v9, 5v12, 7v10, 6v11. 1-4 esperan en Cuartos (BYE):
+ *           C1 = 1 vs G(PI1), C2 = 4 vs G(PI2), C3 = 2 vs G(PI3), C4 = 3 vs G(PI4).
+ */
+const plantillaFormato = (n: number): PlantillaLlave[] => {
+  const F: DestinoLlave = { ronda: 'final', llave: 1, slot: 1 }
+  const F2: DestinoLlave = { ronda: 'final', llave: 1, slot: 2 }
+  const final: PlantillaLlave = { ronda: 'final', llave: 1, semilla1: null, semilla2: null, destino: null }
+
+  const semisDesdeCuartos: PlantillaLlave[] = [
+    { ronda: 'semifinal', llave: 1, semilla1: null, semilla2: null, destino: F },
+    { ronda: 'semifinal', llave: 2, semilla1: null, semilla2: null, destino: F2 },
+  ]
+  const cuartos8 = (s: (n: number) => number | null): PlantillaLlave[] => [
+    { ronda: 'cuartos', llave: 1, semilla1: 1, semilla2: s(8), destino: { ronda: 'semifinal', llave: 1, slot: 1 } },
+    { ronda: 'cuartos', llave: 2, semilla1: 4, semilla2: s(5), destino: { ronda: 'semifinal', llave: 1, slot: 2 } },
+    { ronda: 'cuartos', llave: 3, semilla1: 2, semilla2: s(7), destino: { ronda: 'semifinal', llave: 2, slot: 1 } },
+    { ronda: 'cuartos', llave: 4, semilla1: 3, semilla2: s(6), destino: { ronda: 'semifinal', llave: 2, slot: 2 } },
+  ]
+
+  switch (n) {
+    case 2:
+      return [{ ...final, semilla1: 1, semilla2: 2 }]
+    case 4:
+      return [
+        { ronda: 'semifinal', llave: 1, semilla1: 1, semilla2: 4, destino: F },
+        { ronda: 'semifinal', llave: 2, semilla1: 2, semilla2: 3, destino: F2 },
+        final,
+      ]
+    case 6:
+      return [
+        { ronda: 'cuartos', llave: 1, semilla1: 3, semilla2: 6, destino: { ronda: 'semifinal', llave: 1, slot: 2 } },
+        { ronda: 'cuartos', llave: 2, semilla1: 4, semilla2: 5, destino: { ronda: 'semifinal', llave: 2, slot: 2 } },
+        { ronda: 'semifinal', llave: 1, semilla1: 1, semilla2: null, destino: F },
+        { ronda: 'semifinal', llave: 2, semilla1: 2, semilla2: null, destino: F2 },
+        final,
+      ]
+    case 8:
+      return [...cuartos8((x) => x), ...semisDesdeCuartos, final]
+    case 12:
+      return [
+        { ronda: 'play_in', llave: 1, semilla1: 8, semilla2: 9, destino: { ronda: 'cuartos', llave: 1, slot: 2 } },
+        { ronda: 'play_in', llave: 2, semilla1: 5, semilla2: 12, destino: { ronda: 'cuartos', llave: 2, slot: 2 } },
+        { ronda: 'play_in', llave: 3, semilla1: 7, semilla2: 10, destino: { ronda: 'cuartos', llave: 3, slot: 2 } },
+        { ronda: 'play_in', llave: 4, semilla1: 6, semilla2: 11, destino: { ronda: 'cuartos', llave: 4, slot: 2 } },
+        ...cuartos8(() => null),
+        ...semisDesdeCuartos,
+        final,
+      ]
+    default:
+      return []
+  }
+}
+
+export const idPartidoPlayoff = (torneoId: string, ronda: RondaPlayoff, llave: number): string =>
+  `po-${torneoId}-${ronda}-${llave}`
+
+const filaAJugador = (fila: FilaPosicionOficial): JugadorTorneo => ({
+  id: fila.jugadorId,
+  nombre: fila.nombre,
+  iniciales:
+    fila.iniciales ||
+    (fila.nombre || 'JG')
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase(),
+  telefono: '',
+  tipo: (fila.tipo as JugadorTorneo['tipo']) || 'camper',
+  fotoUrl: normalizarFotoUrl(fila.fotoUrl),
+})
+
+export interface CuadroPlayoffsGenerado {
+  clasificados: number
+  semillas: SemillaPlayoff[]
+  partidos: PartidoPlayoff[]
+}
+
+/**
+ * Genera el cuadro de eliminación directa a partir de la tabla final de grupos.
+ *
+ * Reglas:
+ * - Solo toma el Top N (la tabla se ordena por `posicion`; el resto queda fuera).
+ * - BYEs reales: las mejores semillas se ubican directamente en la ronda siguiente.
+ * - Decisión de diseño para N inválido (3, 5, 10, ...): se RECHAZA con un error claro
+ *   en vez de redondear, porque el admin eligió explícitamente el formato y cambiarlo
+ *   en silencio alteraría quién clasifica.
+ * - Si la tabla tiene menos de N jugadores también se rechaza.
+ *
+ * Función pura: no toca Firestore ni el estado reactivo.
+ */
+export function generarCuadroPlayoffs(
+  tabla: FilaPosicionOficial[],
+  N: number,
+  torneoId: string = 'torneo',
+): CuadroPlayoffsGenerado {
+  if (!(FORMATOS_PLAYOFF_VALIDOS as readonly number[]).includes(N)) {
+    throw new Error(
+      `Formato de playoffs inválido: Top ${N}. Valores permitidos: ${FORMATOS_PLAYOFF_VALIDOS.join(', ')}.`,
+    )
+  }
+  const ordenada = [...(tabla || [])].sort((a, b) => (a.posicion || 0) - (b.posicion || 0))
+  if (ordenada.length < N) {
+    throw new Error(`Se necesitan al menos ${N} jugadores en la tabla para armar un Top ${N} (hay ${ordenada.length}).`)
+  }
+
+  const topN = ordenada.slice(0, N)
+  const semillas: SemillaPlayoff[] = topN.map((f, i) => ({
+    semilla: i + 1,
+    jugadorId: f.jugadorId,
+    nombre: f.nombre,
+    iniciales: f.iniciales,
+    fotoUrl: normalizarFotoUrl(f.fotoUrl) ?? null,
+    puntos: f.puntos,
+  }))
+
+  const plantilla = plantillaFormato(N)
+  const rondasPresentes = ORDEN_RONDAS.filter((r) => plantilla.some((p) => p.ronda === r))
+  const ahora = Date.now()
+
+  const jugadorDeSemilla = (s: number | null): JugadorTorneo | null => {
+    if (s === null) return null
+    const fila = topN[s - 1]
+    return fila ? filaAJugador(fila) : null
+  }
+
+  const partidos: PartidoPlayoff[] = plantilla.map((pl) => {
+    // Una llave tiene BYE si una semilla llega directo y el otro slot viene de otra llave
+    const llegaDeOtraLlave = plantilla.some(
+      (o) => o.destino && o.destino.ronda === pl.ronda && o.destino.llave === pl.llave,
+    )
+    const esBye = llegaDeOtraLlave && (pl.semilla1 !== null || pl.semilla2 !== null)
+    return {
+      id: idPartidoPlayoff(torneoId, pl.ronda, pl.llave),
+      torneoId,
+      fase: 'playoff',
+      ronda: pl.ronda,
+      ordenRonda: rondasPresentes.indexOf(pl.ronda) + 1,
+      numeroLlave: pl.llave,
+      jugador1: jugadorDeSemilla(pl.semilla1),
+      jugador2: jugadorDeSemilla(pl.semilla2),
+      semilla1: pl.semilla1,
+      semilla2: pl.semilla2,
+      ganadorId: null,
+      marcador: null,
+      marcadorDetallado: null,
+      estado: 'pendiente',
+      esBye,
+      anilloOrbital: ANILLO_POR_RONDA[pl.ronda],
+      siguientePartidoId: pl.destino ? idPartidoPlayoff(torneoId, pl.destino.ronda, pl.destino.llave) : null,
+      siguienteSlot: pl.destino ? pl.destino.slot : null,
+      actualizadoEn: ahora,
+    }
+  })
+
+  return { clasificados: N, semillas, partidos }
+}
+
+// ==========================================
+// FASE 2: AVANCE DE GANADORES (PURO)
+// ==========================================
+
+/**
+ * Valida un marcador de playoffs al mejor de 3 sets: no existen empates.
+ * El ganador debe tener exactamente 2 sets y el perdedor 0 o 1.
+ */
+export function validarMarcadorPlayoff(setsJugador1: number, setsJugador2: number): string | null {
+  const a = Number(setsJugador1)
+  const b = Number(setsJugador2)
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
+    return 'El marcador debe ser un número entero de sets para cada jugador.'
+  }
+  if (a === b) return 'En eliminatorias no hay empates: el partido es al mejor de 3 sets.'
+  const max = Math.max(a, b)
+  const min = Math.min(a, b)
+  if (max !== SETS_PARA_GANAR_PLAYOFF || min > SETS_PARA_GANAR_PLAYOFF - 1) {
+    return 'Marcador inválido: al mejor de 3 sets el ganador suma 2 sets y el rival 0 o 1 (2-0 o 2-1).'
+  }
+  return null
+}
+
+export interface ActualizacionPlayoff {
+  id: string
+  datos: Partial<PartidoPlayoff>
+}
+
+export interface ResultadoAvancePlayoff {
+  actualizaciones: ActualizacionPlayoff[]
+  campeon: JugadorTorneo | null
+}
+
+/**
+ * Calcula las escrituras necesarias al resolver una llave:
+ * 1) marca la llave como jugada con ganador y marcador,
+ * 2) coloca al ganador en `siguientePartidoId` / `siguienteSlot`,
+ * 3) si es la final, devuelve el campeón.
+ * Lanza error si la llave no existe, ya fue jugada, le falta un rival o el marcador no es decisivo.
+ */
+export function resolverAvancePlayoff(
+  partidos: PartidoPlayoff[],
+  partidoId: string,
+  setsJugador1: number,
+  setsJugador2: number,
+  marcadorDetallado?: string | null,
+): ResultadoAvancePlayoff {
+  const partido = partidos.find((p) => p.id === partidoId)
+  if (!partido) throw new Error('La llave de playoffs no existe.')
+  if (partido.estado === 'jugado') throw new Error('Esta llave ya tiene un resultado registrado.')
+  if (!partido.jugador1?.id || !partido.jugador2?.id) {
+    throw new Error('La llave aún no tiene a sus dos jugadores definidos.')
+  }
+  const error = validarMarcadorPlayoff(setsJugador1, setsJugador2)
+  if (error) throw new Error(error)
+
+  const ganador = setsJugador1 > setsJugador2 ? partido.jugador1 : partido.jugador2
+  const ahora = Date.now()
+  const actualizaciones: ActualizacionPlayoff[] = [
+    {
+      id: partido.id,
+      datos: {
+        estado: 'jugado',
+        ganadorId: ganador.id,
+        marcador: `${setsJugador1} - ${setsJugador2}`,
+        marcadorDetallado: marcadorDetallado?.trim() || null,
+        actualizadoEn: ahora,
+      },
+    },
+  ]
+
+  if (partido.siguientePartidoId) {
+    const siguiente = partidos.find((p) => p.id === partido.siguientePartidoId)
+    if (!siguiente) throw new Error('No se encontró la llave siguiente del cuadro.')
+    if (siguiente.estado === 'jugado') throw new Error('La llave siguiente ya fue jugada; no se puede modificar.')
+    const slot = partido.siguienteSlot === 2 ? 'jugador2' : 'jugador1'
+    const semillaKey = partido.siguienteSlot === 2 ? 'semilla2' : 'semilla1'
+    const semillaGanador = ganador.id === partido.jugador1.id ? partido.semilla1 : partido.semilla2
+    actualizaciones.push({
+      id: siguiente.id,
+      datos: { [slot]: ganador, [semillaKey]: semillaGanador ?? null, actualizadoEn: ahora } as Partial<PartidoPlayoff>,
+    })
+    return { actualizaciones, campeon: null }
+  }
+
+  return { actualizaciones, campeon: ganador }
+}
+
+/**
+ * Esqueleto del cuadro de playoffs para N clasificados SIN jugadores reales.
+ * Se usa mientras la fase de grupos no esté cerrada: conserva rondas, llaves,
+ * semillas (Top N) y enlaces de avance, pero jugador1/jugador2 quedan en null.
+ */
+export function generarEsqueletoPlayoffs(N: number, torneoId: string = 'esqueleto'): PartidoPlayoff[] {
+  const tablaFicticia: FilaPosicionOficial[] = Array.from({ length: N }, (_, i) => ({
+    posicion: i + 1,
+    jugadorId: `__slot_${i + 1}`,
+    nombre: '',
+    pj: 0,
+    pg: 0,
+    pp: 0,
+    sf: 0,
+    sc: 0,
+    puntos: N - i,
+  }))
+  return generarCuadroPlayoffs(tablaFicticia, N, torneoId).partidos.map((p) => ({
+    ...p,
+    jugador1: null,
+    jugador2: null,
+    ganadorId: null,
+    marcador: null,
+    marcadorDetallado: null,
+    estado: 'pendiente' as PartidoPlayoff['estado'],
+  }))
+}

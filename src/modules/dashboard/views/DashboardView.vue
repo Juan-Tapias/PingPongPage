@@ -20,6 +20,40 @@
       />
 
       <template v-else>
+        <!-- Banner Alerta Oficial de Transmisión en Vivo (Live Stream Fase 2) -->
+        <div
+          v-for="torneoEnVivo in torneosEnVivo"
+          :key="`live-${torneoEnVivo.id}`"
+          class="relative overflow-hidden rounded-2xl sm:rounded-3xl p-4 sm:p-5 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in border border-red-400/40"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30">
+              <span class="w-3.5 h-3.5 rounded-full bg-white animate-ping" />
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[10px] font-black uppercase tracking-wider bg-black/40 px-2.5 py-0.5 rounded-full border border-white/20">
+                  🔴 Transmisión Oficial
+                </span>
+                <span class="text-xs sm:text-sm font-black">{{ torneoEnVivo.nombre }}</span>
+              </div>
+              <p class="text-xs text-red-100 font-medium mt-0.5">
+                ¡Los partidos clave de la Fase 2 están transmitiéndose en vivo en este momento!
+              </p>
+            </div>
+          </div>
+
+          <a
+            :href="torneoEnVivo.enlaceTransmision"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-red-600 hover:bg-red-50 text-xs font-black uppercase tracking-wider shadow-lg hover:scale-105 transition-all cursor-pointer shrink-0"
+          >
+            <span>🔴 Ver Transmisión en Vivo</span>
+            <ExternalLink class="w-4 h-4" />
+          </a>
+        </div>
+
         <!-- Hero Banner con Mesa de Ping Pong Vertical (Responsive & Light/Dark Ready) -->
         <div class="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-300/80 dark:border-slate-800/90 shadow-xl shadow-slate-900/10 dark:shadow-2xl dark:shadow-black/60 bg-[#080d1a] min-h-[210px] sm:min-h-[250px] flex flex-col justify-between sm:justify-end group transition-all duration-300">
           <!-- Fondo fotográfico con mesa en perspectiva vertical nítida -->
@@ -238,9 +272,11 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useTorneosEnVivoStore } from '@/stores/torneosEnVivo'
 import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Trophy, Compass } from 'lucide-vue-next'
+import { Trophy, Compass, ExternalLink } from 'lucide-vue-next'
 import FondoEstadioCancha from '@/components/FondoEstadioCancha.vue'
 import Navbar from '@/components/Navbar.vue'
 import TorneoCard from './partials/dashboard/TorneoCard.vue'
@@ -625,17 +661,24 @@ watch(
   },
 )
 
+// Transmisiones activas: store compartido con query filtrada (transmisionEnVivoActiva == true).
+// Si hay varias, se muestra un banner por cada torneo en vivo.
+const torneosEnVivoStore = useTorneosEnVivoStore()
+const { torneosEnVivo } = storeToRefs(torneosEnVivoStore)
+
 onUnmounted(() => {
   if (unsubscribeMesasEnVivo) {
     unsubscribeMesasEnVivo()
     unsubscribeMesasEnVivo = null
   }
+  torneosEnVivoStore.detener()
 })
 
 // Carga de torneos reales desde Firestore
 onMounted(async () => {
   // Iniciar suscripción en tiempo real a las mesas de juego con partidos en vivo
   iniciarSuscripcionMesas()
+  torneosEnVivoStore.iniciar()
   await cargarTorneos()
 })
 
@@ -685,6 +728,7 @@ const handleConfirmarInscripcion = async (torneo: Torneo) => {
     iniciales: `${usuario.nombre?.[0] || 'J'}${usuario.apellido?.[0] || ''}`.toUpperCase(),
     telefono: usuario.telefono || '',
     tipo: usuario.tipo || 'camper',
+    fotoUrl: usuario.fotoUrl || '',
     pagoValidado: false,
     subestado: 'PENDIENTE',
     fechaInscripcion: new Date().toISOString(),

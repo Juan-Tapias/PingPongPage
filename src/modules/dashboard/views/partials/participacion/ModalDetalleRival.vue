@@ -8,13 +8,13 @@
   >
     <div v-if="burbuja" class="flex flex-col gap-5 py-1">
       <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60">
-        <div
-          class="w-14 h-14 rounded-full flex items-center justify-center font-black text-lg text-white shadow-md select-none shrink-0"
-          :class="burbuja.esRivalDeTurno && burbuja.partido.estado !== 'jugado' ? 'border-2 border-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.7)]' : ''"
-          :style="{ backgroundColor: colorBurbuja }"
-        >
-          {{ burbuja.jugador.iniciales }}
-        </div>
+        <AvatarJugador
+          :foto-url="burbuja.jugador.fotoUrl"
+          :nombre="burbuja.jugador.nombre"
+          :iniciales="burbuja.jugador.iniciales"
+          size="xl"
+          :ring-class="burbuja.esRivalDeTurno && burbuja.partido.estado !== 'jugado' ? 'ring-2 ring-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.7)]' : ''"
+        />
         <div class="flex-1 min-w-0">
           <h4 class="text-base font-extrabold text-slate-900 dark:text-white truncate">
             {{ burbuja.jugador.nombre }}
@@ -299,6 +299,7 @@ import { ref, computed } from 'vue'
 import { Clock, AlertTriangle, Eye, KeyRound, Calendar, Hourglass, Trophy, CheckCircle2, ListOrdered, PauseCircle } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
+import AvatarJugador from '@/components/AvatarJugador.vue'
 import type { BurbujaRival, JugadorTorneo } from '@/types'
 import { sonMismoJugador, esFinDeSemana } from '@/services/torneoAlgoritmos'
 

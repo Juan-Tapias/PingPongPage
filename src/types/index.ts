@@ -12,6 +12,7 @@ export interface Usuario {
   createdAt: number
   puntosRanking?: number
   elo?: number
+  fotoUrl?: string
 }
 
 export interface CredencialesLogin {
@@ -60,6 +61,14 @@ export interface Torneo {
   posicionFinal?: string
   posicionActual?: string
   clasificadosPlayoffs?: number
+  enlaceTransmision?: string
+  transmisionEnVivoActiva?: boolean
+  // Fase 2 persistida en el documento del torneo (fuente única de verdad)
+  faseActual?: FaseTorneo
+  playoffsAbiertos?: boolean
+  playoffsAbiertosEn?: number
+  campeonId?: string | null
+  campeonNombre?: string | null
 }
 
 
@@ -74,6 +83,7 @@ export interface JugadorTorneo {
   telefono: string
   tipo?: TipoUsuario
   esUsuarioActual?: boolean
+  fotoUrl?: string
 }
 
 export interface SetPartido {
@@ -193,6 +203,7 @@ export interface FilaPosicion {
   destino?: string
   esUsuarioActual?: boolean
   mallas?: number
+  fotoUrl?: string
 }
 
 export type FilaPosicionOficial = FilaPosicion
@@ -214,26 +225,45 @@ export type FaseTorneo = 'grupos' | 'playoffs'
 
 export type RondaPlayoff = 'play_in' | 'cuartos' | 'semifinal' | 'final'
 
-export interface PartidoPlayoff {
-  id: string
-  ronda: RondaPlayoff
-  numeroLlave: number          // 1 a 4 en play-in y cuartos, 1 a 2 en semis, 1 en final
-  jugador1?: JugadorTorneo
-  jugador2?: JugadorTorneo
-  ganadorId?: string
-  marcador?: string            // ej: "2 - 1"
-  marcadorDetallado?: string
-  estado: EstadoPartido        // 'pendiente' | 'en_curso' | 'pendiente_admin' | 'jugado'
-  esBye?: boolean              // Fecha libre directa para puestos 1 a 4
-  anilloOrbital: 3 | 2 | 1     // 3: Exterior (Play-in), 2: Medio (Cuartos/Semis), 1: Núcleo (Final)
-  siguientePartidoId?: string  // Llave a la que avanza el ganador
+export type SlotPlayoff = 1 | 2
+
+/** Fotografía de la siembra (seeding) tomada al cerrar la fase de grupos */
+export interface SemillaPlayoff {
+  semilla: number              // Puesto final en la tabla de grupos (1 = mejor)
+  jugadorId: string
+  nombre: string
+  iniciales?: string
+  fotoUrl?: string | null
+  puntos?: number
 }
 
+export interface PartidoPlayoff {
+  id: string
+  torneoId?: string
+  fase?: 'playoff'
+  ronda: RondaPlayoff
+  ordenRonda?: number          // 1 = primera ronda jugada del cuadro (para ordenar columnas)
+  numeroLlave: number          // 1..n dentro de la ronda
+  jugador1?: JugadorTorneo | null
+  jugador2?: JugadorTorneo | null
+  semilla1?: number | null
+  semilla2?: number | null
+  ganadorId?: string | null
+  marcador?: string | null     // ej: "2 - 1"
+  marcadorDetallado?: string | null
+  estado: EstadoPartido        // 'pendiente' | 'en_curso' | 'pendiente_admin' | 'jugado'
+  esBye?: boolean              // true si uno de los slots se llena por pase directo (BYE real)
+  anilloOrbital: 3 | 2 | 1     // 3: Exterior (Play-in), 2: Medio (Cuartos/Semis), 1: Núcleo (Final)
+  siguientePartidoId?: string | null // Llave a la que avanza el ganador (null en la final)
+  siguienteSlot?: SlotPlayoff | null // Slot (jugador1 / jugador2) que ocupa el ganador en la siguiente llave
+  actualizadoEn?: number
+}
 export interface CuadroPlayoffs {
   playIn: PartidoPlayoff[]     // Anillo 3 (Puestos 5 al 12)
   cuartos: PartidoPlayoff[]    // Anillo 2 (Top 1-4 con BYE + Ganadores Play-in)
   semifinales: PartidoPlayoff[]// Anillo 2 interior
-  granFinal: PartidoPlayoff    // Anillo 1 (El Núcleo hacia la Corona)
+  granFinal: PartidoPlayoff | null // Anillo 1 (El Núcleo hacia la Corona)
   campeon?: JugadorTorneo
-  bolsaPremio: number          // $90.000 COP (100% de la bolsa acumulada)
+  bolsaPremio: number
+  persistido?: boolean          // true si proviene de documentos reales en Firestore          // $90.000 COP (100% de la bolsa acumulada)
 }

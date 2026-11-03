@@ -175,6 +175,87 @@
 
       <!-- PESTAÑA 1: GESTIÓN DE TORNEOS -->
       <section v-if="tabAdminActiva === 'torneos'" class="space-y-6">
+        <!-- Control de Transmisión en Vivo (Live Stream Fase 2) -->
+        <div class="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-red-500/10 via-white to-slate-50 dark:from-red-950/30 dark:via-[#0c1222] dark:to-slate-900 border border-red-500/30 shadow-md">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-red-600 animate-ping" />
+                <h3 class="text-sm sm:text-base font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <span>Transmisión en Vivo (Live Stream Fase 2)</span>
+                  <span
+                    v-if="torneoStreamingActivo?.transmisionEnVivoActiva"
+                    class="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-600 text-white animate-pulse"
+                  >
+                    AL AIRE
+                  </span>
+                </h3>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Pega la URL de transmisión (YouTube Live, Twitch, Meet o cámara) para que aparezca el aviso "🔴 EN VIVO" en la app y en el correo de Felipe.
+              </p>
+            </div>
+
+            <!-- Selector de Torneo para Streaming si hay varios -->
+            <div v-if="torneos.length > 0" class="flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-600 dark:text-slate-300">Torneo:</span>
+              <select
+                v-model="torneoStreamingId"
+                class="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+              >
+                <option value="" disabled>Selecciona un torneo…</option>
+                <option v-for="t in torneos" :key="t.id" :value="t.id">
+                  {{ t.nombre }} ({{ t.estado }})
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Input y Botón de Toggle -->
+          <div class="mt-3.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div class="relative flex-1">
+              <Radio class="w-4 h-4 text-red-500 absolute left-3.5 top-3.5" />
+              <input
+                v-model="enlaceStreamingInput"
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=... o enlace de transmisión"
+                class="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 placeholder:text-slate-400"
+              />
+            </div>
+
+            <button
+              type="button"
+              :disabled="guardandoStreaming || !torneoStreamingActivo || (!torneoStreamingActivo.transmisionEnVivoActiva && !enlaceStreamingInput.trim())"
+              :title="!enlaceStreamingInput.trim() ? 'Ingresa un enlace para poder activar EN VIVO' : ''"
+              :class="[
+                'px-4 py-2.5 rounded-2xl text-xs font-black uppercase disabled:opacity-50 disabled:cursor-not-allowed tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md shrink-0',
+                torneoStreamingActivo?.transmisionEnVivoActiva
+                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/30 animate-pulse'
+                  : 'bg-slate-800 hover:bg-slate-900 text-slate-200'
+              ]"
+              @click="toggleTransmisionEnVivo"
+            >
+              <span
+                class="w-2 h-2 rounded-full"
+                :class="torneoStreamingActivo?.transmisionEnVivoActiva ? 'bg-white animate-ping' : 'bg-red-500'"
+              />
+              <span>{{ torneoStreamingActivo?.transmisionEnVivoActiva ? '🔴 Transmisión Activa (Detener)' : 'Activar "EN VIVO"' }}</span>
+            </button>
+
+            <button
+              type="button"
+              :disabled="guardandoStreaming"
+              class="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
+              @click="guardarEnlaceStreaming"
+            >
+              <span>Guardar Enlace</span>
+            </button>
+          </div>
+          <p v-if="errorStreaming" class="mt-2 text-xs font-bold text-red-600 dark:text-red-400">
+            {{ errorStreaming }}
+          </p>
+        </div>
+
         <!-- Barra de Búsqueda y Filtros de Torneo con Efecto Glassmorphic -->
         <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white/90 dark:bg-[#0f172a]/90 backdrop-blur-md p-3.5 sm:p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors">
           <div class="relative flex-1">
@@ -463,12 +544,13 @@
       :torneo="torneoSeleccionado"
       @actualizar-estado="cambiarEstadoTorneo"
       @abrir-resolver-partido="abrirResolverPartido"
+      @torneo-actualizado="aplicarCambiosTorneo"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import {
   Trophy,
   Plus,
@@ -485,6 +567,7 @@ import {
   MapPin,
   ChevronDown,
   Clock,
+  Radio,
 } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
@@ -503,6 +586,7 @@ import {
   leerCacheTorneosInmediato,
   guardarTorneoDB,
   actualizarEstadoTorneoDB,
+  actualizarTransmisionTorneoDB,
   eliminarTorneoDB,
   actualizarPartidoDB,
   obtenerInscripcionesDB,
@@ -528,6 +612,102 @@ const torneoSeleccionado = ref<Torneo | null>(null)
 
 const torneosEnCache = leerCacheTorneosInmediato()
 const torneos = ref<Torneo[]>(torneosEnCache)
+
+// Control de Transmisión en Vivo (Live Stream)
+const torneoStreamingId = ref<string>('')
+const enlaceStreamingInput = ref<string>('')
+const guardandoStreaming = ref(false)
+
+const errorStreaming = ref('')
+
+// Sin selección explícita no se asume ningún torneo (nunca torneos[0] en silencio)
+const torneoStreamingActivo = computed(() => {
+  if (!torneoStreamingId.value) return null
+  return torneos.value.find((t) => t.id === torneoStreamingId.value) || null
+})
+
+watch(
+  torneoStreamingActivo,
+  (t) => {
+    if (t && !guardandoStreaming.value) {
+      enlaceStreamingInput.value = t.enlaceTransmision || ''
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  torneos,
+  (lista) => {
+    // Preselección explícita solo si hay un torneo en curso; si no, el admin debe elegir
+    if (!torneoStreamingId.value && lista.length > 0) {
+      const enCurso = lista.find((t) => t.estado === 'en curso')
+      if (enCurso) {
+        torneoStreamingId.value = enCurso.id
+        enlaceStreamingInput.value = enCurso.enlaceTransmision || ''
+      }
+    }
+  },
+  { immediate: true }
+)
+
+/**
+ * Aplica cambios a un torneo reemplazando el elemento del arreglo (sin mutar props/computeds).
+ * Lo usan tanto este panel como el evento 'torneo-actualizado' de ModalGestionarTorneo.
+ */
+const aplicarCambiosTorneo = (id: string, cambios: Partial<Torneo>) => {
+  torneos.value = torneos.value.map((t) => (t.id === id ? { ...t, ...cambios } : t))
+  if (torneoSeleccionado.value?.id === id) {
+    torneoSeleccionado.value = { ...torneoSeleccionado.value, ...cambios }
+  }
+}
+
+const guardarEnlaceStreaming = async () => {
+  const torneo = torneoStreamingActivo.value
+  if (!torneo) {
+    errorStreaming.value = 'Selecciona un torneo antes de guardar el enlace.'
+    return
+  }
+  guardandoStreaming.value = true
+  errorStreaming.value = ''
+  try {
+    const enlace = enlaceStreamingInput.value.trim()
+    // Si se borra el enlace con la transmisión activa, se apaga el "EN VIVO"
+    const activa = Boolean(torneo.transmisionEnVivoActiva) && !!enlace
+    await actualizarTransmisionTorneoDB(torneo.id, enlace, activa)
+    aplicarCambiosTorneo(torneo.id, { enlaceTransmision: enlace, transmisionEnVivoActiva: activa })
+  } catch (err: any) {
+    console.error('Error al guardar enlace de transmisión:', err)
+    errorStreaming.value = err?.message || 'No se pudo guardar el enlace de transmisión.'
+  } finally {
+    guardandoStreaming.value = false
+  }
+}
+
+const toggleTransmisionEnVivo = async () => {
+  const torneo = torneoStreamingActivo.value
+  if (!torneo) {
+    errorStreaming.value = 'Selecciona un torneo antes de activar la transmisión.'
+    return
+  }
+  const nuevoEstado = !torneo.transmisionEnVivoActiva
+  const enlace = enlaceStreamingInput.value.trim() || torneo.enlaceTransmision || ''
+  if (nuevoEstado && !enlace.trim()) {
+    errorStreaming.value = 'Ingresa el enlace de transmisión antes de activar "EN VIVO".'
+    return
+  }
+  guardandoStreaming.value = true
+  errorStreaming.value = ''
+  try {
+    await actualizarTransmisionTorneoDB(torneo.id, enlace, nuevoEstado)
+    aplicarCambiosTorneo(torneo.id, { enlaceTransmision: enlace.trim(), transmisionEnVivoActiva: nuevoEstado })
+  } catch (err: any) {
+    console.error('Error al cambiar transmisión en vivo:', err)
+    errorStreaming.value = err?.message || 'No se pudo cambiar el estado de la transmisión.'
+  } finally {
+    guardandoStreaming.value = false
+  }
+}
 
 // Estadísticas del circuito en tiempo real para las tarjetas KPI
 const statsCircuito = computed(() => {
@@ -668,7 +848,7 @@ const handleCrearTorneo = async (nuevoTorneo: Torneo) => {
 const cambiarEstadoTorneo = async (id: string, nuevoEstado: 'por iniciar' | 'en curso' | 'finalizado') => {
   const torneo = torneos.value.find(t => t.id === id)
   if (torneo) {
-    torneo.estado = nuevoEstado
+    aplicarCambiosTorneo(id, { estado: nuevoEstado })
     try {
       await actualizarEstadoTorneoDB(id, nuevoEstado)
     } catch (err) {

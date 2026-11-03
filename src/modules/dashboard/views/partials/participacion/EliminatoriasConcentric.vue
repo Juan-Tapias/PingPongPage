@@ -70,8 +70,43 @@
       </div>
     </div>
 
+    <!-- Estado del cuadro: oficial (persistido) vs proyección -->
+    <div
+      v-if="playoffs.campeon.value"
+      class="p-4 rounded-2xl border-2 border-amber-400 bg-gradient-to-r from-amber-100 to-white dark:from-amber-950/50 dark:to-[#0f172a] flex items-center gap-3"
+    >
+      <AvatarJugador
+        :foto-url="playoffs.campeon.value.fotoUrl"
+        :nombre="playoffs.campeon.value.nombre"
+        :iniciales="playoffs.campeon.value.iniciales"
+        size="md"
+        ring-class="ring-2 ring-amber-400"
+      />
+      <div>
+        <span class="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">🏆 Campeón del torneo</span>
+        <p class="text-sm font-black text-slate-900 dark:text-white">{{ playoffs.campeon.value.nombre }}</p>
+      </div>
+    </div>
+    <div
+      v-else-if="!playoffs.esOficial.value"
+      class="p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 text-xs text-slate-600 dark:text-slate-300 font-semibold"
+    >
+      <template v-if="playoffs.partidos.value.length > 0">
+        Eliminatorias a?n no abiertas. Este es solo el formato del cuadro; los cruces con nombres se publican cuando el administrador cierre la fase de grupos.
+      </template>
+      <template v-else-if="playoffs.errorProyeccion.value">
+        {{ playoffs.errorProyeccion.value }}
+      </template>
+      <template v-else>
+        Las eliminatorias aún no han comenzado. El cuadro aparecerá cuando se jueguen partidos de la fase de grupos.
+      </template>
+    </div>
+    <p v-if="playoffs.errorCarga.value" class="text-xs font-bold text-red-600 dark:text-red-400">
+      {{ playoffs.errorCarga.value }}
+    </p>
+
     <!-- SELECTOR DE RONDAS PARA MÓVIL (Pills) -->
-    <div class="flex lg:hidden items-center gap-2 overflow-x-auto pb-1">
+    <div v-if="playoffs.rondas.value.length > 0" class="flex lg:hidden items-center gap-2 overflow-x-auto pb-1">
       <button
         v-for="ronda in rondasNavegacion"
         :key="ronda.id"
@@ -88,447 +123,110 @@
       </button>
     </div>
 
-    <!-- ============================================== -->
-    <!-- CUADRO DE LLAVES / BRACKET CLARO Y ESTRUCTURADO -->
-    <!-- ============================================== -->
-    <div class="w-full bg-slate-50/70 dark:bg-[#070e1e] rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-6 overflow-x-auto shadow-xs transition-colors duration-300">
+    <!-- CUADRO DE LLAVES DINÁMICO (columnas según el formato real) -->
+    <div
+      v-if="playoffs.rondas.value.length > 0"
+      class="w-full bg-slate-50/70 dark:bg-[#070e1e] rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3 sm:p-6 overflow-x-auto shadow-xs transition-colors duration-300"
+    >
       <div
         :class="[
-          rondaMovilActiva === 'todas' ? 'min-w-[900px]' : 'w-full min-w-full',
-          'flex items-start gap-4 lg:gap-6 justify-between'
+          rondaMovilActiva === 'todas' ? (playoffs.rondas.value.length > 2 ? 'min-w-[900px]' : 'min-w-[480px]') : 'w-full min-w-full',
+          'flex items-stretch gap-4 lg:gap-6 justify-between'
         ]"
       >
-        <!-- ========================================== -->
-        <!-- COLUMNA 1: PLAY-IN (Puestos 5 al 12) -->
-        <!-- ========================================== -->
         <div
+          v-for="(columna, idxCol) in playoffs.rondas.value"
+          :key="columna.ronda"
           :class="[
             'flex-1 flex flex-col gap-4 transition-all duration-200',
-            rondaMovilActiva !== 'todas' && rondaMovilActiva !== 'play_in' ? 'hidden lg:flex' : 'flex'
+            rondaMovilActiva !== 'todas' && rondaMovilActiva !== columna.ronda ? 'hidden lg:flex' : 'flex'
           ]"
         >
-          <!-- Encabezado de Ronda -->
           <div class="flex flex-col gap-1 pb-2 border-b border-slate-200 dark:border-slate-800">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                1. Play-In (Repechaje)
+              <span class="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <Crown v-if="columna.ronda === 'final'" class="w-3.5 h-3.5 text-amber-500" />
+                {{ idxCol + 1 }}. {{ columna.nombre }}
               </span>
               <span class="text-[10px] font-extrabold px-2 py-0.5 rounded bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                4 Llaves
+                {{ columna.partidos.length }} {{ columna.partidos.length === 1 ? 'Llave' : 'Llaves' }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">
-              Puestos 5° al 12° de la fase regular
-            </p>
-          </div>
-
-          <!-- Tarjetas de Partidos Play-In -->
-          <div class="flex flex-col gap-4">
-            <div
-              v-for="partido in playoffs.partidosPlayIn.value"
-              :key="partido.id"
-              :class="[
-                'group relative rounded-xl border p-3.5 transition-all duration-200 cursor-pointer shadow-2xs',
-                obtenerEstiloTarjeta(partido)
-              ]"
-              @click="abrirDetallePartido(partido)"
-            >
-              <!-- Cabecera de Llave -->
-              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold">
-                <span class="text-slate-500 dark:text-slate-400 uppercase">
-                  Llave {{ partido.numeroLlave }}
-                </span>
-                <span :class="obtenerClaseBadgeEstado(partido.estado)">
-                  {{ formatearEstado(partido.estado) }}
-                </span>
-              </div>
-
-              <!-- Jugador 1 (Mejor Semilla) -->
-              <div class="flex items-center justify-between gap-2 py-1.5">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div
-                    :class="[
-                      'w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0',
-                      partido.jugador1?.esUsuarioActual ? 'bg-emerald-700' : 'bg-slate-700 dark:bg-slate-600'
-                    ]"
-                  >
-                    {{ partido.jugador1?.iniciales || '?' }}
-                  </div>
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span
-                      class="text-xs font-bold truncate"
-                      :class="partido.jugador1?.esUsuarioActual ? 'text-emerald-950 dark:text-emerald-300 font-black' : 'text-slate-800 dark:text-slate-200'"
-                    >
-                      {{ partido.jugador1?.nombre || 'Por definir' }}
-                    </span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
-                      #{{ obtenerSemilla(partido.jugador1?.id) }}
-                    </span>
-                    <span
-                      v-if="partido.jugador1?.esUsuarioActual"
-                      class="text-[9px] font-black bg-emerald-700 text-white px-1.5 py-0.2 rounded shrink-0"
-                    >
-                      Tú
-                    </span>
-                  </div>
-                </div>
-
-                <span
-                  class="font-mono text-xs font-black shrink-0 px-2 py-0.5 rounded"
-                  :class="partido.ganadorId === partido.jugador1?.id ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60' : 'text-slate-600 dark:text-slate-400'"
-                >
-                  {{ obtenerScoreJugador(partido, 1) }}
-                </span>
-              </div>
-
-              <!-- Separador VS -->
-              <div class="h-px w-full bg-slate-100 dark:bg-slate-800 my-1"></div>
-
-              <!-- Jugador 2 -->
-              <div class="flex items-center justify-between gap-2 py-1.5">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div
-                    :class="[
-                      'w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0',
-                      partido.jugador2?.esUsuarioActual ? 'bg-emerald-700' : 'bg-slate-700 dark:bg-slate-600'
-                    ]"
-                  >
-                    {{ partido.jugador2?.iniciales || '?' }}
-                  </div>
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span
-                      class="text-xs font-bold truncate"
-                      :class="partido.jugador2?.esUsuarioActual ? 'text-emerald-950 dark:text-emerald-300 font-black' : 'text-slate-800 dark:text-slate-200'"
-                    >
-                      {{ partido.jugador2?.nombre || 'Por definir' }}
-                    </span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
-                      #{{ obtenerSemilla(partido.jugador2?.id) }}
-                    </span>
-                    <span
-                      v-if="partido.jugador2?.esUsuarioActual"
-                      class="text-[9px] font-black bg-emerald-700 text-white px-1.5 py-0.2 rounded shrink-0"
-                    >
-                      Tú
-                    </span>
-                  </div>
-                </div>
-
-                <span
-                  class="font-mono text-xs font-black shrink-0 px-2 py-0.5 rounded"
-                  :class="partido.ganadorId === partido.jugador2?.id ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60' : 'text-slate-600 dark:text-slate-400'"
-                >
-                  {{ obtenerScoreJugador(partido, 2) }}
-                </span>
-              </div>
-
-              <!-- Destino de avance -->
-              <div class="mt-2 pt-2 border-t border-slate-100/80 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
-                <span>Avanza a Cuartos {{ partido.numeroLlave }}</span>
-                <ChevronRight class="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- COLUMNA 2: CUARTOS DE FINAL (Top 1-4 BYE) -->
-        <!-- ========================================== -->
-        <div
-          :class="[
-            'flex-1 flex flex-col gap-4 transition-all duration-200',
-            rondaMovilActiva !== 'todas' && rondaMovilActiva !== 'cuartos' ? 'hidden lg:flex' : 'flex'
-          ]"
-        >
-          <!-- Encabezado de Ronda -->
-          <div class="flex flex-col gap-1 pb-2 border-b border-slate-200 dark:border-slate-800">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-black uppercase tracking-wider text-sky-900 dark:text-sky-300">
-                2. Cuartos de Final
-              </span>
-              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300">
-                Top 4 BYE
-              </span>
-            </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">
-              Puestos 1° al 4° esperan a los ganadores
-            </p>
-          </div>
-
-          <!-- Tarjetas de Partidos Cuartos -->
-          <div class="flex flex-col gap-4">
-            <div
-              v-for="partido in playoffs.partidosCuartos.value"
-              :key="partido.id"
-              :class="[
-                'group relative rounded-xl border p-3.5 transition-all duration-200 cursor-pointer shadow-2xs',
-                obtenerEstiloTarjeta(partido)
-              ]"
-              @click="abrirDetallePartido(partido)"
-            >
-              <!-- Cabecera de Llave -->
-              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold">
-                <span class="text-sky-800 dark:text-sky-400 uppercase">
-                  Cuartos {{ partido.numeroLlave }}
-                </span>
-                <span :class="obtenerClaseBadgeEstado(partido.estado)">
-                  {{ formatearEstado(partido.estado) }}
-                </span>
-              </div>
-
-              <!-- Jugador 1 (Top 1 al 4 con BYE) -->
-              <div class="flex items-center justify-between gap-2 py-1.5">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div
-                    :class="[
-                      'w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0',
-                      partido.jugador1?.esUsuarioActual ? 'bg-emerald-700' : 'bg-sky-800 dark:bg-sky-700'
-                    ]"
-                  >
-                    {{ partido.jugador1?.iniciales || '?' }}
-                  </div>
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span
-                      class="text-xs font-bold truncate"
-                      :class="partido.jugador1?.esUsuarioActual ? 'text-emerald-950 dark:text-emerald-300 font-black' : 'text-slate-800 dark:text-slate-200'"
-                    >
-                      {{ partido.jugador1?.nombre || 'Por definir' }}
-                    </span>
-                    <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800 shrink-0">
-                      Top {{ obtenerSemilla(partido.jugador1?.id) }} (BYE)
-                    </span>
-                  </div>
-                </div>
-
-                <span class="font-mono text-xs font-black shrink-0 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400">
-                  {{ obtenerScoreJugador(partido, 1) }}
-                </span>
-              </div>
-
-              <!-- Separador VS -->
-              <div class="h-px w-full bg-slate-100 dark:bg-slate-800 my-1"></div>
-
-              <!-- Jugador 2 (Ganador Play-In) -->
-              <div class="flex items-center justify-between gap-2 py-1.5">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div
-                    :class="[
-                      'w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white shrink-0',
-                      partido.jugador2 ? 'bg-slate-700 dark:bg-slate-600' : 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                    ]"
-                  >
-                    {{ partido.jugador2?.iniciales || '?' }}
-                  </div>
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span
-                      class="text-xs font-bold truncate"
-                      :class="partido.jugador2 ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 italic'"
-                    >
-                      {{ partido.jugador2?.nombre || `Ganador Llave ${partido.numeroLlave}` }}
-                    </span>
-                    <span
-                      v-if="partido.jugador2"
-                      class="text-[9px] font-black px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0"
-                    >
-                      #{{ obtenerSemilla(partido.jugador2?.id) }}
-                    </span>
-                  </div>
-                </div>
-
-                <span class="font-mono text-xs font-black shrink-0 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400">
-                  {{ obtenerScoreJugador(partido, 2) }}
-                </span>
-              </div>
-
-              <!-- Destino de avance -->
-              <div class="mt-2 pt-2 border-t border-slate-100/80 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
-                <span>Avanza a Semifinal</span>
-                <ChevronRight class="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- COLUMNA 3: SEMIFINALES -->
-        <!-- ========================================== -->
-        <div
-          :class="[
-            'flex-1 flex flex-col gap-4 transition-all duration-200',
-            rondaMovilActiva !== 'todas' && rondaMovilActiva !== 'semifinal' ? 'hidden lg:flex' : 'flex'
-          ]"
-        >
-          <!-- Encabezado de Ronda -->
-          <div class="flex flex-col gap-1 pb-2 border-b border-slate-200 dark:border-slate-800">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                3. Semifinales
-              </span>
-              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
-                2 Llaves
-              </span>
-            </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">
-              Pase directo a la Gran Final por la Corona
-            </p>
-          </div>
-
-          <!-- Tarjetas de Partidos Semifinal -->
-          <div class="flex flex-col gap-6 justify-around h-full pt-4">
-            <div
-              v-for="partido in playoffs.partidosSemis.value"
-              :key="partido.id"
-              :class="[
-                'group relative rounded-xl border p-3.5 transition-all duration-200 cursor-pointer shadow-2xs',
-                obtenerEstiloTarjeta(partido)
-              ]"
-              @click="abrirDetallePartido(partido)"
-            >
-              <!-- Cabecera de Llave -->
-              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold">
-                <span class="text-amber-800 dark:text-amber-400 uppercase">
-                  Semifinal {{ partido.numeroLlave }}
-                </span>
-                <span :class="obtenerClaseBadgeEstado(partido.estado)">
-                  {{ formatearEstado(partido.estado) }}
-                </span>
-              </div>
-
-              <!-- Jugador 1 -->
-              <div class="flex items-center justify-between gap-2 py-1.5">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div class="w-7 h-7 rounded-full bg-slate-800 dark:bg-slate-700 text-white flex items-center justify-center text-[10px] font-black shrink-0">
-                    {{ partido.jugador1?.iniciales || '?' }}
-                  </div>
-                  <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                    {{ partido.jugador1?.nombre || 'Ganador Cuartos' }}
-                  </span>
-                </div>
-                <span class="font-mono text-xs font-black text-slate-400">
-                  {{ obtenerScoreJugador(partido, 1) }}
-                </span>
-              </div>
-
-              <!-- Separador VS -->
-              <div class="h-px w-full bg-slate-100 dark:bg-slate-800 my-1"></div>
-
-              <!-- Jugador 2 -->
-              <div class="flex items-center justify-between gap-2 py-1.5">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div class="w-7 h-7 rounded-full bg-slate-800 dark:bg-slate-700 text-white flex items-center justify-center text-[10px] font-black shrink-0">
-                    {{ partido.jugador2?.iniciales || '?' }}
-                  </div>
-                  <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                    {{ partido.jugador2?.nombre || 'Ganador Cuartos' }}
-                  </span>
-                </div>
-                <span class="font-mono text-xs font-black text-slate-400">
-                  {{ obtenerScoreJugador(partido, 2) }}
-                </span>
-              </div>
-
-              <!-- Destino de avance -->
-              <div class="mt-2 pt-2 border-t border-slate-100/80 dark:border-slate-800 flex items-center justify-between text-[10px] text-amber-600 dark:text-amber-400 font-bold">
-                <span>Pase a la Gran Final</span>
-                <Crown class="w-3.5 h-3.5 text-amber-500" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- COLUMNA 4: GRAN FINAL Y CORONA 👑 -->
-        <!-- ========================================== -->
-        <div
-          :class="[
-            'flex-1 flex flex-col gap-4 transition-all duration-200',
-            rondaMovilActiva !== 'todas' && rondaMovilActiva !== 'final' ? 'hidden lg:flex' : 'flex'
-          ]"
-        >
-          <!-- Encabezado de Ronda -->
-          <div class="flex flex-col gap-1 pb-2 border-b border-amber-300 dark:border-amber-800">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-black uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                <Crown class="w-3.5 h-3.5 text-amber-500" />
-                4. Gran Final
-              </span>
-              <span class="text-[10px] font-black px-2 py-0.5 rounded bg-amber-500 text-slate-950 shadow-2xs">
-                100% Premio
-              </span>
-            </div>
-            <p class="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
+            <p v-if="columna.ronda === 'final'" class="text-[11px] text-amber-700 dark:text-amber-400 font-medium">
               El ganador se lleva ${{ playoffs.bolsaPremioFormateada }} COP
             </p>
           </div>
 
-          <!-- Tarjeta Estelar de la Final -->
-          <div class="flex flex-col justify-center h-full pt-2">
+          <div class="flex flex-col gap-4 justify-around h-full">
             <div
+              v-for="partido in columna.partidos"
+              :key="partido.id"
               :class="[
-                'relative rounded-2xl border-2 border-amber-400/90 dark:border-amber-500/80 bg-gradient-to-b from-amber-50/70 to-white dark:from-amber-950/40 dark:to-[#0f172a] p-4.5 transition-all duration-300 cursor-pointer shadow-md hover:shadow-lg hover:border-amber-500',
-                obtenerEstiloTarjeta(playoffs.granFinal.value)
+                'group relative rounded-xl border p-3.5 transition-all duration-200 cursor-pointer shadow-2xs',
+                columna.ronda === 'final' ? 'border-2 border-amber-400/90 dark:border-amber-500/80' : '',
+                obtenerEstiloTarjeta(partido)
               ]"
-              @click="abrirDetallePartido(playoffs.granFinal.value)"
+              @click="abrirDetallePartido(partido)"
             >
-              <!-- Corona central flotante -->
-              <div class="flex items-center justify-between pb-3 mb-3 border-b border-amber-200/80 dark:border-amber-800">
-                <div class="flex items-center gap-1.5">
-                  <div class="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black">
-                    <Crown class="w-3.5 h-3.5" />
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-extrabold">
+                <span class="text-slate-500 dark:text-slate-400 uppercase">
+                  {{ columna.ronda === 'final' ? 'Por el Campeonato' : `Llave ${partido.numeroLlave}` }}
+                </span>
+                <span :class="obtenerClaseBadgeEstado(partido.estado)" class="px-1.5 py-0.5 rounded">
+                  {{ formatearEstado(partido.estado) }}
+                </span>
+              </div>
+
+              <div
+                v-for="slot in ([1, 2] as const)"
+                :key="slot"
+                class="flex items-center justify-between gap-2 py-1.5"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <AvatarJugador
+                    :foto-url="jugadorSlot(partido, slot)?.fotoUrl"
+                    :nombre="jugadorSlot(partido, slot)?.nombre"
+                    :iniciales="jugadorSlot(partido, slot)?.iniciales"
+                    size="sm"
+                    :ring-class="jugadorSlot(partido, slot)?.esUsuarioActual ? 'ring-2 ring-emerald-500' : ''"
+                  />
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span
+                      class="text-xs font-bold truncate"
+                      :class="[
+                        jugadorSlot(partido, slot) ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 italic',
+                        jugadorSlot(partido, slot)?.esUsuarioActual ? 'text-emerald-950 dark:text-emerald-300 font-black' : '',
+                        partido.estado === 'jugado' && partido.ganadorId && partido.ganadorId !== jugadorSlot(partido, slot)?.id ? 'line-through opacity-60' : ''
+                      ]"
+                    >
+                      {{ jugadorSlot(partido, slot)?.nombre || textoEsperando(partido, slot) }}
+                    </span>
+                    <span
+                      v-if="semillaSlot(partido, slot)"
+                      class="text-[9px] font-black px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0"
+                    >
+                      #{{ semillaSlot(partido, slot) }}
+                    </span>
+                    <span
+                      v-if="jugadorSlot(partido, slot)?.esUsuarioActual"
+                      class="text-[9px] font-black bg-emerald-700 text-white px-1.5 py-0.2 rounded shrink-0"
+                    >
+                      Tú
+                    </span>
                   </div>
-                  <span class="text-xs font-black text-amber-950 dark:text-amber-200 tracking-tight">
-                    Por el Campeonato
-                  </span>
                 </div>
-
-                <span class="text-[10px] font-black font-mono text-amber-900 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
-                  ${{ playoffs.bolsaPremioFormateada }}
+                <span
+                  class="font-mono text-xs font-black shrink-0 px-2 py-0.5 rounded"
+                  :class="partido.ganadorId && partido.ganadorId === jugadorSlot(partido, slot)?.id ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60' : 'text-slate-500 dark:text-slate-400'"
+                >
+                  {{ obtenerScoreJugador(partido, slot) }}
                 </span>
               </div>
 
-              <!-- Finalista 1 -->
-              <div class="flex items-center justify-between gap-2 py-2">
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="w-8 h-8 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center text-xs shadow-xs shrink-0">
-                    {{ playoffs.granFinal.value.jugador1?.iniciales || 'F1' }}
-                  </div>
-                  <span class="text-xs font-black text-slate-900 dark:text-white truncate">
-                    {{ playoffs.granFinal.value.jugador1?.nombre || 'Finalista 1' }}
-                  </span>
-                </div>
-                <span class="font-mono text-sm font-black text-amber-900 dark:text-amber-300">
-                  {{ obtenerScoreJugador(playoffs.granFinal.value, 1) }}
-                </span>
-              </div>
-
-              <!-- Trofeo central decorativo -->
-              <div class="flex items-center justify-center py-1">
-                <span class="text-[10px] font-black text-amber-800 dark:text-amber-300 bg-amber-200/60 dark:bg-amber-950/60 px-3 py-0.5 rounded-full uppercase tracking-wider">
-                  VS
-                </span>
-              </div>
-
-              <!-- Finalista 2 -->
-              <div class="flex items-center justify-between gap-2 py-2">
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <div class="w-8 h-8 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center text-xs shadow-xs shrink-0">
-                    {{ playoffs.granFinal.value.jugador2?.iniciales || 'F2' }}
-                  </div>
-                  <span class="text-xs font-black text-slate-900 dark:text-white truncate">
-                    {{ playoffs.granFinal.value.jugador2?.nombre || 'Finalista 2' }}
-                  </span>
-                </div>
-                <span class="font-mono text-sm font-black text-amber-900 dark:text-amber-300">
-                  {{ obtenerScoreJugador(playoffs.granFinal.value, 2) }}
-                </span>
-              </div>
-
-              <!-- Pie de Tarjeta -->
-              <div class="mt-3 pt-2.5 border-t border-amber-200/80 dark:border-amber-800 flex items-center justify-center text-center">
-                <p class="text-[10px] font-black text-amber-800 dark:text-amber-400 flex items-center gap-1">
-                  <span>🏆</span>
-                  <span>Toca para ver marcador y detalles</span>
-                </p>
+              <div class="mt-2 pt-2 border-t border-slate-100/80 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+                <span>{{ textoDestino(partido) }}</span>
+                <ChevronRight v-if="partido.siguientePartidoId" class="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                <Crown v-else class="w-3.5 h-3.5 text-amber-500" />
               </div>
             </div>
           </div>
@@ -635,6 +333,7 @@ import { ref, computed } from 'vue'
 import { Crown, Trophy, Compass, Sparkles, ChevronRight, Activity, Clock } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'
+import AvatarJugador from '@/components/AvatarJugador.vue'
 import { usePlayoffs } from '@/modules/dashboard/composables/usePlayoffs'
 import type { FilaPosicion, PartidoPlayoff, RondaPlayoff, EstadoPartido, Torneo } from '@/types'
 
@@ -651,7 +350,7 @@ const props = withDefaults(
 )
 
 const modoVista = ref<'completo' | 'mi-camino'>('completo')
-const rondaMovilActiva = ref<'todas' | 'play_in' | 'cuartos' | 'semifinal' | 'final'>('todas')
+const rondaMovilActiva = ref<'todas' | RondaPlayoff>('todas')
 const modalPlayoffRef = ref<InstanceType<typeof Modal> | null>(null)
 const partidoSeleccionado = ref<PartidoPlayoff | null>(null)
 
@@ -666,22 +365,43 @@ const textoSubtituloPlayoffs = computed(() => {
   if (c === 2) return 'Top 2 disputan la Gran Final directa por la Corona'
   if (c === 6) return 'Top 1° y 2° avanzan directo a Semis (BYE) • Puestos 3° al 6° disputan Cuartos'
   if (c === 8) return 'Top 8 clasificados de la fase regular disputan Cuartos de Final'
-  if (c >= 10) return 'Top 4 clasificados directos a Cuartos • Puestos 5° al 12° disputan el Play-In'
-  return 'Top 4 clasificados de la fase regular disputan Semifinales y Gran Final'
+  if (c === 12) return 'Top 4 directos a Cuartos (BYE) • Puestos 5° al 12° disputan el Play-In'
+  return 'Top 4 clasificados de la fase regular disputan Semifinales y Gran Final • Al mejor de 3 sets'
 })
 
-const rondasNavegacion = [
-  { id: 'todas' as const, nombre: 'Todas', cantidad: 11 },
-  { id: 'play_in' as const, nombre: 'Play-In', cantidad: 4 },
-  { id: 'cuartos' as const, nombre: 'Cuartos', cantidad: 4 },
-  { id: 'semifinal' as const, nombre: 'Semis', cantidad: 2 },
-  { id: 'final' as const, nombre: 'Final 👑', cantidad: 1 },
-]
+// Pills móviles generadas a partir de las rondas reales del formato
+const rondasNavegacion = computed(() => [
+  { id: 'todas' as const, nombre: 'Todas', cantidad: playoffs.partidos.value.length },
+  ...playoffs.rondas.value.map((r) => ({
+    id: r.ronda,
+    nombre: r.ronda === 'final' ? 'Final 👑' : r.nombre,
+    cantidad: r.partidos.length,
+  })),
+])
 
-const obtenerSemilla = (jugadorId?: string): number | string => {
-  if (!jugadorId) return '?'
-  const pos = props.filasPosiciones.findIndex((f) => f.jugadorId === jugadorId)
-  return pos >= 0 ? pos + 1 : '?'
+const jugadorSlot = (partido: PartidoPlayoff, slot: 1 | 2) =>
+  (slot === 1 ? partido.jugador1 : partido.jugador2) || null
+
+const semillaSlot = (partido: PartidoPlayoff, slot: 1 | 2) =>
+  (slot === 1 ? partido.semilla1 : partido.semilla2) || null
+
+// Texto para un slot vacío: indica de qué llave llega el ganador
+const textoEsperando = (partido: PartidoPlayoff, slot: 1 | 2): string => {
+  const origen = playoffs.partidos.value.find(
+    (p) => p.siguientePartidoId === partido.id && (p.siguienteSlot || 1) === slot,
+  )
+  if (!origen) {
+    const semilla = semillaSlot(partido, slot)
+    if (!playoffs.esOficial.value && semilla) return partido.esBye ? `Top ${semilla} (BYE)` : `Top ${semilla}`
+    return 'Por definir'
+  }
+  return `Ganador ${formatearRonda(origen.ronda)} ${origen.numeroLlave}`
+}
+
+const textoDestino = (partido: PartidoPlayoff): string => {
+  if (!partido.siguientePartidoId) return 'El ganador se corona campeón'
+  const destino = playoffs.partidos.value.find((p) => p.id === partido.siguientePartidoId)
+  return destino ? `Avanza a ${formatearRonda(destino.ronda)} ${destino.numeroLlave}` : 'Avanza a la siguiente ronda'
 }
 
 const obtenerScoreJugador = (partido: PartidoPlayoff, jugadorNumero: 1 | 2): string => {
@@ -753,12 +473,6 @@ const obtenerNombreGanador = (partido: PartidoPlayoff | null): string => {
   if (partido.ganadorId) {
     if (partido.jugador1?.id === partido.ganadorId) return partido.jugador1.nombre
     if (partido.jugador2?.id === partido.ganadorId) return partido.jugador2.nombre
-  }
-  if (partido.estado === 'jugado') {
-    return partido.jugador1?.nombre ?? 'Ganador'
-  }
-  if (partido.estado === 'en_curso') {
-    return `${partido.jugador1?.nombre || 'J1'} vs ${partido.jugador2?.nombre || 'J2'}`
   }
   return `${partido.jugador1?.nombre || 'Por definir'} vs ${partido.jugador2?.nombre || 'Por definir'}`
 }

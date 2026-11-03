@@ -11,14 +11,29 @@ import {
   where,
   onSnapshot,
   limit,
+  writeBatch,
+  runTransaction,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import type { Torneo, EstadoTorneo, Usuario, FilaPosicionOficial, TablaPosicionesTorneo, MarcadorEnVivo, PartidoGrupo } from '@/types'
+import type {
+  Torneo,
+  EstadoTorneo,
+  Usuario,
+  FilaPosicionOficial,
+  TablaPosicionesTorneo,
+  MarcadorEnVivo,
+  PartidoGrupo,
+  PartidoPlayoff,
+  SemillaPlayoff,
+  JugadorTorneo,
+} from '@/types'
+import type { ActualizacionPlayoff } from '@/services/torneoAlgoritmos'
 
 const COLECCION_TORNEOS = 'torneos'
 const COLECCION_PARTIDOS = 'partidos'
 const COLECCION_INSCRIPCIONES = 'inscripciones'
+export const COLECCION_PARTIDOS_PLAYOFFS = 'partidos_playoffs'
 export const COLECCION_TABLAS_POSICIONES = 'tablas_posiciones'
 
 /**
@@ -180,6 +195,102 @@ export const actualizarEstadoTorneoDB = async (id: string, nuevoEstado: EstadoTo
     t.estado = nuevoEstado
     guardarCacheLocal('spinapp_torneos_cache', lista)
   }
+}
+
+/**
+ * Actualiza el enlace y estado de la transmisión en vivo de un torneo (Fase 2).
+ * - No permite activar "EN VIVO" sin un enlace válido.
+ * - Si Firestore rechaza la escritura, NO toca la caché y propaga el error al llamador.
+ */
+export const actualizarTransmisionTorneoDB = async (
+  torneoId: string,
+  enlaceTransmision: string,
+  transmisionEnVivoActiva: boolean
+): Promise<void> => {
+  const enlace = (enlaceTransmision || '').trim()
+  if (transmisionEnVivoActiva && !enlace) {
+    throw new Error('Debes ingresar un enlace de transmisión antes de activar "EN VIVO".')
+  }
+
+  const torneoRef = doc(db, COLECCION_TORNEOS, torneoId)
+  await updateDoc(torneoRef, {
+    enlaceTransmision: enlace,
+    transmisionEnVivoActiva,
+  })
+
+  // Solo tras confirmar la escritura remota se sincronizan las cachés
+  aplicarCambiosTorneoEnCache(torneoId, { enlaceTransmision: enlace, transmisionEnVivoActiva })
+}
+
+/**
+ * Aplica cambios parciales de un torneo en la caché RAM y en localStorage (sin red).
+ */
+const aplicarCambiosTorneoEnCache = (torneoId: string, cambios: Partial<Torneo>): void => {
+  if (memoriaTorneosCache) {
+    memoriaTorneosCache = {
+      data: memoriaTorneosCache.data.map((t) => (t.id === torneoId ? { ...t, ...cambios } : t)),
+      timestamp: memoriaTorneosCache.timestamp,
+    }
+  }
+  const lista = leerCacheLocal<Torneo[]>('spinapp_torneos_cache') || []
+  const idx = lista.findIndex((item) => item.id === torneoId)
+  if (idx >= 0) {
+    lista[idx] = { ...lista[idx]!, ...cambios }
+    guardarCacheLocal('spinapp_torneos_cache', lista)
+  }
+}
+
+/**
+ * Escucha en tiempo real todos los torneos (usado por el dashboard).
+ * Mantiene sincronizadas la caché RAM (`memoriaTorneosCache`) y localStorage.
+ */
+export const suscribirTorneosDB = (callback: (torneos: Torneo[]) => void): (() => void) => {
+  const torneosRef = collection(db, COLECCION_TORNEOS)
+  return onSnapshot(
+    torneosRef,
+    (snap) => {
+      const lista: Torneo[] = []
+      snap.forEach((d) => {
+        lista.push({ id: d.id, ...d.data() } as Torneo)
+      })
+      memoriaTorneosCache = { data: lista, timestamp: Date.now() }
+      if (lista.length > 0) {
+        guardarCacheLocal('spinapp_torneos_cache', lista)
+      }
+      callback(lista)
+    },
+    (err) => {
+      console.warn('Advertencia en snapshot de torneos:', err)
+      const cached = leerCacheTorneosInmediato()
+      callback(cached)
+    }
+  )
+}
+
+/**
+ * Escucha solo los torneos con transmisión activa (query filtrada, no toda la colección).
+ * Descarta los que no tengan enlace para no mostrar un "EN VIVO" roto.
+ */
+export const suscribirTorneosEnVivoDB = (
+  callback: (torneos: Torneo[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe => {
+  const q = query(collection(db, COLECCION_TORNEOS), where('transmisionEnVivoActiva', '==', true))
+  return onSnapshot(
+    q,
+    (snap) => {
+      const lista: Torneo[] = []
+      snap.forEach((d) => {
+        const t = { id: d.id, ...d.data() } as Torneo
+        if (t.enlaceTransmision && t.enlaceTransmision.trim()) lista.push(t)
+      })
+      callback(lista)
+    },
+    (err) => {
+      console.warn('Advertencia en snapshot de torneos en vivo:', err)
+      onError?.(err)
+    },
+  )
 }
 
 /**
@@ -842,9 +953,133 @@ export const actualizarClasificadosPlayoffsDB = async (torneoId: string, clasifi
     await updateDoc(torneoRef, {
       clasificadosPlayoffs: clasificados,
     })
+    aplicarCambiosTorneoEnCache(torneoId, { clasificadosPlayoffs: clasificados })
   } catch (error) {
     console.warn('No se pudo actualizar clasificadosPlayoffs en torneo:', error)
   }
+}
+
+// ==========================================
+// FASE 2: PARTIDOS DE PLAYOFFS PERSISTIDOS
+// Colección dedicada 'partidos_playoffs' (solo escritura admin, ver firestore.rules)
+// para no mezclar llaves eliminatorias con el fixture Round Robin de 'partidos'.
+// ==========================================
+
+const mapearPlayoffs = (docs: { id: string; data: () => any }[]): PartidoPlayoff[] =>
+  docs
+    .map((d) => ({ id: d.id, ...d.data() }) as PartidoPlayoff)
+    .sort((a, b) => (a.ordenRonda || 0) - (b.ordenRonda || 0) || a.numeroLlave - b.numeroLlave)
+
+export const obtenerPartidosPlayoffsDB = async (torneoId: string): Promise<PartidoPlayoff[]> => {
+  const q = query(collection(db, COLECCION_PARTIDOS_PLAYOFFS), where('torneoId', '==', torneoId))
+  const snap = await getDocs(q)
+  return mapearPlayoffs(snap.docs)
+}
+
+export const suscribirPartidosPlayoffsDB = (
+  torneoId: string,
+  callback: (partidos: PartidoPlayoff[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe => {
+  const q = query(collection(db, COLECCION_PARTIDOS_PLAYOFFS), where('torneoId', '==', torneoId))
+  return onSnapshot(
+    q,
+    (snap) => callback(mapearPlayoffs(snap.docs)),
+    (err) => {
+      console.warn('Error en listener de partidos de playoffs:', err)
+      onError?.(err)
+    },
+  )
+}
+
+/**
+ * Cierra la fase de grupos y abre los playoffs en una sola escritura atómica:
+ * crea todas las llaves y marca el torneo con faseActual = 'playoffs'.
+ * Lanza error si el torneo ya tiene llaves creadas o si Firestore rechaza.
+ */
+export const abrirPlayoffsDB = async (
+  torneoId: string,
+  partidos: PartidoPlayoff[],
+  semillas: SemillaPlayoff[],
+  clasificados: number,
+): Promise<Partial<Torneo>> => {
+  const existentes = await obtenerPartidosPlayoffsDB(torneoId)
+  if (existentes.length > 0) {
+    throw new Error('Este torneo ya tiene el cuadro de playoffs generado.')
+  }
+
+  const cambiosTorneo: Partial<Torneo> = {
+    faseActual: 'playoffs',
+    playoffsAbiertos: true,
+    playoffsAbiertosEn: Date.now(),
+    clasificadosPlayoffs: clasificados,
+    campeonId: null,
+    campeonNombre: null,
+  }
+
+  const batch = writeBatch(db)
+  partidos.forEach((p) => {
+    batch.set(doc(db, COLECCION_PARTIDOS_PLAYOFFS, p.id), sanearParaFirestore(p))
+  })
+  batch.update(doc(db, COLECCION_TORNEOS, torneoId), sanearParaFirestore({ ...cambiosTorneo, semillasPlayoffs: semillas }))
+  await batch.commit()
+
+  aplicarCambiosTorneoEnCache(torneoId, cambiosTorneo)
+  return cambiosTorneo
+}
+
+/**
+ * Registra el resultado de una llave y avanza al ganador dentro de una transacción.
+ * Si es la final, guarda el campeón y finaliza el torneo.
+ */
+export const resolverPartidoPlayoffDB = async (
+  torneoId: string,
+  actualizaciones: ActualizacionPlayoff[],
+  campeon: JugadorTorneo | null,
+): Promise<Partial<Torneo> | null> => {
+  const principal = actualizaciones[0]
+  if (!principal) throw new Error('No hay cambios que registrar.')
+
+  let cambiosTorneo: Partial<Torneo> | null = null
+  await runTransaction(db, async (tx) => {
+    const refs = actualizaciones.map((a) => doc(db, COLECCION_PARTIDOS_PLAYOFFS, a.id))
+    const snaps = await Promise.all(refs.map((r) => tx.get(r)))
+    snaps.forEach((snap, i) => {
+      if (!snap.exists()) throw new Error(`La llave ${actualizaciones[i]!.id} no existe en la base de datos.`)
+      if (snap.data()?.estado === 'jugado') throw new Error('Otra persona ya registró este resultado. Recarga el cuadro.')
+    })
+    refs.forEach((r, i) => tx.update(r, sanearParaFirestore(actualizaciones[i]!.datos) as any))
+
+    if (campeon) {
+      cambiosTorneo = {
+        campeonId: campeon.id,
+        campeonNombre: campeon.nombre,
+        estado: 'finalizado',
+      }
+      tx.update(doc(db, COLECCION_TORNEOS, torneoId), sanearParaFirestore(cambiosTorneo) as any)
+    }
+  })
+
+  if (cambiosTorneo) aplicarCambiosTorneoEnCache(torneoId, cambiosTorneo)
+  return cambiosTorneo
+}
+
+/**
+ * Elimina las llaves de playoffs y devuelve el torneo a fase de grupos (usado al limpiar partidos).
+ */
+export const eliminarPlayoffsTorneoDB = async (torneoId: string): Promise<void> => {
+  const existentes = await obtenerPartidosPlayoffsDB(torneoId)
+  const batch = writeBatch(db)
+  existentes.forEach((p) => batch.delete(doc(db, COLECCION_PARTIDOS_PLAYOFFS, p.id)))
+  const cambios: Partial<Torneo> = {
+    faseActual: 'grupos',
+    playoffsAbiertos: false,
+    campeonId: null,
+    campeonNombre: null,
+  }
+  batch.update(doc(db, COLECCION_TORNEOS, torneoId), sanearParaFirestore(cambios) as any)
+  await batch.commit()
+  aplicarCambiosTorneoEnCache(torneoId, cambios)
 }
 
 /**

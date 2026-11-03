@@ -25,12 +25,21 @@ service cloud.firestore {
       // Cualquiera autenticado puede leer usuarios (necesario para ver rivales)
       allow read: if isAuthenticated();
       // Solo el mismo usuario al registrarse (con rol 'jugador') o un admin pueden crear el perfil
+      // Al registrarse no puede autoasignarse ranking ni elo
       allow create: if isAuthenticated() && (
-        (isOwner(userId) && request.resource.data.rol == 'jugador') || isAdmin()
+        (isOwner(userId) &&
+          request.resource.data.rol == 'jugador' &&
+          !request.resource.data.keys().hasAny(['puntosRanking', 'elo'])) ||
+        isAdmin()
       );
-      // El usuario puede editar sus datos sin cambiar su propio rol; el admin tiene control total
+      // El dueño solo edita campos de perfil (nombre, apellido, telefono, fotoUrl, tipo...).
+      // Campos sensibles (rol, ranking, elo, email, createdAt) solo los cambia un admin.
       allow update: if isAuthenticated() && (
-        isAdmin() || (isOwner(userId) && request.resource.data.rol == resource.data.rol)
+        isAdmin() || (
+          isOwner(userId) &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['rol', 'puntosRanking', 'elo', 'email', 'createdAt', 'id'])
+        )
       );
       allow delete: if isAdmin();
     }
@@ -85,8 +94,20 @@ service cloud.firestore {
     // Reglas para la colección 'tablas_posiciones'
     match /tablas_posiciones/{tablaId} {
       allow read: if isAuthenticated();
-      // Las posiciones pueden actualizarse como resultado de un partido
-      allow write: if isAuthenticated();
+      // Solo el admin persiste la tabla oficial. Los jugadores la calculan en el cliente
+      // a partir de 'partidos' (useTorneoGrupo) y no escriben aquí.
+      allow write: if isAdmin();
+    }
+
+    // Llaves de eliminatorias (Fase 2). Las crea el admin al cerrar grupos y solo el admin
+    // registra resultados / avanza ganadores (transacción en resolverPartidoPlayoffDB).
+    match /partidos_playoffs/{partidoId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() &&
+        request.resource.data.fase == 'playoff' &&
+        request.resource.data.torneoId is string &&
+        request.resource.data.ronda in ['play_in', 'cuartos', 'semifinal', 'final'];
+      allow delete: if isAdmin();
     }
 
     // Reglas para la colección 'biblioteca_videos' (Grabaciones, Repeticiones y Clips)
