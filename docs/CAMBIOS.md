@@ -28,13 +28,13 @@
 - Variables (`functions/.env.example`): `GMAIL_USER`, `MAIL_ADMIN_TO`, `MAIL_NOTIFY_PARTICIPANTS`, `MAIL_DRY_RUN`, `APP_URL`.
 - La contraseña `GMAIL_APP_PASSWORD` es un secreto y no se guarda en el repo.
 - Hace falta el plan Blaze para desplegar las Functions.
+- **Actualización:** las Functions se quitaron de `firebase.json` para no requerir Blaze. Los correos ahora los envía Google Apps Script (`apps-script/`).
 
 ## 6. Cómo probar y desplegar
 ```bash
 npm run test                      # tests del frontend (vitest)
 cd functions && npm install && npm test
-firebase functions:secrets:set GMAIL_APP_PASSWORD
-firebase deploy --only functions,firestore:rules
+firebase deploy   # hosting + reglas de Firestore (las Functions ya no se despliegan)
 ```
 - En local: copia `functions/.env.example` a `functions/.env` y pon el secreto en `functions/.secret.local`. Los dos están en `.gitignore`.
 - Con `MAIL_DRY_RUN=true` el correo se arma y queda en el log, pero no se envía.

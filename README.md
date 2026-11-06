@@ -402,27 +402,30 @@ El proyecto está configurado para desplegarse de manera continua en **Firebase 
 
 ---
 
-## 📧 Envío de correos (Cloud Functions)
+## 📧 Envío de correos (Google Apps Script, gratis)
 
-El cliente Vite **no puede** guardar la contraseña de Gmail (todo lo `VITE_*` llega al navegador), por eso los correos se envían desde **Firebase Cloud Functions** (`functions/`) con nodemailer + Gmail SMTP (contraseña de aplicación).
+Los correos automáticos se envían con **Google Apps Script**, sin plan Blaze ni costo.
+Instalación y detalles: [`apps-script/README.md`](apps-script/README.md).
 
-- `notificarCorreosTorneo` (Firestore onUpdate `torneos/{id}`, base `default`):
-  - Cuando el torneo obtiene `campeonId` (Gran Final resuelta) → correo a Felipe (`GMAIL_USER` + `MAIL_ADMIN_TO`) y en BCC a los inscritos con pago verificado (`MAIL_NOTIFY_PARTICIPANTS`).
-  - Cuando `transmisionEnVivoActiva` pasa a `true` con enlace → correo "EN VIVO" a Felipe/admins.
-  - Deduplicación en la colección `correos_enviados` (solo la escribe el Admin SDK).
-- `enviarCorreoPrueba` (callable, solo usuarios con `rol: 'admin'`) → prueba que va **solo** a GMAIL_USER / MAIL_ADMIN_TO.
+- 🏆 **Gran Final:** cuando el torneo obtiene `campeonId` → correo a los admins y en BCC a los inscritos con pago verificado.
+- 🔴 **EN VIVO:** cuando `transmisionEnVivoActiva` pasa a `true` con enlace → correo a los admins.
+- Revisa Firestore cada minuto, lee con la cuenta de Google dueña del proyecto y envía con su Gmail.
 
-### Configuración
-1. `cd functions && npm install`
-2. Copia `functions/.env.example` a `functions/.env` (GMAIL_USER, MAIL_ADMIN_TO, MAIL_NOTIFY_PARTICIPANTS, MAIL_DRY_RUN, APP_URL).
-3. Secreto: `npx firebase-tools functions:secrets:set GMAIL_APP_PASSWORD` (en el emulador usa `functions/.secret.local`, ignorado por git).
-4. Deploy (requiere plan Blaze): `npx firebase-tools deploy --only functions`
+### Despliegue
+Las Cloud Functions **ya no se despliegan** (exigen el plan Blaze), así que basta con:
+```bash
+npm run build
+firebase deploy
+```
+Eso sube Hosting y las reglas de Firestore.
+
+### Carpeta `functions/` (no se despliega)
+Se conserva como referencia: `functions/src/correo.js` es la plantilla de los correos y sus tests
+comprueban que el Apps Script envía exactamente el mismo contenido. Si algún día el proyecto pasa
+a Blaze, se puede volver a declarar `"functions"` en `firebase.json` y desplegarlas con
+`firebase deploy --only functions`.
 
 ### Probar
-- Tests sin envíos reales: `cd functions && npm test`
-- `MAIL_DRY_RUN=true` compone y registra el correo sin enviarlo.
-- Como admin, en la app:
-  ```js
-  import { getFunctions, httpsCallable } from 'firebase/functions'
-  await httpsCallable(getFunctions(undefined, 'us-central1'), 'enviarCorreoPrueba')()
-  ```
+- Tests de las plantillas y del Apps Script (sin envíos reales): `cd functions && npm install && npm test`
+- Correo de prueba real: en el editor de Apps Script ejecuta `enviarCorreoPrueba`.
+- Para probar sin enviar, pon `DRY_RUN: true` en el bloque `CONFIG` del script.

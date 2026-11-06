@@ -28,23 +28,6 @@
       "enabled": true,
       "port": 4000
     },
-    "singleProjectMode": true,
-    "functions": {
-      "port": 5001
-    }
-  },
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "runtime": "nodejs22",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "test",
-        "*.local",
-        ".env.example"
-      ]
-    }
-  ]
+    "singleProjectMode": true
+  }
 }
