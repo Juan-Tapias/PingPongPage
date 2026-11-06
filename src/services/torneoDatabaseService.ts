@@ -29,6 +29,7 @@ import type {
   JugadorTorneo,
 } from '@/types'
 import type { ActualizacionPlayoff } from '@/services/torneoAlgoritmos'
+import { obtenerPerfilesPublicos, conPerfilVigente } from '@/services/perfilesPublicosService'
 
 const COLECCION_TORNEOS = 'torneos'
 const COLECCION_PARTIDOS = 'partidos'
@@ -329,6 +330,11 @@ export const obtenerInscripcionesDB = async (torneoId: string, forzarRefresco = 
       inscripciones.push({ id: documento.id, ...documento.data() })
     })
     if (inscripciones.length > 0) {
+      // La inscripción guarda una copia del nombre/teléfono/foto: se reemplaza por el perfil vigente
+      const perfiles = await obtenerPerfilesPublicos(inscripciones.map((i) => i.jugadorId))
+      inscripciones.forEach((ins, idx) => {
+        inscripciones[idx] = conPerfilVigente(ins, perfiles.get(String(ins.jugadorId)))
+      })
       memoriaInscripcionesPorTorneo.set(torneoId, { data: inscripciones, timestamp: Date.now() })
       guardarCacheLocal(`spinapp_inscripciones_${torneoId}`, inscripciones)
       return inscripciones

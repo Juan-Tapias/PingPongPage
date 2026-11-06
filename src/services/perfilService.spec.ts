@@ -12,13 +12,14 @@ vi.mock('firebase/firestore', () => ({
   doc: (...args: unknown[]) => { m.docCalls.push(args); return { path: args.slice(1).join('/') } },
   updateDoc: m.updateDoc,
 }))
+vi.mock('@/services/perfilesPublicosService', () => ({ invalidarPerfilEnCache: vi.fn() }))
 vi.mock('@/services/cloudinaryService', () => ({
   subirACloudinary: m.subirACloudinary,
   eliminarConToken: m.eliminarConToken,
   transformarUrl: (url: string, t: string) => url.replace('/upload/', `/upload/${t}/`),
 }))
 
-import { guardarFotoPerfilUsuario, subirFotoPerfil } from './perfilService'
+import { guardarFotoPerfilUsuario, subirFotoPerfil, actualizarDatosPerfil } from './perfilService'
 
 const UID = 'u1'
 const url = (f: string) => `https://res.cloudinary.com/demo/image/upload/v1/spinapp/usuarios/${UID}/${f}`
@@ -91,5 +92,39 @@ describe('subirFotoPerfil', () => {
     const final = await subirFotoPerfil(UID, png())
     expect(m.subirACloudinary.mock.calls[0]?.[1]).toEqual({ tipo: 'image', carpeta: 'spinapp/usuarios/u1' })
     expect(final).toContain('/upload/c_fill,g_face,w_256,h_256,f_auto,q_auto/')
+  })
+})
+
+describe('actualizarDatosPerfil', () => {
+  it('guarda nombre, apellido y teléfono limpios en usuarios y sincroniza localStorage', async () => {
+    m.updateDoc.mockResolvedValue(undefined)
+    const r = await actualizarDatosPerfil(UID, { nombre: '  Felipe ', apellido: 'Corredor', telefono: '3208380860' })
+    expect(r).toEqual({ nombre: 'Felipe', apellido: 'Corredor', telefono: '3208380860' })
+    expect(m.docCalls[0]?.[1]).toBe('usuarios')
+    expect(m.updateDoc.mock.calls[0]?.[1]).toEqual(r)
+    const local = JSON.parse(mem.get('spinapp_usuario')!)
+    expect(local.nombre).toBe('Felipe')
+    expect(local.fotoUrl).toBe(url('old.jpg'))
+  })
+
+  it('rechaza teléfono inválido sin escribir en Firestore', async () => {
+    await expect(
+      actualizarDatosPerfil(UID, { nombre: 'Felipe', apellido: 'Corredor', telefono: 'abc' }),
+    ).rejects.toThrow(/teléfono/)
+    expect(m.updateDoc).not.toHaveBeenCalled()
+  })
+
+  it('rechaza nombre de una letra', async () => {
+    await expect(
+      actualizarDatosPerfil(UID, { nombre: 'F', apellido: 'Corredor', telefono: '3208380860' }),
+    ).rejects.toThrow(/nombre/)
+  })
+
+  it('Firestore falla -> propaga y no toca localStorage', async () => {
+    m.updateDoc.mockRejectedValue(new Error('permission-denied'))
+    await expect(
+      actualizarDatosPerfil(UID, { nombre: 'Felipe', apellido: 'Corredor', telefono: '3208380860' }),
+    ).rejects.toThrow('permission-denied')
+    expect(ls.setItem).not.toHaveBeenCalled()
   })
 })

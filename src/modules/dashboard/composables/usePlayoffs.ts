@@ -10,6 +10,12 @@ import type {
 import { useAuthStore } from '@/stores/auth'
 import { suscribirPartidosPlayoffsDB } from '@/services/torneoDatabaseService'
 import { generarEsqueletoPlayoffs, sonMismoJugador } from '@/services/torneoAlgoritmos'
+import {
+  obtenerPerfilesPublicos,
+  conPerfilVigente,
+  perfilDesdeUsuario,
+  type PerfilPublico,
+} from '@/services/perfilesPublicosService'
 
 export interface RondaCuadro {
   ronda: RondaPlayoff
@@ -114,10 +120,26 @@ export function usePlayoffs(
   const partidosProyeccion = computed(() => proyeccion.value.partidos)
   const errorProyeccion = computed(() => proyeccion.value.error)
 
+  // Las llaves guardan una copia del jugador: se superpone su perfil vigente (nombre, foto, teléfono)
+  const perfilesVigentes = ref<Map<string, PerfilPublico>>(new Map())
+  watch(
+    partidosPersistidos,
+    async (lista) => {
+      const ids = lista.flatMap((p) => [p.jugador1?.id, p.jugador2?.id]).filter((id): id is string => !!id)
+      if (ids.length === 0) return
+      perfilesVigentes.value = await obtenerPerfilesPublicos(ids)
+    },
+    { immediate: true },
+  )
+
   const marcarUsuario = (j?: JugadorTorneo | null): JugadorTorneo | null => {
     if (!j) return null
     const uid = authStore.usuario?.id
-    return { ...j, esUsuarioActual: !!uid && sonMismoJugador(j.id, uid) }
+    const esYo = !!uid && sonMismoJugador(j.id, uid)
+    const perfil = esYo && authStore.usuario
+      ? perfilDesdeUsuario(authStore.usuario)
+      : perfilesVigentes.value.get(j.id)
+    return { ...conPerfilVigente(j, perfil), esUsuarioActual: esYo }
   }
 
   const partidos = computed<PartidoPlayoff[]>(() => {

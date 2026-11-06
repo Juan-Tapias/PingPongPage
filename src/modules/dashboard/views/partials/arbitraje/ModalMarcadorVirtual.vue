@@ -565,7 +565,7 @@
                     class="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer py-1"
                     @click="mostrarModalFinPartido = false"
                   >
-                    Revisar mesa de juego
+                    Revisar mesa de juego (se guarda al cerrar)
                   </button>
                 </div>
               </div>
@@ -1311,7 +1311,11 @@ watch(partidoTerminado, (terminado) => {
   }
 })
 
+/** Evita registrar dos veces el mismo resultado (botón + cierre). Se reinicia al abrir. */
+const resultadoRegistrado = ref(false)
+
 const open = (partidoDirecto?: PartidoArbitrable) => {
+  resultadoRegistrado.value = false
   if (partidoDirecto) {
     matchInterno.value = partidoDirecto
   } else if (props.match) {
@@ -1384,6 +1388,12 @@ const close = () => {
 }
 
 const handleCerrarConConfirmacion = () => {
+  // Partido terminado y aún sin registrar: cerrar NUNCA debe descartar el resultado.
+  // Antes se cerraba sin guardar y el partido quedaba "Finalizado" en vivo pero sin jugarse.
+  if (partidoTerminado.value && !resultadoRegistrado.value) {
+    confirmarRegistroFinal()
+    return
+  }
   if (historialSets.value.length > 0 && !partidoTerminado.value) {
     modalConfirmarSalidaRef.value?.open()
     return
@@ -1402,6 +1412,8 @@ const invertirLados = () => {
 
 const confirmarRegistroFinal = () => {
   if (!matchActual.value || !ganadorPartido.value) return
+  if (resultadoRegistrado.value) return
+  resultadoRegistrado.value = true
 
   mostrarModalFinPartido.value = false
   modalFinPartidoRef.value?.close()

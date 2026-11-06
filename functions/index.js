@@ -56,6 +56,25 @@ const obtenerFinal = async (torneoId) => {
   return llaves.find((p) => p.anilloOrbital === 1 && !p.siguientePartidoId) || llaves.find((p) => !p.siguientePartidoId) || null
 }
 
+/**
+ * La llave guarda una copia del jugador de cuando se creó. Si alguien editó su perfil después,
+ * el correo debe usar el nombre y la foto vigentes de 'usuarios'.
+ */
+const conPerfilesVigentes = async (final) => {
+  if (!final) return final
+  const ids = [final.jugador1?.id, final.jugador2?.id].filter(Boolean)
+  if (ids.length === 0) return final
+  const snaps = await db.getAll(...ids.map((id) => db.collection('usuarios').doc(id)))
+  const perfiles = new Map(snaps.filter((s) => s.exists).map((s) => [s.id, s.data()]))
+  const actualizar = (j) => {
+    const u = j && perfiles.get(j.id)
+    if (!u) return j
+    const nombre = [u.nombre, u.apellido].filter(Boolean).join(' ').trim()
+    return { ...j, nombre: nombre || j.nombre, apellido: undefined, fotoUrl: u.fotoUrl || '' }
+  }
+  return { ...final, jugador1: actualizar(final.jugador1), jugador2: actualizar(final.jugador2) }
+}
+
 export const notificarCorreosTorneo = onDocumentUpdated(
   { document: 'torneos/{torneoId}', database: DATABASE_ID, region: REGION, secrets: [GMAIL_APP_PASSWORD] },
   async (event) => {
@@ -65,9 +84,12 @@ export const notificarCorreosTorneo = onDocumentUpdated(
     const c = env()
 
     if (debeNotificarGranFinal(antes, despues) && (await reclamarEnvio(`${torneoId}_granfinal_${despues.campeonId}`))) {
-      const final = await obtenerFinal(torneoId)
+      const final = await conPerfilesVigentes(await obtenerFinal(torneoId))
       const bcc = c.notificarParticipantes ? await emailsParticipantes(torneoId) : []
-      const r = await enviador()({ to: c.admins, bcc, ...componerCorreoGranFinal({ torneoId, torneo: despues, final, appUrl: c.appUrl }) })
+      // campeonNombre es una copia: si hay perfil vigente del campeón, manda ese nombre
+      const campeonVigente = [final?.jugador1, final?.jugador2].find((j) => j?.id === despues.campeonId)?.nombre
+      const torneo = campeonVigente ? { ...despues, campeonNombre: campeonVigente } : despues
+      const r = await enviador()({ to: c.admins, bcc, ...componerCorreoGranFinal({ torneoId, torneo, final, appUrl: c.appUrl }) })
       logger.info('Correo Gran Final', { torneoId, dryRun: r.dryRun, participantes: bcc.length })
     }
 

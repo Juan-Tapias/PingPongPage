@@ -33,6 +33,7 @@ import {
   calcularFechaLimiteHabiles,
   calcularTiempoRestanteHabil,
   normalizarFotoUrl,
+  resultadoNoGuardado,
 } from '@/services/torneoAlgoritmos'
 
 export interface MalleroTorneo {
@@ -96,11 +97,15 @@ export function useTorneoGrupo(torneo: Torneo) {
         inscritos.forEach((ins: any) => {
           const idJugador = ins.jugadorId || ins.id
           if (!mapaJugadores.has(idJugador)) {
+            // Para el propio usuario manda su sesión: refleja al instante una edición de perfil
+            const esYo = idJugador === authStore.usuario?.id && usuarioActual
             mapaJugadores.set(idJugador, {
               id: idJugador,
-              nombre: ins.nombre || ins.jugadorNombre || 'Participante',
-              iniciales: ins.iniciales || (ins.nombre ? ins.nombre.substring(0, 2).toUpperCase() : 'JG'),
-              telefono: ins.telefono || '',
+              nombre: esYo ? usuarioActual.nombre : ins.nombre || ins.jugadorNombre || 'Participante',
+              iniciales: esYo
+                ? usuarioActual.iniciales
+                : ins.iniciales || (ins.nombre ? ins.nombre.substring(0, 2).toUpperCase() : 'JG'),
+              telefono: esYo ? usuarioActual.telefono : ins.telefono || '',
               tipo: ins.tipo || 'camper',
               fotoUrl: normalizarFotoUrl(
                 ins.fotoUrl,
@@ -754,6 +759,8 @@ export function useTorneoGrupo(torneo: Torneo) {
       perdedorPorWId?: string
       ganadorBolaId?: string | null
       motivoWO?: string
+      /** Árbitro real del partido (al recuperar un resultado lo guarda otra persona). */
+      arbitroId?: string
     },
   ) => {
     const pIndex = partidos.value.findIndex((p) => p.id === partidoId)
@@ -769,7 +776,7 @@ export function useTorneoGrupo(torneo: Torneo) {
     const marcadorDetallado =
       datosExtra?.marcadorDetallado || setsJugados.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
 
-    const arbitroIdSeguro = arbitroActual.value?.id ?? usuarioActual?.id ?? ''
+    const arbitroIdSeguro = datosExtra?.arbitroId || arbitroActual.value?.id || usuarioActual?.id || ''
 
     const partidoActualizado: PartidoGrupo = {
       ...partido,
@@ -909,6 +916,41 @@ export function useTorneoGrupo(torneo: Torneo) {
       console.warn('Error al prorrogar plazo de partido en DB:', err)
     }
   }
+
+  // Auto-recuperación: partidos que el marcador en vivo da por terminados (2 sets ganados) pero que
+  // nunca se registraron como 'jugado' porque el árbitro cerró el marcador sin guardar.
+  // Solo lo intenta alguien involucrado (admin, el árbitro o uno de los dos jugadores), una vez por partido.
+  const recuperacionesIntentadas = new Set<string>()
+  watch(
+    partidos,
+    (lista) => {
+      const yo = authStore.usuario?.id
+      if (!yo) return
+      for (const p of lista) {
+        if (recuperacionesIntentadas.has(p.id)) continue
+        const recuperable = resultadoNoGuardado(p)
+        if (!recuperable) continue
+        // Margen para que el árbitro termine de revisar/corregir antes de que otro lo guarde
+        const quieto = Date.now() - Number(p.marcadorEnVivo?.actualizadoEn || 0) > 10 * 60 * 1000
+        if (!quieto) continue
+        const involucrado =
+          Boolean(authStore.esAdmin) ||
+          sonMismoJugador(p.arbitroActivoId, yo) ||
+          sonMismoJugador(p.jugador1Id, yo) ||
+          sonMismoJugador(p.jugador2Id, yo)
+        if (!involucrado) continue
+        recuperacionesIntentadas.add(p.id)
+        console.info('[useTorneoGrupo] Registrando resultado que quedó sin guardar:', p.id, recuperable.marcador)
+        void registrarResultadoPartido(p.id, recuperable.sets, recuperable.ganadorId, {
+          marcador: recuperable.marcador,
+          marcadorDetallado: recuperable.marcadorDetallado,
+          ganadorBolaId: recuperable.ganadorBolaId,
+          arbitroId: p.arbitroActivoId || undefined,
+        })
+      }
+    },
+    { immediate: true },
+  )
 
   // Tabla de posiciones oficial en tiempo real calculada directamente sobre los partidos reales disputados
   const tablaPosiciones = computed<FilaPosicion[]>(() => {
