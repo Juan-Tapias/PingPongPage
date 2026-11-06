@@ -17,11 +17,13 @@
       @error="handleErrorImagen"
     />
 
-    <!-- Fallback Dinámico con degradado reglamentario #f97316 a #38bdf8 e Iniciales -->
+    <!-- Sin foto: fondo oscuro clásico con iniciales (cada vista puede pasar su propio fondo) -->
     <div
       v-else
-      class="w-full h-full flex items-center justify-center font-black tracking-wider uppercase text-white shadow-inner"
-      style="background: linear-gradient(135deg, #f97316 0%, #38bdf8 100%);"
+      :class="[
+        'w-full h-full flex items-center justify-center font-black tracking-wider uppercase text-white shadow-inner',
+        fondoClass,
+      ]"
     >
       <span :class="claseTexto">{{ textoIniciales }}</span>
     </div>
@@ -41,8 +43,11 @@ const props = withDefaults(
     iniciales?: string
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
     ringClass?: string | string[]
+    /** Fondo cuando no hay foto (clases de Tailwind). */
+    fondoClass?: string
   }>(),
   {
+    fondoClass: 'bg-slate-900 dark:bg-slate-800',
     fotoUrl: null,
     nombre: '',
     iniciales: '',

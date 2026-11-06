@@ -119,6 +119,7 @@
                 :foto-url="authStore.usuario?.fotoUrl"
                 :nombre="authStore.usuario?.nombre"
                 size="sm"
+                fondo-class="bg-gradient-to-tr from-sky-600 to-blue-500"
                 ring-class="ring-2 ring-sky-500/20 group-hover:ring-sky-500/40"
               />
               <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0f172a]" />
@@ -150,6 +151,7 @@
                   :foto-url="authStore.usuario?.fotoUrl"
                   :nombre="authStore.usuario?.nombre"
                   size="lg"
+                  fondo-class="bg-gradient-to-tr from-sky-600 via-blue-500 to-indigo-600"
                   ring-class="shadow-md shadow-sky-500/20"
                 />
                 <div class="min-w-0 flex-1">

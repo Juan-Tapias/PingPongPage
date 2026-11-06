@@ -268,7 +268,25 @@ VITE_FIREBASE_PROJECT_ID=tu_proyecto_id
 VITE_FIREBASE_STORAGE_BUCKET=tu_proyecto.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
 VITE_FIREBASE_APP_ID=tu_app_id
+
+# Cloudinary: fotos de perfil, videos y miniaturas de la biblioteca
+VITE_CLOUDINARY_CLOUD_NAME=tu_cloud_name
+VITE_CLOUDINARY_UPLOAD_PRESET=tu_preset_unsigned
 ```
+
+#### Configurar Cloudinary (plan gratuito)
+Las imágenes y videos se suben a **Cloudinary** (ya no a Firebase Storage, que exige el plan Blaze).
+1. Crea una cuenta gratuita en cloudinary.com y copia el **Cloud name** del Dashboard.
+2. En **Settings → Upload → Upload presets** crea un preset con **Signing mode: Unsigned** y:
+   - **Allowed formats:** `jpg, png, webp, mp4, webm`.
+   - **Return delete token:** activado (permite deshacer una foto si falla el guardado en Firestore).
+   - Opcional: **Max file size** y una carpeta base.
+3. Pon ambos valores en `.env` y reinicia `npm run dev`. **Nunca** pongas el API secret en el frontend.
+
+Límites del plan gratuito: 25 créditos/mes (1 crédito = 1 GB almacenado, 1 GB de transferencia o 1.000 transformaciones), imágenes de hasta 10 MB y videos de hasta 100 MB. Las fotos de perfil se guardan con la transformación `c_fill,g_face,w_256,h_256,f_auto,q_auto` y las miniaturas a 640x360.
+
+> [!NOTE]
+> Con un preset unsigned el navegador no puede borrar archivos antiguos (requiere el API secret). Al cambiar de foto, la anterior queda en Cloudinary; se puede limpiar desde la Media Library.
 
 > [!IMPORTANT]
 > Nunca subas el archivo `.env` al control de versiones. Las variables que inician con el prefijo `VITE_` son expuestas públicamente en el paquete cliente por diseño de Vite.

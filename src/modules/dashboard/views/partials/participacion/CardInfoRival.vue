@@ -7,6 +7,7 @@
           :nombre="rival.jugador.nombre"
           :iniciales="rival.jugador.iniciales"
           size="md"
+          fondo-class="bg-slate-900 dark:bg-sky-600"
           :ring-class="rival.esRivalDeTurno ? 'ring-2 ring-sky-400 dark:ring-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]' : ''"
         />
         <div>

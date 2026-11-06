@@ -108,7 +108,7 @@
                 </button>
               </div>
 
-              <!-- Modo Archivo Local para Subir a Firebase Storage -->
+              <!-- Modo Archivo Local para Subir a Cloudinary -->
               <div v-if="modoVideo === 'archivo'" class="space-y-2">
                 <div class="p-3 rounded-2xl bg-slate-950 border border-dashed border-slate-700 hover:border-orange-500 transition-colors flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer relative">
                   <input
@@ -249,7 +249,7 @@
             <!-- Barra de Progreso de Subida si está subiendo -->
             <div v-if="guardando && modoVideo === 'archivo'" class="space-y-1.5 p-3 rounded-2xl bg-slate-950 border border-orange-500/30">
               <div class="flex items-center justify-between text-xs font-bold text-orange-400">
-                <span>Subiendo video a Firebase Storage...</span>
+                <span>Subiendo video a la nube...</span>
                 <span>{{ progresoSubidaVideo }}%</span>
               </div>
               <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -422,7 +422,7 @@ const handleSubmit = async () => {
     let finalVideoUrl = ''
     let finalMiniaturaUrl = miniaturaPreviewUrl.value || '/images/table-vertical.jpg'
 
-    // 1. Subida del archivo de video a Firebase Storage si aplica
+    // 1. Subida del archivo de video a Cloudinary si aplica
     if (modoVideo.value === 'archivo' && archivoVideoFile.value) {
       finalVideoUrl = await subirArchivoVideo(archivoVideoFile.value, (pct) => {
         progresoSubidaVideo.value = pct
@@ -431,7 +431,7 @@ const handleSubmit = async () => {
       finalVideoUrl = urlVideo.value.trim()
     }
 
-    // 2. Subida de imagen personalizada a Storage si se cargó un archivo de imagen
+    // 2. Subida de imagen personalizada a Cloudinary si se cargó un archivo de imagen
     if (archivoMiniaturaFile.value) {
       finalMiniaturaUrl = await subirArchivoImagen(archivoMiniaturaFile.value)
     }
@@ -455,7 +455,7 @@ const handleSubmit = async () => {
     cerrar()
   } catch (err: any) {
     console.error('[ModalSubirClip] Error al publicar video:', err)
-    alert('Error al subir el video a la nube. Por favor verifica tu conexión o tamaño de archivo.')
+    alert(err?.message || 'Error al subir el video a la nube. Por favor verifica tu conexión o tamaño de archivo.')
   } finally {
     guardando.value = false
   }

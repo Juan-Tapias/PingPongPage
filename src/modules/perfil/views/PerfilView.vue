@@ -26,22 +26,93 @@
         <div class="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-orange-500 via-amber-400 to-sky-400" />
 
         <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 pt-2">
-          <!-- Avatar Principal con Previsualización Reactiva -->
-          <div class="relative group">
-            <AvatarJugador
-              :foto-url="previsualizacionUrl || authStore.usuario?.fotoUrl"
-              :nombre="authStore.usuario?.nombre"
-              size="3xl"
-              ring-class="ring-4 ring-orange-500/30 shadow-2xl"
+          <!-- Avatar Principal: clic o "Editar" abre el menú; también acepta arrastrar una foto -->
+          <div
+            class="relative shrink-0"
+            @dragover.prevent="arrastrando = true"
+            @dragleave.prevent="arrastrando = false"
+            @drop.prevent="handleDrop"
+          >
+            <input
+              ref="inputArchivoRef"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              class="hidden"
+              @change="handleSeleccionArchivo"
             />
 
-            <!-- Badge de estado -->
-            <span
-              class="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-[#0c1222] shadow-md flex items-center justify-center text-[10px] text-white font-bold"
-              title="Jugador Activo"
+            <button
+              type="button"
+              class="relative block rounded-full cursor-pointer focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-500/40"
+              :disabled="ocupado"
+              aria-label="Cambiar foto de perfil"
+              @click="menuFotoAbierto = !menuFotoAbierto"
             >
-              ✓
-            </span>
+              <AvatarJugador
+                :foto-url="previsualizacionUrl || authStore.usuario?.fotoUrl"
+                :nombre="authStore.usuario?.nombre"
+                size="3xl"
+                :ring-class="arrastrando ? 'ring-4 ring-sky-400 shadow-2xl' : 'ring-4 ring-orange-500/30 shadow-2xl'"
+              />
+              <!-- Capa de carga mientras sube -->
+              <span
+                v-if="ocupado"
+                class="absolute inset-0 rounded-full bg-black/55 flex items-center justify-center"
+              >
+                <Loader2 class="w-7 h-7 text-white animate-spin" />
+              </span>
+            </button>
+
+            <!-- Botón Editar (estilo discreto, abajo a la izquierda) -->
+            <button
+              type="button"
+              :disabled="ocupado"
+              class="absolute bottom-1 left-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/95 dark:bg-[#0c1222]/95 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 shadow-sm hover:border-slate-400 dark:hover:border-slate-500 transition-colors cursor-pointer disabled:opacity-60"
+              @click="menuFotoAbierto = !menuFotoAbierto"
+            >
+              <Pencil class="w-3.5 h-3.5" />
+              <span>Editar</span>
+            </button>
+
+            <!-- Menú de opciones de foto -->
+            <template v-if="menuFotoAbierto">
+              <div class="fixed inset-0 z-20" @click="menuFotoAbierto = false" />
+              <div
+                class="absolute left-0 top-full mt-2 z-30 w-52 py-1.5 rounded-xl bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-slate-700 shadow-xl text-sm"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 cursor-pointer"
+                  @click="abrirSelectorArchivo"
+                >
+                  <Upload class="w-4 h-4 text-slate-400" />
+                  <span>Subir una foto…</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 cursor-pointer"
+                  @click="irAPresets"
+                >
+                  <Sparkles class="w-4 h-4 text-slate-400" />
+                  <span>Elegir un avatar</span>
+                </button>
+                <template v-if="authStore.usuario?.fotoUrl">
+                  <div class="my-1 border-t border-slate-200 dark:border-slate-700" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="w-full flex items-center gap-2.5 px-3.5 py-2 text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                    @click="menuFotoAbierto = false; quitarFotoPerfil()"
+                  >
+                    <Trash2 class="w-4 h-4" />
+                    <span>Quitar foto</span>
+                  </button>
+                </template>
+              </div>
+            </template>
           </div>
 
           <!-- Información del Usuario -->
@@ -134,183 +205,55 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- ============================================== -->
-        <!-- SECCIÓN 1: SUBIDA DE FOTO PERSONAL             -->
-        <!-- ============================================== -->
-        <div class="p-6 rounded-3xl bg-white dark:bg-[#0c1222] border border-slate-200/90 dark:border-slate-800/90 shadow-sm flex flex-col justify-between gap-5">
-          <div class="space-y-3">
-            <div class="flex items-center gap-2.5">
-              <div class="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
-                <Camera class="w-5 h-5 text-orange-500" />
-              </div>
-              <div>
-                <h3 class="text-base font-black text-slate-900 dark:text-white font-heading">
-                  1. Subir Foto Personal
-                </h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                  Archivos .jpg, .png o .webp (máx. 3 MB)
-                </p>
-              </div>
-            </div>
-
-            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Sube una imagen cuadrada o nítida de tu rostro para que tus rivales te identifiquen de inmediato en las burbujas de partido y en el correo oficial de la Gran Final.
-            </p>
-
-            <!-- Zona Dropzone / Selector de Archivo -->
-            <div
-              class="relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2"
-              :class="[
-                arrastrando
-                  ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-950/20'
-                  : 'border-slate-300 dark:border-slate-700 hover:border-orange-500/70 bg-slate-50/50 dark:bg-slate-900/30'
-              ]"
-              @dragover.prevent="arrastrando = true"
-              @dragleave.prevent="arrastrando = false"
-              @drop.prevent="handleDrop"
-              @click="abrirSelectorArchivo"
-            >
-              <input
-                ref="inputArchivoRef"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                class="hidden"
-                @change="handleSeleccionArchivo"
-              />
-
-              <div class="w-12 h-12 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center">
-                <UploadCloud class="w-6 h-6" />
-              </div>
-
-              <div class="space-y-0.5">
-                <p class="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-                  <span class="text-orange-600 dark:text-orange-400 underline">Haz clic para elegir</span> o arrastra tu foto aquí
-                </p>
-                <p class="text-[11px] text-slate-400">
-                  JPG, PNG o WEBP de hasta 3MB
-                </p>
-              </div>
-
-              <div v-if="archivoSeleccionado" class="mt-2 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 border border-orange-200 dark:border-orange-800 flex items-center gap-2 text-xs font-bold text-orange-700 dark:text-orange-300">
-                <ImageIcon class="w-3.5 h-3.5" />
-                <span class="truncate max-w-[200px]">{{ archivoSeleccionado.name }}</span>
-                <span class="text-[10px] text-orange-500 font-mono">({{ formatearTamano(archivoSeleccionado.size) }})</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              :disabled="!archivoSeleccionado || guardandoFoto"
-              class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-              @click="guardarFotoSubida"
-            >
-              <Loader2 v-if="guardandoFoto" class="w-4 h-4 animate-spin" />
-              <Check v-else class="w-4 h-4" />
-              <span>{{ guardandoFoto ? 'Subiendo a Storage...' : 'Guardar Foto Personal' }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- ============================================== -->
-        <!-- SECCIÓN 2: CATÁLOGO DE AVATARES PRESET         -->
-        <!-- ============================================== -->
-        <div class="p-6 rounded-3xl bg-white dark:bg-[#0c1222] border border-slate-200/90 dark:border-slate-800/90 shadow-sm flex flex-col justify-between gap-5">
-          <div class="space-y-3">
-            <div class="flex items-center gap-2.5">
-              <div class="w-10 h-10 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold">
-                <Sparkles class="w-5 h-5 text-sky-500" />
-              </div>
-              <div>
-                <h3 class="text-base font-black text-slate-900 dark:text-white font-heading">
-                  2. Avatares Deportivos (Presets)
-                </h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400">
-                  Temática oficial de tenis de mesa
-                </p>
-              </div>
-            </div>
-
-            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              ¿Prefieres no subir tu foto personal? Elige uno de nuestros 5 avatares vectoriales de campeonato para lucirlo en el torneo:
-            </p>
-
-            <!-- Cuadrícula de Presets -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
-              <button
-                v-for="preset in AVATARES_PRESET"
-                :key="preset.id"
-                type="button"
-                :class="[
-                  'group p-3 rounded-2xl border transition-all text-center flex flex-col items-center justify-center gap-2 cursor-pointer',
-                  presetSeleccionadoId === preset.id
-                    ? 'border-sky-500 bg-sky-50/60 dark:bg-sky-950/40 ring-2 ring-sky-500/30 shadow-md'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-sky-400 bg-slate-50/50 dark:bg-slate-900/40'
-                ]"
-                @click="seleccionarPreset(preset)"
-              >
-                <div class="w-14 h-14 rounded-full overflow-hidden shadow-md ring-2 ring-white/40 group-hover:scale-105 transition-transform">
-                  <img :src="preset.dataUrl" :alt="preset.nombre" class="w-full h-full object-cover" />
-                </div>
-                <div class="min-w-0">
-                  <span class="text-xs font-black text-slate-900 dark:text-white block truncate leading-tight">
-                    {{ preset.nombre }}
-                  </span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400 block line-clamp-1 mt-0.5">
-                    {{ preset.descripcion }}
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              :disabled="!presetSeleccionadoId || guardandoPreset"
-              class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-500 hover:from-sky-500 hover:to-blue-400 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-sky-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-              @click="guardarPresetSeleccionado"
-            >
-              <Loader2 v-if="guardandoPreset" class="w-4 h-4 animate-spin" />
-              <Check v-else class="w-4 h-4" />
-              <span>{{ guardandoPreset ? 'Guardando...' : 'Aplicar Avatar Elegido' }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- SECCIÓN 3: RESTAURAR INICIALES CON FONDO DEGRADADO NARANJA/AZUL -->
-      <div class="p-6 rounded-3xl bg-white dark:bg-[#0c1222] border border-slate-200/90 dark:border-slate-800/90 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div class="flex items-center gap-4 text-center sm:text-left">
-          <div
-            class="w-12 h-12 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 shadow-md"
-            style="background: linear-gradient(135deg, #f97316 0%, #38bdf8 100%);"
-          >
-            {{ userInitials }}
-          </div>
-          <div class="space-y-0.5">
-            <h4 class="text-sm font-black text-slate-900 dark:text-white">
-              3. Iniciales con Fondo Degradado Naranja/Azul
-            </h4>
+      <!-- Avatares deportivos (presets) -->
+      <section
+        ref="seccionPresetsRef"
+        class="p-6 rounded-3xl bg-white dark:bg-[#0c1222] border border-slate-200/90 dark:border-slate-800/90 shadow-sm space-y-4 scroll-mt-24"
+      >
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+          <div>
+            <h3 class="text-base font-black text-slate-900 dark:text-white font-heading">
+              Avatares deportivos
+            </h3>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              Degradado oficial (#f97316 a #38bdf8). Si no tienes foto o deseas quitarla, volverás a este estilo clásico.
+              ¿Prefieres no usar tu foto? Elige uno de campeonato.
             </p>
           </div>
+          <button
+            type="button"
+            :disabled="!presetSeleccionadoId || guardandoPreset"
+            class="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            @click="guardarPresetSeleccionado"
+          >
+            <Loader2 v-if="guardandoPreset" class="w-3.5 h-3.5 animate-spin" />
+            <Check v-else class="w-3.5 h-3.5" />
+            <span>{{ guardandoPreset ? 'Guardando...' : 'Aplicar avatar' }}</span>
+          </button>
         </div>
 
-        <button
-          v-if="authStore.usuario?.fotoUrl"
-          type="button"
-          :disabled="eliminandoFoto"
-          class="px-4 py-2.5 rounded-xl border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 disabled:opacity-50"
-          @click="quitarFotoPerfil"
-        >
-          <Trash2 class="w-3.5 h-3.5" />
-          <span>{{ eliminandoFoto ? 'Quitando...' : 'Quitar Foto / Usar Iniciales' }}</span>
-        </button>
-      </div>
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          <button
+            v-for="preset in AVATARES_PRESET"
+            :key="preset.id"
+            type="button"
+            :title="preset.descripcion"
+            :class="[
+              'group p-3 rounded-2xl border transition-all text-center flex flex-col items-center gap-2 cursor-pointer',
+              presetSeleccionadoId === preset.id
+                ? 'border-sky-500 bg-sky-50/60 dark:bg-sky-950/40 ring-2 ring-sky-500/30'
+                : 'border-slate-200 dark:border-slate-800 hover:border-sky-400 bg-slate-50/50 dark:bg-slate-900/40'
+            ]"
+            @click="seleccionarPreset(preset)"
+          >
+            <div class="w-12 h-12 rounded-full overflow-hidden shadow-md group-hover:scale-105 transition-transform">
+              <img :src="preset.dataUrl" :alt="preset.nombre" class="w-full h-full object-cover" />
+            </div>
+            <span class="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">
+              {{ preset.nombre }}
+            </span>
+          </button>
+        </div>
+      </section>
     </main>
 
     <Footer />
@@ -322,8 +265,8 @@ import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   ArrowLeft,
-  Camera,
-  UploadCloud,
+  Upload,
+  Pencil,
   Sparkles,
   CheckCircle2,
   AlertTriangle,
@@ -336,7 +279,6 @@ import {
   GraduationCap,
   Briefcase,
   Phone,
-  ImageIcon,
 } from 'lucide-vue-next'
 import Navbar from '@/components/Navbar.vue'
 import Footer from '@/components/Footer.vue'
@@ -345,7 +287,7 @@ import AvatarJugador from '@/components/AvatarJugador.vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   AVATARES_PRESET,
-  subirFotoPerfilStorage,
+  subirFotoPerfil,
   guardarFotoPerfilUsuario,
   validarArchivoImagen,
   type AvatarPreset,
@@ -365,14 +307,19 @@ const presetSeleccionadoId = ref<string | null>(null)
 const mensajeExito = ref('')
 const errorOperacion = ref('')
 
-const userInitials = computed(() => {
-  const n = authStore.usuario?.nombre?.[0] || 'S'
-  const a = authStore.usuario?.apellido?.[0] || 'P'
-  return `${n}${a}`.toUpperCase()
-})
+const menuFotoAbierto = ref(false)
+const seccionPresetsRef = ref<HTMLElement | null>(null)
+
+const ocupado = computed(() => guardandoFoto.value || eliminandoFoto.value)
 
 const abrirSelectorArchivo = () => {
+  menuFotoAbierto.value = false
   inputArchivoRef.value?.click()
+}
+
+const irAPresets = () => {
+  menuFotoAbierto.value = false
+  seccionPresetsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 const procesarArchivo = (archivo: File) => {
@@ -394,6 +341,9 @@ const procesarArchivo = (archivo: File) => {
     previsualizacionUrl.value = e.target?.result as string
   }
   reader.readAsDataURL(archivo)
+
+  // Se guarda de inmediato: sin botón extra de "Guardar"
+  void guardarFotoSubida()
 }
 
 const handleSeleccionArchivo = (e: Event) => {
@@ -401,6 +351,8 @@ const handleSeleccionArchivo = (e: Event) => {
   if (target.files && target.files[0]) {
     procesarArchivo(target.files[0])
   }
+  // Permite volver a elegir el mismo archivo
+  target.value = ''
 }
 
 const handleDrop = (e: DragEvent) => {
@@ -426,7 +378,7 @@ const guardarFotoSubida = async () => {
   mensajeExito.value = ''
 
   try {
-    const urlDescarga = await subirFotoPerfilStorage(
+    const urlDescarga = await subirFotoPerfil(
       authStore.usuario.id,
       archivoSeleccionado.value
     )
@@ -437,9 +389,11 @@ const guardarFotoSubida = async () => {
     authStore.usuario.fotoUrl = urlDescarga
     previsualizacionUrl.value = urlDescarga
     archivoSeleccionado.value = null
-    mensajeExito.value = '¡Foto de perfil actualizada exitosamente en Firebase Storage!'
+    mensajeExito.value = '¡Foto de perfil actualizada exitosamente!'
   } catch (err: any) {
     console.error('Error al subir avatar:', err)
+    previsualizacionUrl.value = null
+    archivoSeleccionado.value = null
     errorOperacion.value = err.message || 'No fue posible subir la imagen. Inténtalo de nuevo.'
   } finally {
     guardandoFoto.value = false
@@ -491,10 +445,5 @@ const quitarFotoPerfil = async () => {
   }
 }
 
-const formatearTamano = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
-}
 </script>
 
