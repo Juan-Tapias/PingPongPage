@@ -827,3 +827,48 @@ export function generarEsqueletoPlayoffs(N: number, torneoId: string = 'esquelet
     estado: 'pendiente' as PartidoPlayoff['estado'],
   }))
 }
+
+// ==========================================
+// RECUPERACIÓN DE RESULTADOS NO GUARDADOS
+// ==========================================
+
+export interface ResultadoRecuperable {
+  ganadorId: string
+  sets: import('@/types').SetPartido[]
+  marcador: string
+  marcadorDetallado: string
+  ganadorBolaId: string | null
+}
+
+/**
+ * Un partido cuyo marcador en vivo dice "finalizado" (alguien ganó 2 sets) pero que nunca se
+ * registró como 'jugado' (el árbitro cerró el marcador sin pulsar "Registrar"). Si los sets del
+ * marcador en vivo son coherentes, devuelve el resultado listo para guardar; si no, null.
+ */
+export function resultadoNoGuardado(p: {
+  estado?: string
+  jugador1Id: string
+  jugador2Id: string
+  marcadorEnVivo?: import('@/types').MarcadorEnVivo | null
+}): ResultadoRecuperable | null {
+  const vivo = p.marcadorEnVivo
+  if (p.estado === 'jugado' || !vivo?.finalizado || !vivo.ganadorId) return null
+  const sets = (vivo.historialSets ?? []).filter((s) => s && s.ganadorId)
+  if (sets.length < 2 || sets.length > 3) return null
+
+  const ganados1 = sets.filter((s) => sonMismoJugador(s.ganadorId, p.jugador1Id)).length
+  const ganados2 = sets.filter((s) => sonMismoJugador(s.ganadorId, p.jugador2Id)).length
+  if (ganados1 + ganados2 !== sets.length) return null // sets con un ganador ajeno al partido
+
+  const ganadorPorSets = ganados1 >= 2 ? p.jugador1Id : ganados2 >= 2 ? p.jugador2Id : null
+  if (!ganadorPorSets || !sonMismoJugador(ganadorPorSets, vivo.ganadorId)) return null
+
+  const ordenados = [...sets].sort((a, b) => Number(a.setNumero) - Number(b.setNumero))
+  return {
+    ganadorId: ganadorPorSets,
+    sets: ordenados,
+    marcador: `${ganados1} - ${ganados2}`,
+    marcadorDetallado: ordenados.map((s) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', '),
+    ganadorBolaId: vivo.ganadorBolaId ?? ordenados.find((s) => s.ganadorBolaId)?.ganadorBolaId ?? null,
+  }
+}

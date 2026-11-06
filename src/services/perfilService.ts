@@ -1,4 +1,6 @@
 import { doc, updateDoc } from 'firebase/firestore'
+import { z } from 'zod'
+import { invalidarPerfilEnCache } from '@/services/perfilesPublicosService'
 import { db } from '@/services/firebase'
 import { subirACloudinary, eliminarConToken, transformarUrl } from '@/services/cloudinaryService'
 import type { Usuario } from '@/types'
@@ -198,17 +200,48 @@ export const guardarFotoPerfilUsuario = async (
     throw err instanceof Error ? err : new Error('No se pudo guardar la foto de perfil.')
   }
   tokensPendientes.delete(fotoUrl)
+  invalidarPerfilEnCache(uid)
+  sincronizarUsuarioLocal(uid, { fotoUrl })
+}
 
+/** Copia los cambios ya confirmados en Firestore al usuario cacheado en localStorage. Nunca lanza. */
+const sincronizarUsuarioLocal = (uid: string, cambios: Partial<Usuario>): void => {
   try {
     const raw = localStorage.getItem('spinapp_usuario')
     if (raw) {
       const u = JSON.parse(raw) as Usuario
       if (u && u.id === uid) {
-        u.fotoUrl = fotoUrl
-        localStorage.setItem('spinapp_usuario', JSON.stringify(u))
+        localStorage.setItem('spinapp_usuario', JSON.stringify({ ...u, ...cambios }))
       }
     }
   } catch {
     // localStorage no disponible: el perfil remoto ya quedó actualizado
   }
+}
+
+/** Mismas reglas que el registro (authSchemas): nombre y apellido de 2+ letras, teléfono de 7 a 15. */
+export const datosPerfilSchema = z.object({
+  nombre: z.string().trim().min(2, 'El nombre debe tener al menos 2 caracteres').max(40, 'Máximo 40 caracteres'),
+  apellido: z.string().trim().min(2, 'El apellido debe tener al menos 2 caracteres').max(40, 'Máximo 40 caracteres'),
+  telefono: z
+    .string()
+    .trim()
+    .regex(/^[0-9+ ]{7,15}$/, 'Ingresa un número de teléfono válido (7 a 15 dígitos)'),
+})
+
+export type DatosPerfil = z.infer<typeof datosPerfilSchema>
+
+/**
+ * Actualiza nombre, apellido y teléfono del jugador en 'usuarios'. Las reglas de Firestore ya
+ * permiten que el dueño edite estos campos. Valida antes de escribir y retorna los datos limpios.
+ */
+export const actualizarDatosPerfil = async (uid: string, datos: DatosPerfil): Promise<DatosPerfil> => {
+  const resultado = datosPerfilSchema.safeParse(datos)
+  if (!resultado.success) {
+    throw new Error(resultado.error.issues[0]?.message || 'Datos de perfil no válidos.')
+  }
+  await updateDoc(doc(db, 'usuarios', uid), resultado.data)
+  invalidarPerfilEnCache(uid)
+  sincronizarUsuarioLocal(uid, resultado.data)
+  return resultado.data
 }

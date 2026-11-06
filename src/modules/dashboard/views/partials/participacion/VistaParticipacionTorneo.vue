@@ -406,7 +406,7 @@
     </div>
 
     <div v-show="tabActiva === 'posiciones'" class="w-full">
-      <TablaPosicionesGrupo :posiciones="tablaPosiciones" />
+      <TablaPosicionesGrupo :posiciones="tablaPosiciones" :partidos="partidos" />
     </div>
 
     <!-- VISTA DE ELIMINATORIAS (PLAYOFFS) -->
