@@ -8,7 +8,8 @@
 ## 2. Reglas Firestore / Storage
 - `storage.rules` (nuevo): avatares solo los escribe su dueño, solo imágenes y máximo 3 MB; `biblioteca/` lectura pública y escritura autenticada; todo lo demás cerrado.
 - `firestore.rules` actualizado para las nuevas colecciones (p. ej. `partidos_playoffs`).
-- `firebase.json` registra reglas de Storage y el codebase de `functions/`.
+- `firebase.json` registra el codebase de `functions/`.
+- **Actualización:** Firebase Storage se retiró (exige plan Blaze). Imágenes y videos ahora van a Cloudinary; `storage.rules` ya no existe.
 
 ## 3. Transmisión EN VIVO
 - Store Pinia `src/stores/torneosEnVivo.ts`, que se usa en el `Navbar` para mostrar los torneos en vivo.
@@ -33,7 +34,7 @@
 npm run test                      # tests del frontend (vitest)
 cd functions && npm install && npm test
 firebase functions:secrets:set GMAIL_APP_PASSWORD
-firebase deploy --only functions,firestore:rules,storage
+firebase deploy --only functions,firestore:rules
 ```
 - En local: copia `functions/.env.example` a `functions/.env` y pon el secreto en `functions/.secret.local`. Los dos están en `.gitignore`.
 - Con `MAIL_DRY_RUN=true` el correo se arma y queda en el log, pero no se envía.
