@@ -160,7 +160,7 @@ export function useGrabadorClips() {
   }
 
   /**
-   * Procesa el clip grabado, lo sube a Firebase Storage (o fallback) y lo añade a la biblioteca
+   * Procesa el clip grabado, lo sube a Cloudinary (o fallback) y lo añade a la biblioteca
    */
   const procesarClipGrabado = async () => {
     guardandoClip.value = true
@@ -170,7 +170,7 @@ export function useGrabadorClips() {
       const mime = mediaRecorder?.mimeType || 'video/webm'
       const blob = new Blob(chunksGrabados, { type: mime })
 
-      // Subida a Storage si es posible, o fallback a URL local
+      // Subida a Cloudinary si es posible, o fallback a URL local
       let finalVideoUrl = ''
       try {
         const extension = mime.includes('mp4') ? 'mp4' : 'webm'

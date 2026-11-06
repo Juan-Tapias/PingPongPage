@@ -1,5 +1,4 @@
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
-import { storage } from '@/services/firebase'
+import { subirACloudinary, transformarUrl } from '@/services/cloudinaryService'
 
 /**
  * Detecta si una URL corresponde a un video de YouTube y extrae su ID único (11 caracteres)
@@ -27,75 +26,32 @@ export function esUrlBlobLocal(url?: string): boolean {
 }
 
 /**
- * Sube un archivo de video a Firebase Storage con reporte de progreso porcentual
+ * Sube un archivo de video a Cloudinary (máx. 100 MB en el plan gratuito) con reporte de progreso
  */
 export async function subirArchivoVideo(
   file: File,
   onProgreso?: (porcentaje: number) => void,
 ): Promise<string> {
-  const nombreLimpio = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const ruta = `biblioteca/videos/${Date.now()}_${nombreLimpio}`
-  const ref = storageRef(storage, ruta)
-
-  const uploadTask = uploadBytesResumable(ref, file, {
-    contentType: file.type || 'video/mp4',
-  })
-
-  return new Promise((resolve, reject) => {
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progreso = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
-        if (onProgreso) {
-          onProgreso(progreso)
-        }
-      },
-      (error) => {
-        console.error('[storageService] Error al subir video a Storage:', error)
-        reject(error)
-      },
-      async () => {
-        try {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref)
-          resolve(downloadUrl)
-        } catch (err) {
-          reject(err)
-        }
-      },
-    )
-  })
+  try {
+    const { url } = await subirACloudinary(file, { tipo: 'video', carpeta: 'spinapp/biblioteca/videos', onProgreso })
+    return url
+  } catch (error) {
+    console.error('[storageService] Error al subir video a Cloudinary:', error)
+    throw error
+  }
 }
 
 /**
- * Sube una imagen de miniatura personalizada a Firebase Storage
+ * Sube una imagen de miniatura personalizada a Cloudinary y retorna la URL optimizada (640x360)
  */
 export async function subirArchivoImagen(file: File): Promise<string> {
-  const nombreLimpio = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const ruta = `biblioteca/miniaturas/${Date.now()}_${nombreLimpio}`
-  const ref = storageRef(storage, ruta)
-
-  const uploadTask = uploadBytesResumable(ref, file, {
-    contentType: file.type || 'image/jpeg',
-  })
-
-  return new Promise((resolve, reject) => {
-    uploadTask.on(
-      'state_changed',
-      null,
-      (error) => {
-        console.error('[storageService] Error al subir miniatura a Storage:', error)
-        reject(error)
-      },
-      async () => {
-        try {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref)
-          resolve(downloadUrl)
-        } catch (err) {
-          reject(err)
-        }
-      },
-    )
-  })
+  try {
+    const { url } = await subirACloudinary(file, { tipo: 'image', carpeta: 'spinapp/biblioteca/miniaturas' })
+    return transformarUrl(url, 'c_fill,w_640,h_360,f_auto,q_auto')
+  } catch (error) {
+    console.error('[storageService] Error al subir miniatura a Cloudinary:', error)
+    throw error
+  }
 }
 
 /**

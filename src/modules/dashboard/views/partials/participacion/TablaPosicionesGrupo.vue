@@ -126,6 +126,13 @@
                       :foto-url="obtenerFotoFila(fila)"
                       :nombre="fila.nombre"
                       size="sm"
+                      :fondo-class="
+                        esInvicto(fila)
+                          ? 'bg-gradient-to-br from-emerald-500 to-teal-800'
+                          : esReyMalla(fila)
+                          ? 'bg-gradient-to-br from-amber-400 to-amber-800'
+                          : 'bg-gradient-to-br from-rose-500 to-rose-900'
+                      "
                       :ring-class="[
                         'ring-2',
                         esInvicto(fila)

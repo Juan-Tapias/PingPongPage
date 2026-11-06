@@ -1,6 +1,6 @@
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { doc, updateDoc } from 'firebase/firestore'
-import { db, storage } from '@/services/firebase'
+import { db } from '@/services/firebase'
+import { subirACloudinary, eliminarConToken, transformarUrl } from '@/services/cloudinaryService'
 import type { Usuario } from '@/types'
 
 export interface AvatarPreset {
@@ -147,61 +147,41 @@ export const validarArchivoImagen = (archivo: File): { valido: boolean; error?: 
   return { valido: true }
 }
 
-/** Carpeta del jugador en Storage (protegida por storage.rules: solo el dueño, imagen, <= 3 MB). */
-const carpetaAvatar = (uid: string) => `usuarios/${uid}/`
+/** Carpeta del jugador en Cloudinary. */
+const carpetaAvatar = (uid: string) => `spinapp/usuarios/${uid}`
+
+/** Recorte cuadrado centrado en la cara, formato y calidad automáticos (WebP/AVIF según navegador). */
+const TRANSFORMACION_AVATAR = 'c_fill,g_face,w_256,h_256,f_auto,q_auto'
 
 /**
- * Indica si una URL de descarga apunta a un avatar subido por este usuario en Storage.
- * Las URLs de Firebase codifican la ruta como `/o/usuarios%2F{uid}%2F...`.
+ * delete_token de las fotos recién subidas (URL final -> token). Cloudinary lo entrega solo si el
+ * preset tiene "Return delete token" y vale ~10 minutos: alcanza para deshacer una subida cuyo
+ * guardado en Firestore falló, sin exponer el API secret.
  */
-const esAvatarPropioEnStorage = (uid: string, url?: string | null): boolean => {
-  if (!url || !url.startsWith('https://')) return false
-  try {
-    const ruta = decodeURIComponent(new URL(url).pathname.split('/o/')[1] || '')
-    return ruta.startsWith(carpetaAvatar(uid))
-  } catch {
-    return false
-  }
-}
-
-/** Borra (best-effort) un avatar previo de Storage. Nunca lanza. */
-export const eliminarAvatarStorage = async (uid: string, url?: string | null): Promise<void> => {
-  if (!esAvatarPropioEnStorage(uid, url)) return
-  try {
-    await deleteObject(storageRef(storage, url!))
-  } catch (err) {
-    console.warn('No se pudo eliminar el avatar anterior de Storage:', err)
-  }
-}
+const tokensPendientes = new Map<string, string>()
 
 /**
- * Sube la foto del jugador a Firebase Storage en la ruta:
- * usuarios/{uid}/avatar_{timestamp}.{ext}
- * y retorna la URL de descarga. El objeto anterior se elimina en `guardarFotoPerfilUsuario`
- * solo cuando Firestore confirmó la nueva foto.
+ * Sube la foto del jugador a Cloudinary (carpeta spinapp/usuarios/{uid}) y retorna la URL ya
+ * optimizada (256x256, WebP/AVIF). La foto se confirma en `guardarFotoPerfilUsuario`.
  */
-export const subirFotoPerfilStorage = async (uid: string, archivo: File): Promise<string> => {
+export const subirFotoPerfil = async (uid: string, archivo: File): Promise<string> => {
   const validacion = validarArchivoImagen(archivo)
   if (!validacion.valido) {
     throw new Error(validacion.error)
   }
 
-  const extension = (archivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-  const ruta = `${carpetaAvatar(uid)}avatar_${Date.now()}.${extension}`
-  const storageReference = storageRef(storage, ruta)
-
-  const snapshot = await uploadBytes(storageReference, archivo, {
-    contentType: archivo.type,
-  })
-
-  return getDownloadURL(snapshot.ref)
+  const { url, deleteToken } = await subirACloudinary(archivo, { tipo: 'image', carpeta: carpetaAvatar(uid) })
+  const urlFinal = transformarUrl(url, TRANSFORMACION_AVATAR)
+  if (deleteToken) tokensPendientes.set(urlFinal, deleteToken)
+  return urlFinal
 }
 
 /**
  * Actualiza la foto de perfil en la colección oficial 'usuarios' (fuente única de verdad).
- * - Si Firestore falla, se propaga el error, NO se toca localStorage y se elimina la
- *   foto recién subida (si se pasó) para no dejar archivos huérfanos.
- * - Si tiene éxito, se borra de Storage la foto anterior y se sincroniza localStorage.
+ * - Si Firestore falla, se propaga el error, NO se toca localStorage y se elimina de Cloudinary
+ *   la foto recién subida (con su delete_token) para no dejar archivos huérfanos.
+ * - Si tiene éxito, se sincroniza localStorage. La foto anterior queda en Cloudinary: borrarla
+ *   exige el API secret, que no puede estar en el navegador.
  */
 export const guardarFotoPerfilUsuario = async (
   uid: string,
@@ -212,14 +192,12 @@ export const guardarFotoPerfilUsuario = async (
     await updateDoc(doc(db, 'usuarios', uid), { fotoUrl: fotoUrl || '' })
   } catch (err) {
     if (fotoUrl && fotoUrl !== fotoAnterior) {
-      await eliminarAvatarStorage(uid, fotoUrl)
+      await eliminarConToken(tokensPendientes.get(fotoUrl))
+      tokensPendientes.delete(fotoUrl)
     }
     throw err instanceof Error ? err : new Error('No se pudo guardar la foto de perfil.')
   }
-
-  if (fotoAnterior && fotoAnterior !== fotoUrl) {
-    await eliminarAvatarStorage(uid, fotoAnterior)
-  }
+  tokensPendientes.delete(fotoUrl)
 
   try {
     const raw = localStorage.getItem('spinapp_usuario')
