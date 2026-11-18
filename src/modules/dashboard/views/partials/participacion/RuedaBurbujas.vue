@@ -22,6 +22,12 @@
           <stop offset="100%" stop-color="#065f46" />
         </linearGradient>
 
+        <linearGradient id="fase-completa-gradiente" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#f59e0b" />
+          <stop offset="50%" stop-color="#fcd34d" />
+          <stop offset="100%" stop-color="#f59e0b" />
+        </linearGradient>
+
         <linearGradient id="centro-rival-gradiente" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="#1e293b" />
           <stop offset="100%" stop-color="#0f172a" />
@@ -58,6 +64,89 @@
           stroke-width="3.5"
           stroke-linecap="round"
           class="animate-pulse drop-shadow-[0_0_10px_rgba(56,189,248,0.9)]"
+        />
+      </g>
+
+      <!-- FASE COMPLETADA: anillo de efectividad, rayos dorados, radios por resultado y destellos -->
+      <g v-if="faseCompletada" class="pointer-events-none">
+        <!-- Anillo exterior: verde = victorias, rojo = derrotas -->
+        <circle cx="270" cy="270" r="238" fill="none" stroke="#1e293b" stroke-width="6" />
+        <circle
+          cx="270"
+          cy="270"
+          r="238"
+          fill="none"
+          stroke="#ef4444"
+          stroke-opacity="0.75"
+          stroke-width="6"
+          pathLength="100"
+          :stroke-dasharray="`${100 - efectividad} 100`"
+          :stroke-dashoffset="-efectividad"
+          transform="rotate(-90 270 270)"
+          class="anillo-efectividad"
+        />
+        <circle
+          cx="270"
+          cy="270"
+          r="238"
+          fill="none"
+          stroke="#10b981"
+          stroke-width="6"
+          stroke-linecap="round"
+          pathLength="100"
+          :stroke-dasharray="`${efectividad} 100`"
+          transform="rotate(-90 270 270)"
+          class="anillo-efectividad drop-shadow-[0_0_6px_rgba(16,185,129,0.7)]"
+        />
+
+        <!-- Cometa dorado recorriendo la órbita -->
+        <g class="cometa-orbita">
+          <circle cx="270" cy="32" r="9" fill="#fbbf24" fill-opacity="0.25" />
+          <circle cx="270" cy="32" r="4" fill="#fde68a" class="drop-shadow-[0_0_6px_rgba(251,191,36,1)]" />
+        </g>
+
+        <!-- Radios del centro a cada rival, coloreados por resultado -->
+        <line
+          v-for="(item, idx) in posicionesRivales"
+          :key="'radio-' + idx"
+          x1="270"
+          y1="270"
+          :x2="item.x"
+          :y2="item.y"
+          :stroke="obtenerColorBorde(item.burbuja)"
+          stroke-opacity="0.28"
+          stroke-width="1.5"
+          stroke-dasharray="3 5"
+          class="radio-resultado"
+          :style="{ animationDelay: `${idx * 60}ms` }"
+        />
+
+        <!-- Rayos dorados detrás del jugador central -->
+        <g class="rayos-fase">
+          <line
+            v-for="i in 24"
+            :key="'rayo-' + i"
+            x1="270"
+            y1="190"
+            x2="270"
+            :y2="i % 2 === 0 ? 150 : 165"
+            stroke="#fbbf24"
+            :stroke-opacity="i % 2 === 0 ? 0.55 : 0.3"
+            stroke-width="2"
+            stroke-linecap="round"
+            :transform="`rotate(${i * 15} 270 270)`"
+          />
+        </g>
+
+        <!-- Destellos -->
+        <path
+          v-for="(d, idx) in destellos"
+          :key="'destello-' + idx"
+          :d="`M 0 ${-d.s} Q 0 0 ${d.s} 0 Q 0 0 0 ${d.s} Q 0 0 ${-d.s} 0 Q 0 0 0 ${-d.s} Z`"
+          :transform="`translate(${d.x} ${d.y})`"
+          fill="#fde68a"
+          class="destello"
+          :style="{ animationDelay: `${d.delay}s` }"
         />
       </g>
 
@@ -291,6 +380,60 @@
         >
           {{ esVistaRival ? formatearNombre(jugadorCentro.nombre) : 'TÚ' }}
         </text>
+
+        <!-- Fase de grupos terminada: halo dorado, trofeo y cinta -->
+        <g v-if="faseCompletada" class="pointer-events-none">
+          <circle
+            r="70"
+            fill="none"
+            stroke="#fbbf24"
+            stroke-width="2"
+            stroke-dasharray="4 7"
+            stroke-linecap="round"
+            class="halo-fase-completa"
+          />
+          <circle r="64" fill="none" stroke="#fbbf24" stroke-opacity="0.35" stroke-width="1.5" />
+
+          <g transform="translate(0, -64)">
+            <circle r="15" fill="#0f172a" stroke="url(#fase-completa-gradiente)" stroke-width="2.5" />
+            <path
+              d="M -6 -7 H 6 V -2 A 6 6 0 0 1 -6 -2 Z M -6 -5 H -9 A 3 3 0 0 0 -6 0 M 6 -5 H 9 A 3 3 0 0 1 6 0 M 0 4 V 7 M -4 8 H 4"
+              fill="none"
+              stroke="#fcd34d"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </g>
+
+          <g transform="translate(0, 76)">
+            <rect x="-66" y="-11" width="132" height="22" rx="11" fill="url(#fase-completa-gradiente)" />
+            <text
+              x="0"
+              y="1"
+              text-anchor="middle"
+              dominant-baseline="middle"
+              fill="#422006"
+              class="text-[9.5px] font-black uppercase tracking-wider"
+            >
+              Fase 1 completada
+            </text>
+          </g>
+
+          <!-- Mini marcador del balance final -->
+          <g transform="translate(0, 101)">
+            <rect x="-50" y="-9" width="100" height="18" rx="9" fill="#0f172a" fill-opacity="0.9" stroke="#334155" stroke-width="1" />
+            <text x="-24" y="1" text-anchor="middle" dominant-baseline="middle" fill="#34d399" class="text-[9px] font-black">
+              {{ resumen.ganado }}G
+            </text>
+            <text x="0" y="1" text-anchor="middle" dominant-baseline="middle" fill="#f87171" class="text-[9px] font-black">
+              {{ resumen.perdido }}P
+            </text>
+            <text x="27" y="1" text-anchor="middle" dominant-baseline="middle" fill="#fcd34d" class="text-[9px] font-black">
+              {{ efectividad }}%
+            </text>
+          </g>
+        </g>
       </g>
     </svg>
   </div>
@@ -308,10 +451,31 @@
         <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] leading-none text-white">✕</span>
         Perdidos {{ resumen.perdido }}
       </span>
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-500/40 bg-slate-500/15 px-2.5 py-1 text-slate-300">
+      <span
+        v-if="!faseCompletada"
+        class="inline-flex items-center gap-1.5 rounded-full border border-slate-500/40 bg-slate-500/15 px-2.5 py-1 text-slate-300"
+      >
         <span class="h-3.5 w-3.5 rounded-full border-2 border-dashed border-slate-400"></span>
         Por jugar {{ resumen.pendiente }}
       </span>
+    </div>
+
+    <!-- Mensaje de cierre cuando ya no quedan partidos por jugar -->
+    <div
+      v-if="faseCompletada"
+      class="mt-3 mx-auto flex max-w-sm items-center gap-3 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-left select-none"
+    >
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-lg leading-none">🏆</span>
+      <div class="min-w-0">
+        <p class="text-[13px] font-extrabold text-amber-700 dark:text-amber-300">
+          {{ esVistaRival ? `${formatearNombre(jugadorCentro.nombre)} terminó la primera fase` : '¡Has finalizado la primera fase!' }}
+        </p>
+        <p class="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+          {{ resumen.ganado + resumen.perdido }} partidos jugados ·
+          {{ resumen.ganado }} {{ resumen.ganado === 1 ? 'victoria' : 'victorias' }}.
+          Revisa la tabla de posiciones para ver la clasificación.
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -343,8 +507,32 @@ const emit = defineEmits<{
 }>()
 
 const tieneLuzAzulActiva = computed(() => {
-  return props.torneo.estado === 'en curso'
+  return props.torneo.estado === 'en curso' && !faseCompletada.value
 })
+
+/** El jugador central ya disputó todos sus partidos de la fase de grupos. */
+const faseCompletada = computed(() => {
+  return props.rivales.length > 0 && resumen.value.pendiente === 0
+})
+
+/** Porcentaje de victorias sobre partidos jugados (0-100). */
+const efectividad = computed(() => {
+  const jugados = resumen.value.ganado + resumen.value.perdido
+  return jugados ? Math.round((resumen.value.ganado / jugados) * 100) : 0
+})
+
+/** Destellos fijos repartidos entre el centro y la órbita de rivales. */
+const destellos = [
+  { x: 178, y: 178, s: 6, delay: 0 },
+  { x: 362, y: 193, s: 5, delay: 0.7 },
+  { x: 397, y: 316, s: 7, delay: 1.4 },
+  { x: 153, y: 313, s: 5, delay: 2.1 },
+  { x: 258, y: 409, s: 5, delay: 0.4 },
+  { x: 246, y: 132, s: 4, delay: 1.8 },
+  { x: 327, y: 370, s: 4, delay: 1.1 },
+  { x: 143, y: 224, s: 4, delay: 2.5 },
+  { x: 408, y: 246, s: 4, delay: 0.9 },
+]
 
 const radioBurbuja = computed(() => {
   const n = props.rivales.length
@@ -489,4 +677,78 @@ const formatearNombre = (nombre: string): string => {
 </script>
 
 <style scoped>
+.halo-fase-completa {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: girar-halo 18s linear infinite;
+}
+
+@keyframes girar-halo {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rayos-fase,
+.cometa-orbita {
+  transform-box: view-box;
+  transform-origin: 270px 270px;
+}
+
+.rayos-fase {
+  animation: girar-halo 40s linear infinite reverse;
+}
+
+.cometa-orbita {
+  animation: girar-halo 9s linear infinite;
+}
+
+.anillo-efectividad {
+  animation: llenar-anillo 1.4s ease-out both;
+}
+
+@keyframes llenar-anillo {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+
+.radio-resultado {
+  animation: aparecer-radio 0.6s ease-out both;
+}
+
+@keyframes aparecer-radio {
+  from {
+    opacity: 0;
+  }
+}
+
+.destello {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: titilar 2.8s ease-in-out infinite;
+}
+
+@keyframes titilar {
+  0%,
+  100% {
+    opacity: 0;
+    scale: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo-fase-completa,
+  .rayos-fase,
+  .cometa-orbita,
+  .anillo-efectividad,
+  .radio-resultado,
+  .destello {
+    animation: none;
+  }
+}
 </style>
