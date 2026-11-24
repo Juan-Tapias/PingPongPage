@@ -110,9 +110,23 @@
 
           <!-- Micro-barra de Progreso del Torneo -->
           <div class="pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
-            <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1.5">
-              <span>Progreso del Torneo</span>
-              <span class="text-orange-500 dark:text-orange-400 font-semibold">{{ progresoTexto }}</span>
+            <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] font-bold text-slate-400 mb-1.5">
+              <span class="inline-flex items-center gap-1.5">
+                {{ etiquetaProgreso }}
+                <span
+                  v-if="enFase2 && torneo.estado !== 'finalizado'"
+                  class="px-1.5 py-px rounded text-[9px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  title="La fase de grupos ya terminó"
+                >
+                  Grupos ✓
+                </span>
+              </span>
+              <span
+                class="font-semibold"
+                :class="enFase2 ? 'text-amber-600 dark:text-amber-400' : 'text-orange-500 dark:text-orange-400'"
+              >
+                {{ progresoTexto }}
+              </span>
             </div>
             <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
               <div
@@ -283,7 +297,7 @@ import {
 } from 'lucide-vue-next'
 import type { Torneo } from '@/types'
 import { useAuthStore } from '@/stores/auth'
-import { obtenerPartidosDB } from '@/services/torneoDatabaseService'
+import { obtenerPartidosDB, obtenerPartidosPlayoffsDB } from '@/services/torneoDatabaseService'
 
 interface Props {
   torneo: Torneo
@@ -303,11 +317,25 @@ const authStore = useAuthStore()
 // Partidos reales del torneo para calcular avance matemático real
 const totalPartidos = ref<number | null>(null)
 const partidosJugados = ref<number | null>(null)
+// Fase 2: si el admin ya abrió las eliminatorias, el avance se mide por llaves (la fase de grupos ya está al 100%)
+const totalLlaves = ref(0)
+const llavesJugadas = ref(0)
+const enFase2 = computed(
+  () =>
+    totalLlaves.value > 0 ||
+    props.torneo.faseActual === 'playoffs' ||
+    Boolean(props.torneo.playoffsAbiertos),
+)
 
 const cargarProgresoReal = async () => {
   if (!props.torneo?.id) return
   try {
-    const partidos = await obtenerPartidosDB(props.torneo.id)
+    const [partidos, llaves] = await Promise.all([
+      obtenerPartidosDB(props.torneo.id),
+      obtenerPartidosPlayoffsDB(props.torneo.id).catch(() => []),
+    ])
+    totalLlaves.value = llaves.length
+    llavesJugadas.value = llaves.filter((p) => p.estado === 'jugado').length
     if (partidos && partidos.length > 0) {
       totalPartidos.value = partidos.length
       partidosJugados.value = partidos.filter((p: any) => p.estado === 'jugado').length
@@ -389,6 +417,9 @@ const topGradientClass = computed(() => {
 // Progreso textual y visual del torneo con cálculos matemáticos reales
 const porcentajeReal = computed(() => {
   if (props.torneo.estado === 'finalizado') return 100
+  if (enFase2.value) {
+    return totalLlaves.value > 0 ? Math.round((llavesJugadas.value / totalLlaves.value) * 100) : 0
+  }
   if (totalPartidos.value !== null && totalPartidos.value > 0) {
     return Math.min(100, Math.round(((partidosJugados.value || 0) / totalPartidos.value) * 100))
   }
@@ -400,6 +431,12 @@ const progresoTexto = computed(() => {
   if (props.torneo.estado === 'finalizado') return 'Torneo Finalizado (100%)'
   if (props.torneo.estado === 'por iniciar') return 'Fase de Sorteo (0%)'
 
+  if (enFase2.value) {
+    return totalLlaves.value > 0
+      ? `${llavesJugadas.value} de ${totalLlaves.value} llaves (${porcentajeReal.value}%)`
+      : 'Armando el cuadro'
+  }
+
   if (totalPartidos.value !== null && totalPartidos.value > 0) {
     return `${partidosJugados.value} de ${totalPartidos.value} partidos (${porcentajeReal.value}%)`
   }
@@ -407,10 +444,15 @@ const progresoTexto = computed(() => {
   return 'Fase Activa (Sin partidos jugados)'
 })
 
+const etiquetaProgreso = computed(() =>
+  enFase2.value && props.torneo.estado !== 'finalizado' ? 'Fase 2 · Eliminatorias' : 'Progreso del Torneo',
+)
+
 const barraProgresoAncho = computed(() => {
   if (props.torneo.subestado === 'PENDIENTE') return '20%'
   if (props.torneo.estado === 'finalizado') return '100%'
   if (props.torneo.estado === 'por iniciar') return '5%'
+  if (enFase2.value) return `${Math.max(4, porcentajeReal.value)}%`
   if (totalPartidos.value !== null && totalPartidos.value > 0) {
     return `${Math.max(6, porcentajeReal.value)}%`
   }
@@ -421,6 +463,7 @@ const barraProgresoClass = computed(() => {
   if (props.torneo.subestado === 'PENDIENTE') return 'bg-amber-500'
   if (props.torneo.estado === 'finalizado') return 'bg-emerald-500'
   if (props.torneo.estado === 'por iniciar') return 'bg-blue-500'
+  if (enFase2.value) return 'bg-gradient-to-r from-amber-400 to-amber-600'
   return 'bg-gradient-to-r from-orange-500 to-emerald-500'
 })
 

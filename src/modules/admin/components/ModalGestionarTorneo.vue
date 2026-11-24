@@ -396,66 +396,174 @@
         <!-- Gestión de llaves de Playoffs persistidas (solo admin) -->
         <div
           v-if="playoffsAbiertos"
-          class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0f172a] border border-amber-300/70 dark:border-amber-800 shadow-xs flex flex-col gap-3"
+          class="rounded-2xl bg-white dark:bg-[#0f172a] border border-slate-200/80 dark:border-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-18px_rgba(15,23,42,0.2)] dark:shadow-none overflow-hidden"
         >
-          <div class="flex items-center justify-between gap-2 flex-wrap">
-            <h4 class="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Crown class="w-4 h-4 text-amber-500" />
-              Llaves de Eliminatorias (al mejor de 3 sets)
-            </h4>
-            <span
-              v-if="campeonPlayoffs"
-              class="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500 text-slate-950"
-            >
-              🏆 Campeón: {{ campeonPlayoffs }}
-            </span>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            <div
-              v-for="p in partidosPlayoffsOrdenados"
-              :key="p.id"
-              class="p-3 rounded-xl border text-xs flex flex-col gap-2"
-              :class="p.estado === 'jugado' ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-700'"
-            >
-              <div class="flex items-center justify-between font-black">
-                <span class="text-slate-700 dark:text-slate-200">{{ NOMBRE_RONDA_PLAYOFF[p.ronda] }} {{ p.numeroLlave }}</span>
-                <span class="text-[10px] uppercase" :class="p.estado === 'jugado' ? 'text-emerald-600' : 'text-slate-400'">
-                  {{ p.estado === 'jugado' ? `Final ${p.marcador}` : 'Por jugar' }}
+          <!-- Encabezado con progreso del cuadro -->
+          <div class="px-4 sm:px-5 pt-4 pb-3.5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-amber-50/80 via-white to-white dark:from-amber-950/20 dark:via-[#0f172a] dark:to-[#0f172a]">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Crown class="w-5 h-5" />
                 </span>
+                <div>
+                  <h4 class="text-sm sm:text-base font-black text-slate-900 dark:text-white">Llaves de Eliminatorias</h4>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400">Al mejor de 3 sets · Toca al ganador, elige el marcador y registra</p>
+                </div>
               </div>
-              <div class="flex flex-col gap-0.5 font-bold text-slate-800 dark:text-slate-200">
-                <span :class="p.ganadorId && p.ganadorId === p.jugador1?.id ? 'text-emerald-600' : ''">
-                  <template v-if="p.semilla1">#{{ p.semilla1 }} </template>{{ p.jugador1?.nombre || 'Por definir' }}
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[11px] font-black px-2.5 py-1 rounded-lg bg-slate-900/5 dark:bg-white/5 text-slate-700 dark:text-slate-200 border border-slate-900/10 dark:border-white/10 tabular-nums">
+                  {{ llavesPlayoffJugadas }} / {{ partidosPlayoffs.length }} jugadas
                 </span>
-                <span :class="p.ganadorId && p.ganadorId === p.jugador2?.id ? 'text-emerald-600' : ''">
-                  <template v-if="p.semilla2">#{{ p.semilla2 }} </template>{{ p.jugador2?.nombre || 'Por definir' }}
-                </span>
-              </div>
-              <div v-if="p.estado !== 'jugado' && p.jugador1?.id && p.jugador2?.id" class="flex flex-wrap items-center gap-1.5">
-                <select v-model.number="obtenerMarcadorPlayoff(p.id).s1" class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <option v-for="n in [0, 1, 2]" :key="`a${n}`" :value="n">{{ n }}</option>
-                </select>
-                <span class="font-black">-</span>
-                <select v-model.number="obtenerMarcadorPlayoff(p.id).s2" class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                  <option v-for="n in [0, 1, 2]" :key="`b${n}`" :value="n">{{ n }}</option>
-                </select>
-                <input
-                  v-model="obtenerMarcadorPlayoff(p.id).detalle"
-                  type="text"
-                  placeholder="11-8, 9-11, 11-7"
-                  class="flex-1 min-w-24 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-                />
-                <button
-                  type="button"
-                  class="px-2.5 py-1 rounded-lg font-black bg-amber-500 text-slate-950 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
-                  :disabled="resolviendoPlayoffId === p.id || !!errorMarcadorPlayoff(p.id)"
-                  @click="registrarResultadoPlayoff(p)"
+                <span
+                  v-if="campeonPlayoffs"
+                  class="inline-flex items-center gap-1.5 text-xs font-black px-3 py-1 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-sm shadow-amber-500/30"
                 >
-                  {{ resolviendoPlayoffId === p.id ? 'Guardando…' : 'Registrar' }}
-                </button>
-                <span v-if="errorMarcadorPlayoff(p.id)" class="w-full text-[10px] text-red-600 font-bold">{{ errorMarcadorPlayoff(p.id) }}</span>
+                  <Trophy class="w-3.5 h-3.5" />
+                  {{ campeonPlayoffs }}
+                </span>
               </div>
             </div>
+            <div class="mt-3 h-1.5 rounded-full bg-slate-200/70 dark:bg-slate-800 overflow-hidden">
+              <div
+                class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-amber-500 transition-all duration-700"
+                :style="{ width: `${partidosPlayoffs.length ? Math.round((llavesPlayoffJugadas / partidosPlayoffs.length) * 100) : 0}%` }"
+              ></div>
+            </div>
+          </div>
+
+          <div class="p-4 sm:p-5 flex flex-col gap-6">
+            <p
+              v-if="errorPlayoffs"
+              class="text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-lg px-3 py-2"
+            >
+              {{ errorPlayoffs }}
+            </p>
+
+            <section v-for="grupo in rondasPlayoffAdmin" :key="grupo.ronda" class="flex flex-col gap-3">
+              <div class="flex items-center gap-3">
+                <h5 class="text-[11px] font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">{{ grupo.nombre }}</h5>
+                <span class="text-[10px] font-bold text-slate-400 tabular-nums">{{ grupo.jugadas }}/{{ grupo.partidos.length }}</span>
+                <span class="flex-1 h-px bg-slate-200 dark:bg-slate-800"></span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <article
+                  v-for="p in grupo.partidos"
+                  :key="p.id"
+                  class="rounded-xl border transition-colors"
+                  :class="p.estado === 'jugado'
+                    ? 'border-emerald-200 dark:border-emerald-900/70 bg-emerald-50/40 dark:bg-emerald-950/10'
+                    : llaveEditable(p)
+                      ? 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40'
+                      : 'border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/20'"
+                >
+                  <div class="flex items-center justify-between gap-2 px-3.5 pt-3">
+                    <span class="text-xs font-black text-slate-900 dark:text-white">{{ nombreLlavePlayoff(p) }}</span>
+                    <span
+                      class="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md"
+                      :class="claseEstadoLlave(p)"
+                    >
+                      {{ etiquetaEstadoLlave(p) }}
+                    </span>
+                  </div>
+
+                  <!-- Jugadores: en llaves editables, tocar un jugador lo marca como ganador -->
+                  <div class="p-2.5 flex flex-col gap-1.5">
+                    <button
+                      v-for="slot in SLOTS_LLAVE"
+                      :key="slot"
+                      type="button"
+                      :disabled="!llaveEditable(p) || resolviendoPlayoffId === p.id"
+                      class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border text-left transition-all disabled:cursor-default"
+                      :class="claseJugadorLlave(p, slot)"
+                      @click="elegirGanadorLlave(p.id, slot)"
+                    >
+                      <span
+                        class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-black font-mono shrink-0"
+                        :class="esGanadorSlot(p, slot) ? 'bg-emerald-600 text-white' : 'bg-slate-900/5 dark:bg-white/10 text-slate-600 dark:text-slate-300'"
+                      >
+                        {{ semillaSlot(p, slot) ? `#${semillaSlot(p, slot)}` : '–' }}
+                      </span>
+                      <span
+                        class="flex-1 min-w-0 text-xs font-bold truncate"
+                        :class="jugadorSlot(p, slot)?.nombre ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500 italic'"
+                      >
+                        {{ jugadorSlot(p, slot)?.nombre || 'Por definir' }}
+                      </span>
+                      <span
+                        v-if="p.estado === 'jugado'"
+                        class="font-mono text-sm font-black tabular-nums"
+                        :class="esGanadorSlot(p, slot) ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400'"
+                      >
+                        {{ setsSlotJugado(p, slot) }}
+                      </span>
+                      <span
+                        v-else-if="obtenerMarcadorPlayoff(p.id).ganador === slot"
+                        class="inline-flex items-center gap-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-600 text-white"
+                      >
+                        <Check class="w-3 h-3" />
+                        Gana
+                      </span>
+                    </button>
+                  </div>
+
+                  <!-- Registro de resultado -->
+                  <div v-if="llaveEditable(p)" class="px-3.5 pb-3.5 flex flex-col gap-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-[10px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">Marcador en sets</span>
+                      <div class="inline-flex p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <button
+                          v-for="opcion in OPCIONES_SETS_PERDEDOR"
+                          :key="opcion.valor"
+                          type="button"
+                          class="px-3 py-1 rounded-md text-xs font-black font-mono transition-all cursor-pointer"
+                          :class="obtenerMarcadorPlayoff(p.id).setsPerdedor === opcion.valor
+                            ? 'bg-white dark:bg-slate-950 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'"
+                          @click="obtenerMarcadorPlayoff(p.id).setsPerdedor = opcion.valor"
+                        >
+                          {{ opcion.etiqueta }}
+                        </button>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <input
+                        v-model="obtenerMarcadorPlayoff(p.id).detalle"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="Sets (opcional): 11-8, 9-11, 11-7"
+                        class="flex-1 min-w-0 h-9 px-3 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition"
+                      />
+                      <button
+                        type="button"
+                        class="h-9 px-3.5 rounded-lg text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm shadow-amber-500/20 transition-colors disabled:opacity-40 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-1.5 shrink-0"
+                        :disabled="resolviendoPlayoffId === p.id || !obtenerMarcadorPlayoff(p.id).ganador"
+                        @click="registrarResultadoPlayoff(p)"
+                      >
+                        <span v-if="resolviendoPlayoffId === p.id" class="w-3.5 h-3.5 rounded-full border-2 border-slate-950 border-t-transparent animate-spin"></span>
+                        <Check v-else class="w-3.5 h-3.5" />
+                        {{ resolviendoPlayoffId === p.id ? 'Guardando' : 'Registrar' }}
+                      </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                      <template v-if="obtenerMarcadorPlayoff(p.id).ganador">
+                        Gana <strong class="text-slate-900 dark:text-white">{{ jugadorSlot(p, obtenerMarcadorPlayoff(p.id).ganador!)?.nombre }}</strong>
+                        <span class="font-mono"> 2-{{ obtenerMarcadorPlayoff(p.id).setsPerdedor }}</span>
+                        <template v-if="p.siguientePartidoId"> y avanza a la siguiente llave.</template>
+                        <template v-else> y se corona campeón.</template>
+                      </template>
+                      <template v-else>Toca al jugador que ganó la llave.</template>
+                    </p>
+                  </div>
+                  <p v-else-if="p.estado === 'jugado' && p.marcadorDetallado" class="px-3.5 pb-3 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                    {{ p.marcadorDetallado }}<template v-if="p.esWalkover"> · W.O.</template>
+                  </p>
+                  <p v-else-if="p.estado !== 'jugado'" class="px-3.5 pb-3 text-[11px] text-slate-400 dark:text-slate-500">
+                    Esperando a que se defina el rival.
+                  </p>
+                </article>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -1310,8 +1418,8 @@ import {
   calcularFechaLimiteHabiles,
   generarCuadroPlayoffs,
   resolverAvancePlayoff,
-  validarMarcadorPlayoff,
 } from '@/services/torneoAlgoritmos'
+import { nombreLlavePlayoff } from '@/services/arbitrajePlayoffs'
 import type { FilaPosicionOficial, PartidoPlayoff, RondaPlayoff } from '@/types'
 
 const props = defineProps<{
@@ -1337,7 +1445,14 @@ const playoffsAbiertos = computed(
 )
 const abriendoPlayoffs = ref(false)
 const errorPlayoffs = ref('')
-const marcadoresPlayoff = ref<Record<string, { s1: number; s2: number; detalle: string }>>({})
+/** Formulario de resultado por llave: el admin toca al ganador y elige 2-0 / 2-1. */
+interface FormularioLlave {
+  ganador: 1 | 2 | null
+  setsPerdedor: 0 | 1
+  detalle: string
+}
+const nuevoFormularioLlave = (): FormularioLlave => ({ ganador: null, setsPerdedor: 0, detalle: '' })
+const marcadoresPlayoff = ref<Record<string, FormularioLlave>>({})
 const resolviendoPlayoffId = ref<string | null>(null)
 const animandoGeneracion = ref(false)
 const mensajeEstado = ref('')
@@ -2111,18 +2226,81 @@ const abrirPlayoffs = async () => {
   }
 }
 
-const NOMBRE_RONDA_PLAYOFF: Record<RondaPlayoff, string> = {
+const NOMBRE_GRUPO_RONDA: Record<RondaPlayoff, string> = {
   play_in: 'Play-In',
   cuartos: 'Cuartos de Final',
-  semifinal: 'Semifinal',
+  semifinal: 'Semifinales',
   final: 'Gran Final',
 }
+
+const SLOTS_LLAVE = [1, 2] as const
+type SlotLlave = (typeof SLOTS_LLAVE)[number]
+
+/** Marcadores posibles al mejor de 3: el ganador siempre suma 2 sets. */
+const OPCIONES_SETS_PERDEDOR = [
+  { valor: 0 as const, etiqueta: '2-0' },
+  { valor: 1 as const, etiqueta: '2-1' },
+]
 
 const partidosPlayoffsOrdenados = computed(() =>
   [...partidosPlayoffs.value].sort(
     (a, b) => (a.ordenRonda || 0) - (b.ordenRonda || 0) || a.numeroLlave - b.numeroLlave,
   ),
 )
+
+const llavesPlayoffJugadas = computed(() => partidosPlayoffs.value.filter((p) => p.estado === 'jugado').length)
+
+/** Llaves agrupadas por ronda (en el orden en que se juegan) para el panel de resultados. */
+const rondasPlayoffAdmin = computed(() => {
+  const grupos: { ronda: RondaPlayoff; nombre: string; partidos: PartidoPlayoff[]; jugadas: number }[] = []
+  for (const p of partidosPlayoffsOrdenados.value) {
+    let grupo = grupos.find((g) => g.ronda === p.ronda)
+    if (!grupo) {
+      grupo = { ronda: p.ronda, nombre: NOMBRE_GRUPO_RONDA[p.ronda], partidos: [], jugadas: 0 }
+      grupos.push(grupo)
+    }
+    grupo.partidos.push(p)
+    if (p.estado === 'jugado') grupo.jugadas++
+  }
+  return grupos
+})
+
+const jugadorSlot = (p: PartidoPlayoff, slot: SlotLlave) => (slot === 1 ? p.jugador1 : p.jugador2) || null
+const semillaSlot = (p: PartidoPlayoff, slot: SlotLlave) => (slot === 1 ? p.semilla1 : p.semilla2) ?? null
+const esGanadorSlot = (p: PartidoPlayoff, slot: SlotLlave) => !!p.ganadorId && p.ganadorId === jugadorSlot(p, slot)?.id
+const llaveEditable = (p: PartidoPlayoff) => p.estado !== 'jugado' && !!p.jugador1?.id && !!p.jugador2?.id
+
+/** Sets del jugador en una llave ya jugada (el marcador se guarda como "2 - 1" jugador1-jugador2). */
+const setsSlotJugado = (p: PartidoPlayoff, slot: SlotLlave) => {
+  const m = /^(\d+)\s*-\s*(\d+)/.exec(p.marcador || '')
+  return m ? (slot === 1 ? m[1] : m[2]) : ''
+}
+
+const etiquetaEstadoLlave = (p: PartidoPlayoff) => {
+  if (p.estado === 'jugado') return 'Jugada'
+  if (p.estado === 'en_curso') return 'En juego'
+  return llaveEditable(p) ? 'Lista' : 'Esperando'
+}
+
+const claseEstadoLlave = (p: PartidoPlayoff) => {
+  if (p.estado === 'jugado') return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+  if (p.estado === 'en_curso') return 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
+  return llaveEditable(p)
+    ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
+    : 'bg-slate-900/5 dark:bg-white/5 text-slate-500 dark:text-slate-400'
+}
+
+const claseJugadorLlave = (p: PartidoPlayoff, slot: SlotLlave) => {
+  if (p.estado === 'jugado') {
+    return esGanadorSlot(p, slot)
+      ? 'border-emerald-300/70 dark:border-emerald-800 bg-white dark:bg-emerald-950/30'
+      : 'border-transparent opacity-60'
+  }
+  if (!llaveEditable(p)) return 'border-transparent'
+  return obtenerMarcadorPlayoff(p.id).ganador === slot
+    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20 cursor-pointer'
+    : 'border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-500 cursor-pointer'
+}
 
 const campeonPlayoffs = computed(() => {
   // Primero el nombre vigente desde la llave de la final; campeonNombre es una copia de respaldo
@@ -2139,37 +2317,47 @@ watch(
   (lista) => {
     lista.forEach((p) => {
       if (p.estado !== 'jugado' && !marcadoresPlayoff.value[p.id]) {
-        marcadoresPlayoff.value[p.id] = { s1: 2, s2: 0, detalle: '' }
+        marcadoresPlayoff.value[p.id] = nuevoFormularioLlave()
       }
     })
   },
   { immediate: true },
 )
 
-const obtenerMarcadorPlayoff = (id: string) => {
+const obtenerMarcadorPlayoff = (id: string): FormularioLlave => {
   if (!marcadoresPlayoff.value[id]) {
-    marcadoresPlayoff.value[id] = { s1: 2, s2: 0, detalle: '' }
+    marcadoresPlayoff.value[id] = nuevoFormularioLlave()
   }
   return marcadoresPlayoff.value[id]!
 }
 
-const errorMarcadorPlayoff = (id: string): string | null => {
-  const m = marcadoresPlayoff.value[id]
-  if (!m) return null
-  return validarMarcadorPlayoff(Number(m.s1), Number(m.s2))
+const elegirGanadorLlave = (id: string, slot: SlotLlave) => {
+  obtenerMarcadorPlayoff(id).ganador = slot
+}
+
+/** Sets jugador1 / jugador2 a partir del ganador elegido y los sets del perdedor. */
+const setsDesdeFormulario = (f: FormularioLlave): { s1: number; s2: number } | null => {
+  if (f.ganador === 1) return { s1: 2, s2: f.setsPerdedor }
+  if (f.ganador === 2) return { s1: f.setsPerdedor, s2: 2 }
+  return null
 }
 
 const registrarResultadoPlayoff = async (partido: PartidoPlayoff) => {
   if (!props.torneo?.id) return
   const m = obtenerMarcadorPlayoff(partido.id)
+  const sets = setsDesdeFormulario(m)
   errorPlayoffs.value = ''
+  if (!sets) {
+    errorPlayoffs.value = `Elige al ganador de ${nombreLlavePlayoff(partido)} antes de registrar.`
+    return
+  }
   resolviendoPlayoffId.value = partido.id
   try {
     const { actualizaciones, campeon } = resolverAvancePlayoff(
       partidosPlayoffs.value,
       partido.id,
-      Number(m.s1),
-      Number(m.s2),
+      sets.s1,
+      sets.s2,
       m.detalle,
     )
     const cambiosTorneo = await resolverPartidoPlayoffDB(props.torneo.id, actualizaciones, campeon)

@@ -209,6 +209,8 @@ export function usePlayoffs(
     cuadroCompleto,
     miCamino,
     esOficial,
+    /** Llaves tal como están en Firestore (sin perfiles superpuestos): base para escribir resultados. */
+    partidosOficiales: partidosPersistidos,
     cargando,
     errorCarga,
     errorProyeccion,

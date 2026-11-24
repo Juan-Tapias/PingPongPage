@@ -47,8 +47,23 @@ service cloud.firestore {
     // Reglas para la colección 'torneos'
     match /torneos/{torneoId} {
       allow read: if isAuthenticated();
-      // Solo admins pueden crear, actualizar o borrar torneos
-      allow write: if isAdmin();
+      // Solo admins pueden crear o borrar torneos
+      allow create, delete: if isAdmin();
+      // Además del admin, quien arbitra la Gran Final corona al campeón (ver campeonRespaldadoPorFinal)
+      allow update: if isAdmin() || campeonRespaldadoPorFinal(torneoId);
+    }
+
+    // Un árbitro (jugador registrado) solo puede tocar campeonId / campeonNombre / estado del torneo,
+    // y únicamente si la llave de la Gran Final, escrita en la misma transacción, quedó jugada
+    // con ese mismo ganador (resolverPartidoPlayoffDB).
+    function campeonRespaldadoPorFinal(torneoId) {
+      let idFinal = 'po-' + torneoId + '-final-1';
+      let llaveFinal = getAfter(/databases/$(database)/documents/partidos_playoffs/$(idFinal)).data;
+      return isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['campeonId', 'campeonNombre', 'estado']) &&
+        request.resource.data.estado == 'finalizado' &&
+        llaveFinal.estado == 'jugado' &&
+        llaveFinal.ganadorId == request.resource.data.campeonId;
     }
 
     // Reglas para la colección 'inscripciones'
@@ -99,15 +114,51 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Llaves de eliminatorias (Fase 2). Las crea el admin al cerrar grupos y solo el admin
-    // registra resultados / avanza ganadores (transacción en resolverPartidoPlayoffDB).
+    // Llaves de eliminatorias (Fase 2). Las crea el admin al cerrar grupos. El admin registra
+    // resultados desde su panel y cualquier jugador registrado puede arbitrar una llave
+    // (PINs de ambos jugadores validados en el cliente, igual que en la fase de grupos).
     match /partidos_playoffs/{partidoId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAdmin() &&
-        request.resource.data.fase == 'playoff' &&
+      allow create: if isAdmin() && esLlaveValida();
+      allow update: if (isAdmin() && esLlaveValida()) ||
+        (isAuthenticated() && resource.data.estado != 'jugado' && llaveIntacta() &&
+          (arbitraLlave() || avanzaGanador()));
+      allow delete: if isAdmin();
+    }
+
+    function esLlaveValida() {
+      return request.resource.data.fase == 'playoff' &&
         request.resource.data.torneoId is string &&
         request.resource.data.ronda in ['play_in', 'cuartos', 'semifinal', 'final'];
-      allow delete: if isAdmin();
+    }
+
+    // El árbitro nunca cambia la identidad de la llave
+    function llaveIntacta() {
+      return request.resource.data.fase == resource.data.fase &&
+        request.resource.data.torneoId == resource.data.torneoId &&
+        request.resource.data.ronda == resource.data.ronda;
+    }
+
+    // Árbitro: toma la llave, lleva el marcador en vivo y registra el resultado.
+    // El ganador debe ser uno de los dos jugadores de la llave.
+    function arbitraLlave() {
+      let cambios = request.resource.data.diff(resource.data).affectedKeys();
+      return cambios.hasOnly([
+          'estado', 'ganadorId', 'marcador', 'marcadorDetallado', 'actualizadoEn', 'sets',
+          'esWalkover', 'perdedorPorWId', 'motivoWO', 'ganadorBolaId', 'arbitroId', 'arbitroActivoId',
+          'marcadorEnVivo', 'mesa', 'codigoJugador1', 'codigoJugador2', 'codigoCamara'
+        ]) &&
+        request.resource.data.estado in ['pendiente', 'en_curso', 'jugado'] &&
+        (request.resource.data.get('ganadorId', null) == null ||
+          request.resource.data.ganadorId == resource.data.jugador1.id ||
+          request.resource.data.ganadorId == resource.data.jugador2.id);
+    }
+
+    // Avance del ganador: solo ocupa un hueco vacío de la llave siguiente.
+    function avanzaGanador() {
+      let cambios = request.resource.data.diff(resource.data).affectedKeys();
+      return (cambios.hasOnly(['jugador1', 'semilla1', 'actualizadoEn']) && resource.data.get('jugador1', null) == null) ||
+        (cambios.hasOnly(['jugador2', 'semilla2', 'actualizadoEn']) && resource.data.get('jugador2', null) == null);
     }
 
     // Reglas para la colección 'biblioteca_videos' (Grabaciones, Repeticiones y Clips)

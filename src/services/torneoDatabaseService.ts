@@ -29,6 +29,7 @@ import type {
   JugadorTorneo,
 } from '@/types'
 import type { ActualizacionPlayoff } from '@/services/torneoAlgoritmos'
+import { esIdPartidoPlayoff } from '@/services/arbitrajePlayoffs'
 import { obtenerPerfilesPublicos, conPerfilVigente } from '@/services/perfilesPublicosService'
 
 const COLECCION_TORNEOS = 'torneos'
@@ -636,11 +637,31 @@ export const guardarPartidosDB = async (partidos: any[]): Promise<void> => {
   }
 }
 
+/**
+ * Actualiza una llave de eliminatorias ('partidos_playoffs') sin crearla nunca.
+ * Lanza el error de Firestore (p. ej. permisos) para que el llamador pueda informarlo.
+ */
+export const actualizarLlavePlayoffDB = async (llaveId: string, datos: Record<string, unknown>): Promise<void> => {
+  await updateDoc(doc(db, COLECCION_PARTIDOS_PLAYOFFS, llaveId), sanearParaFirestore(datos) as any)
+}
+
+/**
+ * Escritura de un partido arbitrado. Las llaves de eliminatorias ('po-…') se dirigen a
+ * 'partidos_playoffs': si se escribieran en 'partidos' aparecerían como partidos falsos
+ * de la fase de grupos.
+ */
+const escribirPartidoArbitrado = async (partidoId: string, datos: Record<string, unknown>): Promise<void> => {
+  if (esIdPartidoPlayoff(partidoId)) {
+    await actualizarLlavePlayoffDB(partidoId, datos)
+    return
+  }
+  await setDoc(doc(db, COLECCION_PARTIDOS, partidoId), datos, { merge: true })
+}
+
 export const actualizarPartidoDB = async (partidoId: string, datos: any): Promise<void> => {
   const datosLimpios = sanearParaFirestore(datos)
   try {
-    const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
-    await setDoc(pRef, datosLimpios, { merge: true })
+    await escribirPartidoArbitrado(partidoId, datosLimpios)
   } catch (err) {
     console.error(`[actualizarPartidoDB] Error al persistir partido ${partidoId} en Firestore:`, err)
   }
@@ -672,15 +693,8 @@ export const actualizarMarcadorEnVivoDB = async (
 ): Promise<void> => {
   if (!partidoId) return
   try {
-    const pRef = doc(db, COLECCION_PARTIDOS, partidoId)
     if (!marcadorEnVivo) {
-      await setDoc(
-        pRef,
-        {
-          marcadorEnVivo: null,
-        },
-        { merge: true },
-      )
+      await escribirPartidoArbitrado(partidoId, { marcadorEnVivo: null })
       return
     }
 
@@ -710,11 +724,7 @@ export const actualizarMarcadorEnVivoDB = async (
       payloadPartido.marcadorDetallado = marcadorEnVivo.historialSets.map((s: any) => `${s.puntosJugador1}-${s.puntosJugador2}`).join(', ')
     }
 
-    await setDoc(
-      pRef,
-      sanearParaFirestore(payloadPartido),
-      { merge: true },
-    )
+    await escribirPartidoArbitrado(partidoId, sanearParaFirestore(payloadPartido))
   } catch (error) {
     console.error(`[MarcadorEnVivo] Error al actualizar en Firestore para partido ${partidoId}:`, error)
   }
