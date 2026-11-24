@@ -111,4 +111,20 @@ describe('cazagigantes y remontador', () => {
     expect(titulos.get('a')).toContain('remontador')
     expect(titulos.get('b') ?? []).not.toContain('remontador')
   })
+
+  it('el puesto 12 es "Milagroso" y es su banner principal', () => {
+    const filas = Array.from({ length: 14 }, (_, i) =>
+      fila(`j${i + 1}`, { posicion: i + 1, pj: 5, pg: 14 - i > 9 ? 4 : 2, pp: 1, sf: 8, sc: 4 }),
+    )
+    const { titulos } = calcularTitulos(filas, [])
+    expect(titulos.get('j12')?.[0]).toBe('milagroso')
+    expect([...titulos.entries()].filter(([, t]) => t.includes('milagroso')).map(([id]) => id)).toEqual(['j12'])
+  })
+
+  it('no hay Milagroso con menos de 12 jugadores ni antes de jugar', () => {
+    const pocos = Array.from({ length: 8 }, (_, i) => fila(`j${i + 1}`, { posicion: i + 1, pj: 3 }))
+    expect([...calcularTitulos(pocos, []).titulos.values()].flat()).not.toContain('milagroso')
+    const sinJugar = Array.from({ length: 12 }, (_, i) => fila(`j${i + 1}`, { posicion: i + 1 }))
+    expect(calcularTitulos(sinJugar, []).titulos.get('j12') ?? []).not.toContain('milagroso')
+  })
 })

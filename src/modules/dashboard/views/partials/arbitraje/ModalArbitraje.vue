@@ -46,10 +46,23 @@
           <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3.5 flex-1 min-w-0 pr-1 md:pr-4">
             <!-- Badge de Ronda y Estado -->
             <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
-              <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
+              <span
+                v-if="item.partido.fase === 'playoff'"
+                class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 inline-flex items-center gap-1"
+              >
+                <Crown class="w-3 h-3" />
+                {{ item.partido.etiquetaRonda }}
+              </span>
+              <span v-else class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600">
                 Ronda {{ item.partido.ronda || item.partido.jornada || 1 }}
               </span>
-              <span v-if="item.partido.horasRestantes !== undefined && item.partido.horasRestantes <= 0"
+              <span
+                v-if="item.partido.fase === 'playoff' && item.partido.estado === 'en_curso'"
+                class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+              >
+                En juego
+              </span>
+              <span v-else-if="item.partido.horasRestantes !== undefined && item.partido.horasRestantes <= 0"
                 class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 flex items-center gap-1">
                 <AlertTriangle class="w-3 h-3" />
                 >48h Expirado
@@ -105,8 +118,9 @@
               <span>Declarar W</span>
             </Button>
 
-            <!-- Botón Transmitir en Vivo con Validación de PIN -->
+            <!-- Botón Transmitir en Vivo con Validación de PIN (la transmisión aún no cubre llaves de eliminatorias) -->
             <Button
+              v-if="item.partido.fase !== 'playoff'"
               variant="outline"
               size="sm"
               class="gap-1 text-xs border-rose-400 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer font-bold shadow-2xs"
@@ -197,7 +211,7 @@
         </div>
         <div class="flex flex-col items-center gap-1">
           <span class="text-[9px] font-black uppercase tracking-wider text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded border border-sky-800">
-            Ronda {{ partidoSeleccionado.partido.ronda || partidoSeleccionado.partido.jornada || 1 }}
+            {{ partidoSeleccionado.partido.etiquetaRonda || `Ronda ${partidoSeleccionado.partido.ronda || partidoSeleccionado.partido.jornada || 1}` }}
           </span>
           <span class="text-xs font-black font-mono text-emerald-400 px-2 py-0.5 bg-slate-800 rounded">
             VS
@@ -381,8 +395,8 @@
           </select>
         </div>
 
-        <!-- Opción de Prórroga / Plazo de 1 día -->
-        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 text-xs">
+        <!-- Opción de Prórroga / Plazo de 1 día (las llaves de eliminatorias no tienen plazo) -->
+        <div v-if="partidoSeleccionado?.partido.fase !== 'playoff'" class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-3 text-xs">
           <div class="flex items-center gap-2.5">
             <Clock class="w-4 h-4 text-amber-500 shrink-0" />
             <div>
@@ -436,6 +450,7 @@ import {
   Clock,
   Radio,
   PauseCircle,
+  Crown,
 } from 'lucide-vue-next'
 import Modal from '@/components/Modal.vue'
 import Button from '@/components/Button.vue'

@@ -1,6 +1,6 @@
 <template>
   <div class="w-full max-w-full overflow-x-hidden flex flex-col gap-6 animate-in fade-in duration-200">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs transition-colors duration-300">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#0f172a] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-18px_rgba(15,23,42,0.18)] dark:shadow-xs transition-colors duration-300">
       <div class="flex items-start sm:items-center gap-2.5 sm:gap-3">
         <button
           type="button"
@@ -60,28 +60,29 @@
           <span>Transmitir Mesa</span>
         </Button>
 
-        <div class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden w-full sm:w-auto">
+        <div class="flex items-center p-1 bg-slate-100/80 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] dark:shadow-none overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden w-full sm:w-auto">
           <button
             type="button"
             :class="[
-              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
+              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
               tabActiva === 'grafica'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/70 dark:hover:bg-transparent dark:hover:text-white'
             ]"
             @click="tabActiva = 'grafica'"
           >
-            <Activity class="w-3.5 h-3.5" />
-            <span>Gráfica</span>
+            <Swords v-if="enFase2" class="w-3.5 h-3.5" />
+            <Activity v-else class="w-3.5 h-3.5" />
+            <span>{{ enFase2 ? 'Fase 2' : 'Gráfica' }}</span>
           </button>
 
           <button
             type="button"
             :class="[
-              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
+              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
               tabActiva === 'posiciones'
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/70 dark:hover:bg-transparent dark:hover:text-white'
             ]"
             @click="tabActiva = 'posiciones'"
           >
@@ -92,10 +93,10 @@
           <button
             type="button"
             :class="[
-              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
+              'flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer shrink-0 flex-1 sm:flex-none',
               tabActiva === 'playoffs'
                 ? 'bg-amber-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/70 dark:hover:bg-transparent dark:hover:text-white'
             ]"
             @click="tabActiva = 'playoffs'"
           >
@@ -346,7 +347,24 @@
       </div>
     </div>
 
-    <div v-show="tabActiva === 'grafica'" class="w-full grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+    <!-- FASE 2: en cuanto el admin abre las eliminatorias, la gráfica de grupos se reemplaza por esta vista -->
+    <VistaFase2
+      v-if="enFase2"
+      v-show="tabActiva === 'grafica'"
+      :llaves="llavesPlayoff"
+      :rondas="rondasPlayoff"
+      :campeon="campeonPlayoff"
+      :bolsa="bolsaPlayoffFormateada"
+      :es-oficial="playoffsOficiales"
+      :cargando="cargandoPlayoffs"
+      :tabla-posiciones="tablaPosiciones"
+      :clasificados="props.torneo?.clasificadosPlayoffs || 4"
+      :total-arbitrables="llavesArbitrables.length"
+      @ver-cuadro="tabActiva = 'playoffs'"
+      @arbitrar="abrirModalArbitraje"
+    />
+
+    <div v-else v-show="tabActiva === 'grafica'" class="w-full grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
       <div class="lg:col-span-7 w-full bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-4 sm:p-5 flex flex-col items-center overflow-hidden transition-colors duration-300">
         <div class="w-full flex flex-wrap items-center justify-center sm:justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-2.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">
           <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5">
@@ -406,7 +424,11 @@
     </div>
 
     <div v-show="tabActiva === 'posiciones'" class="w-full">
-      <TablaPosicionesGrupo :posiciones="tablaPosiciones" :partidos="partidos" />
+      <TablaPosicionesGrupo
+        :posiciones="tablaPosiciones"
+        :partidos="partidos"
+        :clasificados="props.torneo?.clasificadosPlayoffs"
+      />
     </div>
 
     <!-- VISTA DE ELIMINATORIAS (PLAYOFFS) -->
@@ -438,7 +460,7 @@
       ref="modalArbitrajeRef"
       :arbitro="arbitroActual"
       :jugadores-torneo="jugadores"
-      :partidos-disponibles="partidosDisponiblesParaArbitrar"
+      :partidos-disponibles="partidosParaArbitrar"
       @validar-codigos="handleValidarCodigos"
       @iniciar-partido="handleIniciarPartidoArbitrado"
       @iniciar-transmision="handleIniciarTransmisionArbitrado"
@@ -523,7 +545,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock, Radio, Play } from 'lucide-vue-next'
+import { ArrowLeft, Activity, ListOrdered, Crown, RotateCcw, ShieldCheck, Clock, Radio, Play, Swords } from 'lucide-vue-next'
 import Button from '@/components/Button.vue'
 import RuedaBurbujas from './RuedaBurbujas.vue'
 import TablaPosicionesGrupo from './TablaPosicionesGrupo.vue'
@@ -537,7 +559,10 @@ import ModalTransmisionEnVivo from '@/modules/streaming/components/ModalTransmis
 import ModalVincularCamara from '@/modules/streaming/components/ModalVincularCamara.vue'
 import CardAvanceTorneo from './CardAvanceTorneo.vue'
 import CardInfoRival from './CardInfoRival.vue'
+import VistaFase2 from './VistaFase2.vue'
 import { useTorneoGrupo } from '@/modules/dashboard/composables/useTorneoGrupo'
+import { usePlayoffs } from '@/modules/dashboard/composables/usePlayoffs'
+import { useArbitrajePlayoffs } from '@/modules/dashboard/composables/useArbitrajePlayoffs'
 import { useWebRTCStream } from '@/modules/streaming/composables/useWebRTCStream'
 import type { Torneo, BurbujaRival, PartidoArbitrable, SetPartido, PartidoGrupo, MarcadorEnVivo } from '@/types'
 
@@ -588,6 +613,46 @@ const {
   jugadorMasMallero,
 } = useTorneoGrupo(props.torneo)
 
+// ==========================================
+// FASE 2 (ELIMINATORIAS): cuadro en tiempo real y arbitraje de llaves
+// ==========================================
+const {
+  partidos: llavesPlayoff,
+  partidosOficiales: llavesPlayoffOficiales,
+  rondas: rondasPlayoff,
+  campeon: campeonPlayoff,
+  bolsaPremioFormateada: bolsaPlayoffFormateada,
+  esOficial: playoffsOficiales,
+  cargando: cargandoPlayoffs,
+} = usePlayoffs(
+  () => tablaPosiciones.value,
+  () => props.torneo?.clasificadosPlayoffs || 4,
+  () => props.torneo,
+)
+
+// La vista cambia sola cuando el admin abre la Fase 2: por el documento del torneo
+// o, en tiempo real, en cuanto aparecen las llaves en 'partidos_playoffs'.
+const enFase2 = computed(
+  () =>
+    props.torneo?.faseActual === 'playoffs' ||
+    Boolean(props.torneo?.playoffsAbiertos) ||
+    playoffsOficiales.value,
+)
+
+const arbitrajePlayoffs = useArbitrajePlayoffs({
+  llaves: llavesPlayoffOficiales,
+  torneo: () => props.torneo,
+  arbitroId: () => usuarioActual?.id,
+})
+const llavesArbitrables = arbitrajePlayoffs.arbitrables
+
+// Llaves de eliminatorias primero: en Fase 2 la fase de grupos ya está cerrada
+const partidosParaArbitrar = computed<PartidoArbitrable[]>(() =>
+  enFase2.value
+    ? [...llavesArbitrables.value, ...partidosDisponiblesParaArbitrar.value]
+    : partidosDisponiblesParaArbitrar.value,
+)
+
 const bolsaTotalCalculada = computed(() => {
   const costo = Number(props.torneo?.costoInscripcion) || 6000
   const total = Math.max(
@@ -626,7 +691,9 @@ const handleValidarCodigos = async (
   callback: (res: { valido: boolean; mensaje: string }) => void,
 ) => {
   try {
-    const resultado = await validarCodigosArbitraje(datos.partidoId, datos.codigo1, datos.codigo2)
+    const resultado = arbitrajePlayoffs.esLlave(datos.partidoId)
+      ? await arbitrajePlayoffs.validarCodigos(datos.partidoId, datos.codigo1, datos.codigo2)
+      : await validarCodigosArbitraje(datos.partidoId, datos.codigo1, datos.codigo2)
     callback(resultado)
   } catch (err: any) {
     console.error('Error al validar códigos:', err)
@@ -646,6 +713,12 @@ const handleDeclararWalkover = (datos: {
   perdedorId: string
   motivo: string
 }) => {
+  if (arbitrajePlayoffs.esLlave(datos.partidoId)) {
+    arbitrajePlayoffs
+      .declararWalkover(datos.partidoId, datos.ganadorId, datos.perdedorId, datos.motivo)
+      .catch((err: any) => mostrarAlertaElegante(err?.message || 'No se pudo registrar el W.O. de la llave.'))
+    return
+  }
   registrarVictoriaPorWO(datos.partidoId, datos.ganadorId, datos.perdedorId, datos.motivo)
 }
 
@@ -653,6 +726,8 @@ const handleProrrogarPartido = async (datos: {
   partidoId: string
   horasExtra: number
 }) => {
+  // Las llaves de eliminatorias no tienen plazo de 48h
+  if (arbitrajePlayoffs.esLlave(datos.partidoId)) return
   await prorrogarPlazoPartido(datos.partidoId, datos.horasExtra)
 }
 
@@ -670,6 +745,15 @@ const handlePartidoFinalizado = async (datos: {
     await detenerTransmision()
     modalCamaraTransmisionRef.value?.close()
   }
+  if (arbitrajePlayoffs.esLlave(datos.partidoId)) {
+    try {
+      await arbitrajePlayoffs.registrarResultado(datos.partidoId, datos.sets, datos.ganadorId, datos)
+    } catch (err: any) {
+      console.error('Error al registrar la llave de eliminatorias:', err)
+      mostrarAlertaElegante(err?.message || 'No se pudo registrar el resultado de la llave.')
+    }
+    return
+  }
   await registrarResultadoPartido(datos.partidoId, datos.sets, datos.ganadorId, datos)
 }
 
@@ -677,6 +761,10 @@ const handleActualizarMarcadorEnVivo = async (datos: {
   partidoId: string
   marcadorEnVivo: MarcadorEnVivo
 }) => {
+  if (arbitrajePlayoffs.esLlave(datos.partidoId)) {
+    await arbitrajePlayoffs.actualizarMarcador(datos.partidoId, datos.marcadorEnVivo)
+    return
+  }
   await actualizarMarcadorEnVivo(datos.partidoId, datos.marcadorEnVivo)
 }
 

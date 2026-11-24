@@ -72,12 +72,13 @@
     <!-- Insignia lateral Discord Badge Chip -->
     <div class="relative z-10 flex items-center shrink-0 pl-1.5">
       <div
-        class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-950/85 border backdrop-blur-md"
+        class="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-950/85 border backdrop-blur-md"
         :class="cfg(fila).chip"
-        :title="cfg(fila).descripcion(fila)"
+        :title="cfg(fila).nombre + ': ' + cfg(fila).descripcion(fila)"
       >
         <span class="text-xs">{{ cfg(fila).emoji }}</span>
-        <span>{{ cfg(fila).etiqueta(fila) }}</span>
+        <!-- En móvil solo el emoji: la tabla ya hace scroll horizontal y el texto la ensancha -->
+        <span class="hidden sm:inline">{{ cfg(fila).etiqueta(fila) }}</span>
       </div>
     </div>
   </div>
@@ -87,7 +88,7 @@
 import { computed } from 'vue'
 import type { FilaPosicion } from '@/types'
 import AvatarJugador from '@/components/AvatarJugador.vue'
-import { TOP_GIGANTES, type ResultadoTitulos, type TituloTabla } from '../../../composables/titulosTabla'
+import { PUESTO_MILAGROSO, TOP_GIGANTES, type ResultadoTitulos, type TituloTabla } from '../../../composables/titulosTabla'
 
 /**
  * Banner estilo Discord del título principal de un jugador en la tabla de posiciones
@@ -132,7 +133,25 @@ const ICONO_ESPADA = 'M6.9 14.4L3 18.3 5.7 21l3.9-3.9 1.4 1.4 1.4-1.4-1.4-1.4L20
 const ICONO_FLECHA = 'M12 4V1L8 5l4 4V6a6 6 0 11-6 6H4a8 8 0 108-8z'
 const ICONO_COPO ='M11 2h2v4.6l3.3-3.3 1.4 1.4L13 9.4V11h1.6l4.7-4.7 1.4 1.4L17.4 11H22v2h-4.6l3.3 3.3-1.4 1.4L14.6 13H13v1.6l4.7 4.7-1.4 1.4L13 17.4V22h-2v-4.6l-3.3 3.3-1.4-1.4L11 14.6V13H9.4l-4.7 4.7-1.4-1.4L6.6 13H2v-2h4.6L3.3 7.7l1.4-1.4L9.4 11H11V9.4L6.3 4.7l1.4-1.4L11 6.6V2z'
 
+const ICONO_DESTELLO = 'M12 1l2.6 7.4L22 11l-7.4 2.6L12 21l-2.6-7.4L2 11l7.4-2.6L12 1zm7 13l1.1 2.9L23 18l-2.9 1.1L19 22l-1.1-2.9L15 18l2.9-1.1L19 14z'
+
 const CONFIG_TITULOS: Record<TituloTabla, ConfigTitulo> = {
+  milagroso: {
+    nombre: 'Milagroso',
+    emoji: '🙏',
+    icono: ICONO_DESTELLO,
+    banner: 'banner-fondito-milagroso',
+    resplandor: 'bg-sky-300/25',
+    marcaAgua: 'text-sky-100/15',
+    avatarFondo: 'bg-gradient-to-br from-sky-400 to-indigo-900',
+    avatarAro: 'ring-amber-200/90 shadow-[0_0_10px_rgba(253,230,138,0.55)]',
+    punto: 'bg-amber-300',
+    subtituloColor: 'text-sky-100/90',
+    chip: 'text-amber-200 border-amber-300/80 shadow-[0_0_10px_rgba(252,211,77,0.35)]',
+    etiqueta: (f) => `Milagroso (#${f.posicion ?? PUESTO_MILAGROSO})`,
+    subtitulo: () => `Puesto ${PUESTO_MILAGROSO} · Clasificó de milagro`,
+    descripcion: () => `Se aferró al puesto ${PUESTO_MILAGROSO}, el último cupo a eliminatorias: ¡clasificó de milagro!`,
+  },
   invicto: {
     nombre: 'Invicto',
     emoji: '🛡️',
@@ -403,5 +422,18 @@ const cfg = (fila: FilaPosicion): ConfigTitulo => CONFIG_TITULOS[tituloPrincipal
     0 4px 16px -2px rgba(6, 182, 212, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
     inset 0 0 12px rgba(6, 182, 212, 0.15);
+}
+
+/* Milagroso: cielo nocturno con halo dorado (clasificó de milagro en el último cupo) */
+.banner-fondito-milagroso {
+  background:
+    radial-gradient(circle at 12% 50%, rgba(253, 224, 71, 0.38) 0%, transparent 45%),
+    radial-gradient(circle at 88% 40%, rgba(125, 211, 252, 0.3) 0%, transparent 60%),
+    linear-gradient(135deg, #0c4a6e 0%, #1d4ed8 30%, #4338ca 65%, #0f172a 100%);
+  border: 1px solid rgba(253, 230, 138, 0.7);
+  box-shadow:
+    0 4px 16px -2px rgba(56, 189, 248, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 0 14px rgba(253, 224, 71, 0.18);
 }
 </style>

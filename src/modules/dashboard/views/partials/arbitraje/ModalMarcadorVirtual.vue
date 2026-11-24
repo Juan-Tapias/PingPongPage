@@ -45,8 +45,9 @@
             </div>
 
             <div class="flex items-center gap-2">
-              <!-- Estado y Código de Cámara de Mesa (Trípode) -->
+              <!-- Estado y Código de Cámara de Mesa (Trípode). La transmisión aún no cubre llaves de eliminatorias -->
               <button
+                v-if="!esLlaveEliminatoria"
                 type="button"
                 class="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-black shadow-md transition-all cursor-pointer border select-none"
                 :class="camaraTransmitiendo ? 'bg-rose-950/80 hover:bg-rose-900 border-rose-500/60 text-rose-200' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'"
@@ -826,6 +827,7 @@ const props = defineProps<{
 
 const matchInterno = ref<PartidoArbitrable | null>(null)
 const matchActual = computed(() => matchInterno.value || props.match)
+const esLlaveEliminatoria = computed(() => matchActual.value?.partido.fase === 'playoff')
 
 // Estado de cámara de mesa (trípode)
 const mostrarModalCodigoCamara = ref(false)
@@ -1370,7 +1372,7 @@ const open = (partidoDirecto?: PartidoArbitrable) => {
   }
 
   // Asegurar que el partido tenga su código de cámara de 4 dígitos generado
-  if (matchActual.value?.partido && !matchActual.value.partido.codigoCamara) {
+  if (matchActual.value?.partido && !matchActual.value.partido.codigoCamara && !esLlaveEliminatoria.value) {
     const pin = Math.floor(1000 + Math.random() * 9000).toString()
     matchActual.value.partido.codigoCamara = pin
     actualizarPartidoDB(matchActual.value.partido.id, { codigoCamara: pin }).catch(() => {})

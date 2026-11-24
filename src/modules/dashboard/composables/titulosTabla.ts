@@ -18,8 +18,10 @@ export type TituloTabla =
   | 'muralla'
   | 'rachaFria'
   | 'enLucha'
+  | 'milagroso'
 
 export const PRIORIDAD_TITULOS: TituloTabla[] = [
+  'milagroso',
   'invicto',
   'reyMalla',
   'enRacha',
@@ -36,6 +38,9 @@ export const RACHA_MINIMA = 3
 
 /** Cuántos de arriba de la tabla cuentan como "gigantes" para el Cazagigantes. */
 export const TOP_GIGANTES = 3
+
+/** Puesto de la tabla que recibe el título "Milagroso" (último cupo a eliminatorias en el formato Top 12). */
+export const PUESTO_MILAGROSO = 12
 
 export interface ResultadoTitulos {
   titulos: Map<string, TituloTabla[]>
@@ -140,8 +145,9 @@ export const calcularTitulos = (filas: FilaPosicion[], partidos: PartidoGrupo[])
   }
   const maxRemontadas = Math.max(0, ...remontadas.values())
 
-  for (const f of filas) {
+  filas.forEach((f, i) => {
     const racha = rachas.get(f.jugadorId) ?? { victorias: 0, derrotas: 0 }
+    if (f.pj > 0 && (f.posicion || i + 1) === PUESTO_MILAGROSO) dar(f.jugadorId, 'milagroso')
     if (f.pj >= minPJ && f.pp === 0) dar(f.jugadorId, 'invicto')
     if (maxMallas > 0 && (f.mallas || 0) === maxMallas) dar(f.jugadorId, 'reyMalla')
     if (mejorRachaV >= RACHA_MINIMA && racha.victorias === mejorRachaV) dar(f.jugadorId, 'enRacha')
@@ -151,7 +157,7 @@ export const calcularTitulos = (filas: FilaPosicion[], partidos: PartidoGrupo[])
     if (murallas.has(f.jugadorId)) dar(f.jugadorId, 'muralla')
     if (mejorRachaD >= RACHA_MINIMA && racha.derrotas === mejorRachaD) dar(f.jugadorId, 'rachaFria')
     if (f.pj >= minPJ && f.pg === 0) dar(f.jugadorId, 'enLucha')
-  }
+  })
 
   // Ordenar por prioridad: el primero es el banner principal
   for (const [id, lista] of titulos) {

@@ -133,6 +133,9 @@ export interface PartidoGrupo {
   prorrogaOtorgada?: boolean      // Indica si se otorgó plazo extra de 24h
   ronda?: number
   jornada?: number           // Ronda del fixture (Algoritmo Berger)
+  // Llaves de eliminatorias adaptadas al flujo de arbitraje (mismo modal y marcador virtual)
+  fase?: 'grupos' | 'playoff'
+  etiquetaRonda?: string     // ej: "Cuartos de Final 3" (solo llaves de playoffs)
   esBye?: boolean            // Fecha libre por ser número impar de jugadores
   enVivo?: boolean           // Partido disputándose actualmente
   mesa?: string              // Mesa física o asignada (ej. 'Mesa 1')
@@ -257,6 +260,19 @@ export interface PartidoPlayoff {
   siguientePartidoId?: string | null // Llave a la que avanza el ganador (null en la final)
   siguienteSlot?: SlotPlayoff | null // Slot (jugador1 / jugador2) que ocupa el ganador en la siguiente llave
   actualizadoEn?: number
+  // Arbitraje de la llave (jugador registrado que no participa, o admin)
+  sets?: SetPartido[]
+  esWalkover?: boolean
+  perdedorPorWId?: string | null
+  motivoWO?: string | null
+  ganadorBolaId?: string | null
+  arbitroId?: string | null
+  arbitroActivoId?: string | null
+  marcadorEnVivo?: MarcadorEnVivo | null
+  mesa?: string
+  codigoJugador1?: string
+  codigoJugador2?: string
+  codigoCamara?: string
 }
 export interface CuadroPlayoffs {
   playIn: PartidoPlayoff[]     // Anillo 3 (Puestos 5 al 12)
